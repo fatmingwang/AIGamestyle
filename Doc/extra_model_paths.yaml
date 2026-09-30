@@ -1,0 +1,31 @@
+#C:\Users\client\Desktop\AI\models   build machine(localhost)
+qoo_models:
+  #copy to _comfyui\ComfyUI
+  #base_path: C:/Users/client/Desktop/AI/models  
+  base_path: D:/Work/AI/models/models
+
+  audio_encoders: audio_encoders
+  background_removal: background_removal
+  checkpoints: checkpoints
+  clip: clip
+  clip_vision: clip_vision
+  configs: configs
+  controlnet: controlnet
+  diffusers: diffusers
+  diffusion_models: diffusion_models
+  embeddings: embeddings
+  frame_interpolation: frame_interpolation
+  gligen: gligen
+  hypernetworks: hypernetworks
+  ipadapter: ipadapter
+  latent_upscale_models: latent_upscale_models
+  loras: loras
+  model_patches: model_patches
+  optical_flow: optical_flow
+  photomaker: photomaker
+  style_models: style_models
+  text_encoders: text_encoders
+  unet: unet
+  upscale_models: upscale_models
+  vae: vae
+  vae_approx: vae_approx

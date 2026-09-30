@@ -1,0 +1,211 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "1.Load Checkpoint"
+    }
+  },
+  "2": {
+    "inputs": {
+      "image": "reference.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "2.Load Reference Image"
+    }
+  },
+  "3": {
+    "inputs": {
+      "text": "cartoon game symbol icon, clean edges, polished render, vibrant colors, high quality game art",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "3.CLIP Text Encode Positive"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "blurry, low quality, distorted, realistic, photorealistic, ugly, noisy, watermark",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "4.CLIP Text Encode Negative"
+    }
+  },
+  "5": {
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "5.Load CLIP Vision"
+    }
+  },
+  "6": {
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "class_type": "IPAdapterModelLoader",
+    "_meta": {
+      "title": "6.IPAdapter Model Loader"
+    }
+  },
+  "7": {
+    "inputs": {
+      "weight": 0.7,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "model": [
+        "1",
+        0
+      ],
+      "ipadapter": [
+        "6",
+        0
+      ],
+      "image": [
+        "2",
+        0
+      ],
+      "clip_vision": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "IPAdapterAdvanced",
+    "_meta": {
+      "title": "7.IPAdapter Advanced"
+    }
+  },
+  "8": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "8.Empty Latent Image"
+    }
+  },
+  "9": {
+    "inputs": {
+      "seed": 42,
+      "steps": 20,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m_sde",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "7",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "9.KSampler"
+    }
+  },
+  "10": {
+    "inputs": {
+      "samples": [
+        "9",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "10.VAE Decode"
+    }
+  },
+  "11": {
+    "inputs": {
+      "image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "11.Get Reference Size"
+    }
+  },
+  "12": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": [
+        "11",
+        0
+      ],
+      "height": [
+        "11",
+        1
+      ],
+      "crop": "disabled",
+      "image": [
+        "10",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "12.Downscale to Source Size"
+    }
+  },
+  "13": {
+    "inputs": {
+      "torchscript_jit": "on",
+      "image": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "InspyrenetRembg",
+    "_meta": {
+      "title": "13.Remove Background"
+    }
+  },
+  "14": {
+    "inputs": {
+      "filename_prefix": "ImageWithPrompt",
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "14.Save Image"
+    }
+  }
+}

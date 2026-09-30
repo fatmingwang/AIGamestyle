@@ -1,0 +1,16 @@
+{
+  "projectRoot": ".",
+  "outputFolder": "./output/10020",
+  "assetRoot": "./assets/game",
+  "heroReference": "",
+  "positivePrompt": "",
+  "negativePrompt": "",
+  "styleProfileId": "default_parameters",
+  "batchId": "batch_demo",
+  "comfyuiServer": "127.0.0.1:8188",
+  "pythonExe": "python3",
+  "ipAdapterWeight": 0.75,
+  "denoise": 0.80,
+  "steps": 30,
+  "includeSpine": false
+}

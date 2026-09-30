@@ -1,0 +1,53 @@
+{
+  "_comment": "Prompt categories for run_imagewithprompt.py. Keys are matched against --category. 'default' is the fallback.",
+
+  "symbol_high": {
+    "positive": "high-value game symbol icon, bold jewel or crown design, luxurious, glowing, vibrant gold and purple colors, cartoon game art style, clean transparent edges, polished render, high quality game icon",
+    "negative": "blurry, low quality, distorted shape, broken silhouette, realistic, photorealistic, ugly, noisy, watermark, text"
+  },
+
+  "symbol_low": {
+    "positive": "playing card symbol game icon, A K Q J 10 card letter, cartoon game art style, colorful, clean transparent edges, polished render, high quality game icon",
+    "negative": "blurry, low quality, distorted, realistic, photorealistic, ugly, noisy, watermark, extra symbols"
+  },
+
+  "symbol_wild": {
+    "positive": "WILD game symbol icon, bold star or lightning design, glowing aura, highly stylized, vibrant colors, cartoon game art style, clean transparent edges, polished render, high quality game icon",
+    "negative": "blurry, low quality, distorted, realistic, ugly, noisy, watermark, plain, boring"
+  },
+
+  "symbol_scatter": {
+    "positive": "SCATTER or BONUS game symbol icon, special bonus badge design, glowing, exciting, vibrant colors, cartoon game art style, clean transparent edges, polished render, high quality game icon",
+    "negative": "blurry, low quality, distorted, realistic, ugly, noisy, watermark, dull"
+  },
+
+  "background": {
+    "positive": "cartoon game background scene, wide landscape, colorful painterly environment, polished game art, rich details, atmospheric lighting, high quality game background",
+    "negative": "blurry, low quality, distorted, realistic photo, photorealistic, ugly, noisy, watermark, UI elements, icons"
+  },
+
+  "character": {
+    "positive": "cartoon game character portrait icon, same pose and composition, expressive face, vibrant colors, clean edges, polished render, high quality game character art",
+    "negative": "blurry, low quality, deformed, bad anatomy, extra limbs, realistic, photorealistic, ugly, watermark"
+  },
+
+  "panel": {
+    "positive": "cartoon game UI panel element, clean layout, matching theme, readable design, polished, colorful, high quality game UI art",
+    "negative": "blurry, unreadable, distorted layout, broken elements, realistic, low quality, ugly, watermark"
+  },
+
+  "button": {
+    "positive": "cartoon game button UI element, clean rounded shape, matching theme, polished, colorful, high quality game UI art",
+    "negative": "blurry, distorted, broken shape, realistic, low quality, ugly, watermark"
+  },
+
+  "icon": {
+    "positive": "cartoon game icon, clean silhouette, matching art style, vibrant colors, polished render, transparent background, high quality game icon",
+    "negative": "blurry, low quality, distorted silhouette, realistic, photorealistic, ugly, noisy, watermark"
+  },
+
+  "default": {
+    "positive": "cartoon game asset, matching art style, same color palette and mood, clean edges, vibrant colors, polished render, high quality game art",
+    "negative": "blurry, low quality, distorted, realistic, photorealistic, ugly, noisy, watermark"
+  }
+}

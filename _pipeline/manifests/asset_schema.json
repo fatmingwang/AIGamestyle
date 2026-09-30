@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SkinBuilder Asset Manifest Entry",
+  "type": "object",
+  "required": [
+    "asset_id",
+    "asset_path",
+    "asset_type",
+    "category",
+    "character_id",
+    "source_group",
+    "style_profile_id",
+    "status",
+    "updated_at"
+  ],
+  "properties": {
+    "asset_id": { "type": "string" },
+    "asset_path": { "type": "string" },
+    "asset_type": {
+      "type": "string",
+      "enum": [
+        "static",
+        "spine_attachment",
+        "spine_atlas_region",
+        "spine_source",
+        "unknown"
+      ]
+    },
+    "category": { "type": "string" },
+    "character_id": { "type": "string" },
+    "source_group": { "type": "string" },
+    "style_profile_id": { "type": "string" },
+    "style_version": { "type": "string" },
+    "variant": { "type": "string" },
+    "skeleton_id": { "type": ["string", "null"] },
+    "slot_name": { "type": ["string", "null"] },
+    "attachment_name": { "type": ["string", "null"] },
+    "atlas_page": { "type": ["string", "null"] },
+    "status": {
+      "type": "string",
+      "enum": [
+        "discovered",
+        "classified",
+        "linked",
+        "style_planned",
+        "qa_pass",
+        "qa_fail",
+        "published"
+      ]
+    },
+    "owner": { "type": ["string", "null"] },
+    "reviewer": { "type": ["string", "null"] },
+    "batch_id": { "type": ["string", "null"] },
+    "qa_result": { "type": ["string", "null"] },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "updated_at": { "type": "string" }
+  }
+}

@@ -1,0 +1,795 @@
+{
+  "config": {},
+  "extra": {
+    "VHS_KeepIntermediate": true,
+    "VHS_MetadataImage": true,
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "ds": {
+      "offset": [
+        816.6334586543387,
+        645.1786028964514
+      ],
+      "scale": 0.33123273087111704
+    },
+    "frontendVersion": "1.42.1",
+    "linearData": {
+      "inputs": [
+        [
+          2,
+          "image"
+        ],
+        [
+          1,
+          "image"
+        ]
+      ],
+      "outputs": [
+        7,
+        5,
+        3
+      ]
+    },
+    "linearMode": true,
+    "ue_links": [],
+    "workflowRendererVersion": "LG"
+  },
+  "groups": [
+    {
+      "bounding": [
+        210,
+        200,
+        330,
+        790
+      ],
+      "color": "#8A8",
+      "flags": {},
+      "font_size": 24,
+      "id": 1,
+      "title": "Input Images"
+    },
+    {
+      "bounding": [
+        570,
+        200,
+        790,
+        620
+      ],
+      "color": "#3f789e",
+      "flags": {},
+      "font_size": 24,
+      "id": 2,
+      "title": "Run Nano Banana"
+    },
+    {
+      "bounding": [
+        1870,
+        200,
+        750,
+        616.6666666666667
+      ],
+      "color": "#b58b2a",
+      "flags": {},
+      "font_size": 24,
+      "id": 3,
+      "title": "Output Textures"
+    },
+    {
+      "bounding": [
+        210,
+        1020,
+        327.8434594166669,
+        190.3785690833333
+      ],
+      "color": "#8A8",
+      "flags": {},
+      "font_size": 24,
+      "id": 4,
+      "title": "Input Object"
+    }
+  ],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "last_link_id": 24,
+  "last_node_id": 22,
+  "links": [
+    [
+      1,
+      4,
+      0,
+      3,
+      0,
+      "IMAGE"
+    ],
+    [
+      2,
+      8,
+      0,
+      4,
+      0,
+      "IMAGE"
+    ],
+    [
+      3,
+      8,
+      0,
+      5,
+      0,
+      "IMAGE"
+    ],
+    [
+      6,
+      2,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      7,
+      8,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      14,
+      2,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      1,
+      0,
+      16,
+      1,
+      "IMAGE"
+    ],
+    [
+      16,
+      16,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      19,
+      0,
+      17,
+      0,
+      "STRING"
+    ],
+    [
+      21,
+      17,
+      0,
+      21,
+      0,
+      "STRING"
+    ],
+    [
+      22,
+      20,
+      0,
+      21,
+      1,
+      "STRING"
+    ],
+    [
+      23,
+      22,
+      0,
+      17,
+      1,
+      "STRING"
+    ],
+    [
+      24,
+      21,
+      0,
+      8,
+      2,
+      "STRING"
+    ]
+  ],
+  "nodes": [
+    {
+      "bgcolor": "#653",
+      "color": "#432",
+      "flags": {},
+      "id": 4,
+      "inputs": [
+        {
+          "link": 2,
+          "name": "image",
+          "type": "IMAGE"
+        }
+      ],
+      "mode": 0,
+      "order": 9,
+      "outputs": [
+        {
+          "links": [
+            1
+          ],
+          "name": "IMAGE",
+          "type": "IMAGE"
+        },
+        {
+          "links": null,
+          "name": "MASK",
+          "type": "MASK"
+        }
+      ],
+      "pos": [
+        1418.6668600237565,
+        708.3334349890728
+      ],
+      "properties": {
+        "Node name for S&R": "RecraftRemoveBackgroundNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.9.2",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        408.33333333333337,
+        60.1171875
+      ],
+      "type": "RecraftRemoveBackgroundNode",
+      "widgets_values": []
+    },
+    {
+      "flags": {
+        "collapsed": true
+      },
+      "id": 20,
+      "inputs": [],
+      "mode": 0,
+      "order": 0,
+      "outputs": [
+        {
+          "links": [
+            22
+          ],
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        600,
+        760
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        210,
+        88
+      ],
+      "type": "PrimitiveStringMultiline",
+      "widgets_values": [
+        " and restyle into the style of image 2. Black background"
+      ]
+    },
+    {
+      "flags": {
+        "collapsed": true
+      },
+      "id": 17,
+      "inputs": [
+        {
+          "link": 17,
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          }
+        },
+        {
+          "link": 23,
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          }
+        }
+      ],
+      "mode": 0,
+      "order": 6,
+      "outputs": [
+        {
+          "links": [
+            21
+          ],
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        600.3334135376938,
+        598.3335141500406
+      ],
+      "properties": {
+        "Node name for S&R": "StringConcatenate",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        210,
+        166
+      ],
+      "type": "StringConcatenate",
+      "widgets_values": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "flags": {
+        "collapsed": true
+      },
+      "id": 19,
+      "inputs": [],
+      "mode": 0,
+      "order": 1,
+      "outputs": [
+        {
+          "links": [
+            17
+          ],
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        600.3334135376938,
+        528.3334090032613
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        210,
+        88
+      ],
+      "type": "PrimitiveStringMultiline",
+      "widgets_values": [
+        "strictly preserve the composition and outline of image 1. Reskin image 1 as "
+      ]
+    },
+    {
+      "flags": {
+        "collapsed": true
+      },
+      "id": 21,
+      "inputs": [
+        {
+          "link": 21,
+          "name": "string_a",
+          "type": "STRING",
+          "widget": {
+            "name": "string_a"
+          }
+        },
+        {
+          "link": 22,
+          "name": "string_b",
+          "type": "STRING",
+          "widget": {
+            "name": "string_b"
+          }
+        }
+      ],
+      "mode": 0,
+      "order": 7,
+      "outputs": [
+        {
+          "links": [
+            24
+          ],
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        600,
+        680
+      ],
+      "properties": {
+        "Node name for S&R": "StringConcatenate",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        210,
+        166
+      ],
+      "type": "StringConcatenate",
+      "widgets_values": [
+        "",
+        "",
+        ""
+      ]
+    },
+    {
+      "flags": {},
+      "id": 1,
+      "inputs": [],
+      "mode": 0,
+      "order": 2,
+      "outputs": [
+        {
+          "links": [
+            15
+          ],
+          "name": "IMAGE",
+          "type": "IMAGE"
+        },
+        {
+          "links": null,
+          "name": "MASK",
+          "type": "MASK"
+        }
+      ],
+      "pos": [
+        230.33333210691532,
+        648.3334193402364
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ue_properties": {
+          "input_ue_unconnectable": {},
+          "version": "7.1",
+          "widget_ue_connectable": {}
+        },
+        "ver": "0.3.52",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        274.0494791666667,
+        314
+      ],
+      "title": "Style Reference",
+      "type": "LoadImage",
+      "widgets_values": [
+        "game_style.png",
+        "image"
+      ]
+    },
+    {
+      "flags": {},
+      "id": 16,
+      "inputs": [
+        {
+          "label": "image0",
+          "link": 14,
+          "name": "images.image0",
+          "type": "IMAGE"
+        },
+        {
+          "label": "image1",
+          "link": 15,
+          "name": "images.image1",
+          "type": "IMAGE"
+        },
+        {
+          "label": "image2",
+          "link": null,
+          "name": "images.image2",
+          "shape": 7,
+          "type": "IMAGE"
+        }
+      ],
+      "mode": 0,
+      "order": 5,
+      "outputs": [
+        {
+          "links": [
+            16
+          ],
+          "name": "IMAGE",
+          "type": "IMAGE"
+        }
+      ],
+      "pos": [
+        600.3334135376938,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "BatchImagesNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        187.5,
+        86
+      ],
+      "type": "BatchImagesNode",
+      "widgets_values": []
+    },
+    {
+      "bgcolor": "#653",
+      "color": "#432",
+      "flags": {},
+      "id": 8,
+      "inputs": [
+        {
+          "link": 16,
+          "name": "images",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "link": null,
+          "name": "files",
+          "shape": 7,
+          "type": "GEMINI_INPUT_FILES"
+        },
+        {
+          "link": 24,
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          }
+        }
+      ],
+      "mode": 0,
+      "order": 8,
+      "outputs": [
+        {
+          "links": [
+            2,
+            3,
+            7
+          ],
+          "name": "IMAGE",
+          "type": "IMAGE"
+        },
+        {
+          "links": null,
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        850.3333359561814,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "GeminiImage2Node",
+        "cnr_id": "comfy-core",
+        "ver": "0.9.2",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        409.97395833333337,
+        469.97395833333337
+      ],
+      "type": "GeminiImage2Node",
+      "widgets_values": [
+        "",
+        "gemini-3-pro-image-preview",
+        605332021762553,
+        "randomize",
+        "1:1",
+        "1K",
+        "IMAGE",
+        "You are an expert image-generation engine. You must ALWAYS produce an image.\nInterpret all user input—regardless of format, intent, or abstraction—as literal visual directives for image composition.\nIf a prompt is conversational or lacks specific visual details, you must creatively invent a concrete visual scenario that depicts the concept.\nPrioritize generating the visual representation above any text, formatting, or conversational requests."
+      ]
+    },
+    {
+      "flags": {},
+      "id": 2,
+      "inputs": [],
+      "mode": 0,
+      "order": 3,
+      "outputs": [
+        {
+          "links": [
+            6,
+            14
+          ],
+          "name": "IMAGE",
+          "type": "IMAGE"
+        },
+        {
+          "links": null,
+          "name": "MASK",
+          "type": "MASK"
+        }
+      ],
+      "pos": [
+        230.33333210691532,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ue_properties": {
+          "input_ue_unconnectable": {},
+          "version": "7.1",
+          "widget_ue_connectable": {}
+        },
+        "ver": "0.3.52",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        274.0494791666667,
+        314
+      ],
+      "title": "Sprite Reference",
+      "type": "LoadImage",
+      "widgets_values": [
+        "gas_lamp.png",
+        "image"
+      ]
+    },
+    {
+      "flags": {},
+      "id": 7,
+      "inputs": [
+        {
+          "link": 6,
+          "name": "image_a",
+          "shape": 7,
+          "type": "IMAGE"
+        },
+        {
+          "link": 7,
+          "name": "image_b",
+          "shape": 7,
+          "type": "IMAGE"
+        }
+      ],
+      "mode": 0,
+      "order": 11,
+      "outputs": [],
+      "pos": [
+        1420.33348417369,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "ImageCompare",
+        "cnr_id": "comfy-core",
+        "ver": "0.9.2",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        403.02083333333337,
+        342.3307291666667
+      ],
+      "type": "ImageCompare",
+      "widgets_values": []
+    },
+    {
+      "flags": {},
+      "id": 5,
+      "inputs": [
+        {
+          "link": 3,
+          "name": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "mode": 0,
+      "order": 10,
+      "outputs": [],
+      "pos": [
+        1890,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "enableTabs": false,
+        "hasSecondTab": false,
+        "secondTabOffset": 80,
+        "secondTabText": "Send Back",
+        "secondTabWidth": 65,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "ver": "0.5.1",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        341.6666666666667,
+        425
+      ],
+      "title": "Save texture",
+      "type": "SaveImage",
+      "widgets_values": [
+        "texture"
+      ]
+    },
+    {
+      "flags": {},
+      "id": 3,
+      "inputs": [
+        {
+          "link": 1,
+          "name": "images",
+          "type": "IMAGE"
+        }
+      ],
+      "mode": 0,
+      "order": 12,
+      "outputs": [],
+      "pos": [
+        2260,
+        288.33338832931116
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "enableTabs": false,
+        "hasSecondTab": false,
+        "secondTabOffset": 80,
+        "secondTabText": "Send Back",
+        "secondTabWidth": 65,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "ver": "0.5.1",
+        "widget_ue_connectable": {}
+      },
+      "size": [
+        341.6666666666667,
+        425
+      ],
+      "title": "Save texture with alpha",
+      "type": "SaveImage",
+      "widgets_values": [
+        "texture_alpha"
+      ]
+    },
+    {
+      "flags": {
+        "collapsed": false
+      },
+      "id": 22,
+      "inputs": [],
+      "mode": 0,
+      "order": 4,
+      "outputs": [
+        {
+          "links": [
+            23
+          ],
+          "name": "STRING",
+          "type": "STRING"
+        }
+      ],
+      "pos": [
+        220.3332816870621,
+        1088.333358125601
+      ],
+      "properties": {
+        "Node name for S&R": "PrimitiveStringMultiline",
+        "cnr_id": "comfy-core",
+        "ver": "0.16.1"
+      },
+      "size": [
+        300,
+        104.70052083333334
+      ],
+      "title": "Object Prompt",
+      "type": "PrimitiveStringMultiline",
+      "widgets_values": [
+        "copper gas lamp"
+      ]
+    }
+  ],
+  "revision": 0,
+  "version": 0.4
+}

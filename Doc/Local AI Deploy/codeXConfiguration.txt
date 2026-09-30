@@ -1,0 +1,21 @@
+model = "Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-IQ2_M.gguf"
+model_reasoning_effort = "low"
+profile = "llamacpp-codex"
+
+model_provider = "llamacpp"
+
+[profiles.llamacpp-codex]
+model = "Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-IQ2_M.gguf"
+model_provider = "llamacpp"
+model_reasoning_effort = "low"
+
+[profiles.llamacpp-codex.windows]
+sandbox = "elevated"
+
+[model_providers.llamacpp]
+name = "llama.cpp"
+base_url = "http://127.0.0.1:8080/v1/"
+wire_api = "responses"
+
+[windows]
+sandbox = "elevated"

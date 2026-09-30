@@ -1,0 +1,87 @@
+1.create_venv.bat(it seems not necessary)
+2.setup_style_pipeline.bat
+3.start_comfyui_with_flags.bat or start_comfyui.bat
+
+
+
+Tutorial
+
+https://docs.comfy.org/get_started/first_generation#load-from-workflow-template
+
+
+model storage
+https://huggingface.co/Comfy-Org/stable-diffusion-v1-5-archive/blob/main/v1-5-pruned-emaonly-fp16.safetensors
+require to download large models...
+
+
+All models are stored in <your ComfyUI installation>/ComfyUI/models/ with subfolders like checkpoints,
+embeddings, vae, lora, upscale_model, etc. ComfyUI detects models in these folders and paths configured in
+extra_model_paths.yaml at startup.
+
+
+in Web open ComfyUI
+http://127.0.0.1:8188/
+
+
+
+Click the gear/settings icon.
+Enable:
+Dev mode / Enable Dev Mode Options
+find out prompt window you have to unpack window then dintout the correct one to change title
+
+left side click Graph  choice Export (API)
+
+pip install websocket-client
+
+
+
+python TestData/gsl_start_1.py
+
+
+
+可愛的一群小貓在草地上奔跑
+
+
+
+
+
+
+
+if you are use some custom nodes is newer please follow instruction do install something like
+pip install -U --pre comfyui-manager
+
+if you would like to share comfyUI to other IP also add    --listen 0.0.0.0
+
+
+
+
+for put models in different directory
+
+put  extra_model_paths.yaml
+under
+SkinBuilderByAI\_comfyui\ComfyUI
+
+and make sure base_path is correct.
+
+
+
+
+
+
+
+
+Each custom node is a git repo subfolder,
+so this is a direct copy.
+After copying, run Manager > Update All on the target to
+ install any missing Python dependencies.
+
+
+ComfyUI-Manager Snapshot (Recommended)
+On the source server:
+
+Open ComfyUI in browser: http://127.0.0.1:8188
+Click Manager button (top menu)
+Click Snapshot Manager
+Click Save snapshot — saves a JSON file to:
+
+_comfyui/ComfyUI/custom_nodes/ComfyUI-Manager/snapshots/

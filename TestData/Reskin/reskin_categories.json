@@ -1,0 +1,28 @@
+{
+  "_comment": "Keys match character_id values from style_plan.json groups. 'default' is used when no key matches.",
+
+  "symbols": {
+    "positive": "cartoon game symbol icon, same silhouette and shape, cute rabbit style, clean edges, polished render, vibrant colors, high quality game icon",
+    "negative": "blurry, low quality, distorted shape, broken silhouette, realistic, photorealistic, ugly, noisy, watermark"
+  },
+  "panel": {
+    "positive": "cartoon game UI panel element, same layout and proportions, cute rabbit theme, clean readable design, polished, colorful, high quality game art",
+    "negative": "blurry, unreadable, distorted layout, broken elements, realistic, low quality, ugly, watermark"
+  },
+  "autospin": {
+    "positive": "cartoon game button, same shape and layout, cute rabbit theme, clean polished UI, colorful, high quality game art",
+    "negative": "blurry, distorted, broken shape, realistic, low quality, ugly, watermark"
+  },
+  "loopshowscore": {
+    "positive": "cartoon game score display UI, same layout, cute rabbit theme, clean readable, polished, colorful, high quality",
+    "negative": "blurry, unreadable text, distorted, realistic, low quality, ugly, watermark"
+  },
+  "background": {
+    "positive": "cartoon game background, same composition and layout, cute rabbit world style, colorful, painterly, polished, high quality game art",
+    "negative": "blurry, low quality, distorted, realistic, photorealistic, ugly, watermark"
+  },
+  "default": {
+    "positive": "cartoon game asset, cute rabbit style, same composition and shape, colorful, polished render, high quality game art",
+    "negative": "blurry, low quality, distorted, realistic, photorealistic, ugly, watermark"
+  }
+}

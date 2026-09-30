@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sprite Animation Sequence to Atlas Pipeline</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #ffffff;
+    --fg: #1b1f23;
+    --muted: #57606a;
+    --border: #d8dee4;
+    --code-bg: #f6f8fa;
+    --accent: #0969da;
+    --table-head: #f0f3f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --fg: #e6edf3;
+      --muted: #9198a1;
+      --border: #30363d;
+      --code-bg: #161b22;
+      --accent: #4493f8;
+      --table-head: #161b22;
+    }
+  }
+  html[data-theme="dark"] {
+    --bg: #0d1117; --fg: #e6edf3; --muted: #9198a1; --border: #30363d;
+    --code-bg: #161b22; --accent: #4493f8; --table-head: #161b22;
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff; --fg: #1b1f23; --muted: #57606a; --border: #d8dee4;
+    --code-bg: #f6f8fa; --accent: #0969da; --table-head: #f0f3f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 5rem;
+  }
+  h1 { font-size: 1.9rem; margin-bottom: 0.3rem; }
+  h2 {
+    font-size: 1.35rem;
+    margin-top: 2.4rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 { font-size: 1.08rem; margin-top: 1.6rem; }
+  .meta { color: var(--muted); font-size: 0.92rem; margin: 0.1rem 0; }
+  .meta strong { color: var(--fg); }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.6rem 1rem;
+    border-left: 3px solid var(--accent);
+    background: var(--code-bg);
+    border-radius: 0 6px 6px 0;
+  }
+  blockquote p { margin: 0.3rem 0; }
+  p { margin: 0.8rem 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.1rem 0.35rem;
+    font-family: "SF Mono", Consolas, Menlo, monospace;
+    font-size: 0.88em;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  pre code { background: none; border: none; padding: 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.92rem;
+    overflow-x: auto;
+    display: block;
+  }
+  table thead, table tbody { display: table; width: 100%; table-layout: fixed; }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.55rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  th { background: var(--table-head); font-weight: 600; }
+  .diagram {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: "SF Mono", Consolas, Menlo, monospace;
+    font-size: 0.78rem;
+    white-space: pre;
+  }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  .badge {
+    display: inline-block;
+    font-size: 0.78rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+  .stage-title { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>Sprite Animation Sequence to Atlas Pipeline</h1>
+<p class="meta"><strong>Date:</strong> 2026-07-06</p>
+<p class="meta"><strong>Project:</strong> Game Style AI / ComfyUI Asset Pipeline</p>
+<p class="meta"><strong>Scope:</strong> Generating consistent character animation frames (walk, idle, etc.) with ComfyUI and packing them into a game-ready sprite sheet + atlas</p>
+
+<hr>
+
+<h2>Goal</h2>
+<p>Turn one character reference image into a set of animation frames (e.g. an 8-frame walk cycle, a 2-4 frame idle loop) that stay visually consistent frame-to-frame, then pack those frames into a single sprite-sheet PNG plus a JSON atlas that a game engine can load directly.</p>
+<p>This is a 5-stage pipeline. Stage 2 (the pose skeleton library) is built once and reused for every future character — only Stages 1, 3, 4, 5 repeat per character.</p>
+
+<hr>
+
+<h2>Pipeline Diagram</h2>
+<div class="diagram">Stage 1                Stage 2                 Stage 3                      Stage 4            Stage 5
+Character   ─┐         Pose skeleton  ─┐        IPAdapter + ControlNet      Background   ─►     Pack frames
+reference    │         library          │        batch generation    ─►     removal             into atlas
+image        │  (reused ────────────────┘        (one KSampler batch,                            (spritesheet
+             │   forever)                         fixed seed, N frames)                            PNG + JSON)
+             └──────────────────────────────────────────────┘</div>
+
+<hr>
+
+<h2><span class="stage-title">Stage 1</span> — Character Reference Generation</h2>
+<p>Produce one clean, front/side-view illustration of the character in your target art style. This image becomes the "identity anchor" that IPAdapter locks onto for every frame in every animation.</p>
+<ul>
+  <li>Reuse the existing Z-Image-Turbo template (<code>TestData/Text2Image/gsl_starter_1.json</code> via <code>run_text2image.py</code>) to generate this reference from a text prompt, <strong>or</strong></li>
+  <li>Supply an existing character illustration directly.</li>
+</ul>
+<p>Output: one PNG, e.g. <code>character_ref.png</code>.</p>
+
+<hr>
+
+<h2><span class="stage-title">Stage 2</span> — Pose Skeleton Library (build once, reuse forever)</h2>
+<p>This stage produces the OpenPose-format skeleton images that drive each animation frame's pose. Because ControlNet-openpose conditioning is character-agnostic, this library is built <strong>one time</strong> and reused for every character skin from then on. There are three ways to build it — pick based on how much control vs. speed you want.</p>
+
+<h3>Method A — Use a free pose pack (fastest, zero generation)</h3>
+<p>Check existing community libraries before generating anything: <a href="https://civitai.com/models/22214/openposes-collection" target="_blank" rel="noopener">Civitai's OpenPoses Collection</a>, <a href="https://github.com/a-lgil/pose-depot" target="_blank" rel="noopener">pose-depot on GitHub</a>, and <a href="https://openposes.com/" target="_blank" rel="noopener">openposes.com</a> all publish ready-made OpenPose skeleton sets, some including walk cycles. If one matches closely enough, download it and rename the frames to <code>pose_walk_01.png … pose_walk_08.png</code> — Stage 2 is done with no generation step at all.</p>
+
+<h3>Method B — Procedural generation script (recommended for repeatability)</h3>
+<p>A walking gait's joint angles (hip/knee/ankle) follow well-understood sinusoidal curves over the cycle — this is the standard technique behind procedural walk animation in game engines, not something specific to AI. A single script can:</p>
+<ol>
+  <li>Compute 2D joint positions for N frames from a few numeric parameters (stride length, bounce height, frame count, leg length).</li>
+  <li>Render them in OpenPose's canonical skeleton-color convention (colored bones on a black background — the exact format ControlNet expects).</li>
+  <li>Write <code>pose_walk_01.png … pose_walk_08.png</code> directly.</li>
+</ol>
+<p>No footage, no manual joint-dragging. Idle uses the same script with near-zero amplitude (just a breathing/sway wobble); run/jump can reuse the same parameter set later. This is the most reusable option — regenerating with different stride/bounce/frame-count parameters takes seconds.</p>
+
+<h3>Method C — Extract from a reference video (fallback, most naturalistic)</h3>
+<ol>
+  <li>Install <a href="https://github.com/Fannovel16/comfyui_controlnet_aux" target="_blank" rel="noopener">comfyui_controlnet_aux</a> (ComfyUI Manager → search "ControlNet Auxiliary Preprocessors", or <code>git clone</code> into <code>_comfyui/ComfyUI/custom_nodes</code>).</li>
+  <li>Find or record a short reference clip of the motion (a side-view walk loop, an idle breathing loop, etc.).</li>
+  <li>Run the <strong>DWPose Estimator</strong> node (<code>dw_openpose_full</code>) over evenly-spaced frames of that clip.</li>
+  <li>Save the results as the same numbered sequence as above.</li>
+</ol>
+<p>Higher effort (footage sourcing/recording), but captures naturalistic secondary motion that a pure sine-wave model won't — useful if the procedural result looks too mechanical.</p>
+
+<blockquote><p><strong>Not recommended:</strong> text-prompting an image-generation model (Gemini, SDXL, etc.) to directly draw a stick-figure skeleton per frame. Diffusion models routinely produce anatomically broken joints/proportions on skeleton drawings, which defeats the purpose of feeding a precise conditioning image into ControlNet.</p></blockquote>
+
+<p>Output: a <code>poses/</code> folder of skeleton PNGs, organized per animation name. This folder is the deliverable of this stage — never regenerate it per character.</p>
+
+<hr>
+
+<h2><span class="stage-title">Stage 3</span> — Character-Consistent Frame Batch Generation</h2>
+<p>This is the core generation graph. It must run on an architecture that ControlNet + IPAdapter actually support — <strong>SD1.5</strong>, not the Z-Image-Turbo (Lumina2/DiT) checkpoint used for backgrounds. <code>comfyui_ipadapter_plus</code> is already installed but has no weight files yet (see Prerequisites below).</p>
+<p>Graph, run once per animation as a single batch:</p>
+<table>
+<thead><tr><th style="width:34%">Node</th><th>Role</th></tr></thead>
+<tbody>
+<tr><td><code>CheckpointLoaderSimple</code></td><td>Loads the SD1.5 2D/game-art checkpoint</td></tr>
+<tr><td><code>LoadImage</code></td><td>Loads <code>character_ref.png</code> from Stage 1</td></tr>
+<tr><td><code>IPAdapterUnifiedLoader</code> + <code>IPAdapterApply</code>/<code>Advanced</code></td><td>Locks the character's identity/style across all frames</td></tr>
+<tr><td>Batch image loader</td><td>Loads all <code>pose_*.png</code> skeletons for this animation as one <code>IMAGE</code> batch</td></tr>
+<tr><td><code>ControlNetLoader</code> (openpose) + <code>ControlNetApply</code></td><td>Drives each frame's pose from the batch of skeletons</td></tr>
+<tr><td><code>CLIPTextEncode</code> (positive/negative)</td><td>Style + action description prompt</td></tr>
+<tr><td><code>EmptyLatentImage</code> (<code>batch_size = N</code>)</td><td>N = number of frames in this animation</td></tr>
+<tr><td><code>KSampler</code></td><td><strong>One fixed seed for the whole batch</strong> — this is what keeps all N frames coherent with each other</td></tr>
+<tr><td><code>VAEDecode</code></td><td>Decodes the batch back to N images</td></tr>
+</tbody>
+</table>
+<p>Run this once for "walk" (batch_size 8) and once for "idle" (batch_size 2-4).</p>
+<p>Output: N raw frames per animation, e.g. <code>walk_raw_00.png … walk_raw_07.png</code>.</p>
+
+<hr>
+
+<h2><span class="stage-title">Stage 4</span> — Background Removal</h2>
+<p>Feed the decoded batch through the rembg node already installed in this project (<code>comfyui-inspyrenet-rembg</code> or <code>comfyui-rmbg</code>) to get clean alpha-channel frames. No new install required.</p>
+<p>Output: <code>walk_00.png … walk_07.png</code> with transparent backgrounds, same canvas size and character-centered framing across all frames (required for a stable pivot point at runtime).</p>
+
+<hr>
+
+<h2><span class="stage-title">Stage 5</span> — Pack into Atlas</h2>
+<p>Extend the existing automation pattern (<code>TestData/Text2Image/run_text2image.py</code>, <code>ComgyUIPythonCommonFunction.py</code>) with a packing script that:</p>
+<ol>
+  <li>Tiles the frame PNGs into one sprite-sheet PNG (horizontal strip, via Pillow).</li>
+  <li>Emits a <strong>TexturePacker-style JSON</strong> atlas (frame name, x/y/w/h, duration) — importable by Unity, Cocos2d, Phaser, PixiJS, LibGDX, and Godot without a proprietary format lock-in.</li>
+</ol>
+<p>Example atlas JSON shape:</p>
+<pre><code>{
+  "frames": {
+    "walk_00": { "frame": { "x": 0,   "y": 0, "w": 128, "h": 128 }, "duration": 100 },
+    "walk_01": { "frame": { "x": 128, "y": 0, "w": 128, "h": 128 }, "duration": 100 }
+  },
+  "meta": { "image": "walk_atlas.png", "size": { "w": 1024, "h": 128 } }
+}</code></pre>
+<p>If the target engine specifically requires Aseprite-format atlases instead, <a href="https://github.com/quinteroac/ComfyUI-GameAssetsMaker" target="_blank" rel="noopener">ComfyUI-GameAssetsMaker</a> provides dedicated nodes for that format.</p>
+<p>Output: <code>walk_atlas.png</code> + <code>walk_atlas.json</code>, ready to import into the game engine.</p>
+
+<hr>
+
+<h2>Prerequisites — Installs &amp; Downloads</h2>
+<table>
+<thead><tr><th>Item</th><th>Where</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td><code>comfyui_controlnet_aux</code> (DWPose Estimator)</td><td><code>custom_nodes/</code></td><td><span class="badge">Not installed</span></td></tr>
+<tr><td>SD1.5 2D/game-art checkpoint</td><td><code>models/checkpoints/</code></td><td><span class="badge">Not installed (folder empty)</span></td></tr>
+<tr><td>ControlNet openpose model (<code>control_v11p_sd15_openpose.pth</code>)</td><td><code>models/controlnet/</code></td><td><span class="badge">Not installed (folder empty)</span></td></tr>
+<tr><td>IPAdapter weights (<code>ip-adapter-plus_sd15.safetensors</code>)</td><td><code>models/ipadapter/</code></td><td><span class="badge">Not installed</span></td></tr>
+<tr><td>CLIP vision encoder (CLIP-ViT-H-14)</td><td><code>models/clip_vision/</code></td><td><span class="badge">Not installed</span></td></tr>
+<tr><td><code>comfyui_ipadapter_plus</code> (nodes)</td><td><code>custom_nodes/</code></td><td><span class="badge">Already installed</span></td></tr>
+<tr><td>rembg (<code>comfyui-inspyrenet-rembg</code> / <code>comfyui-rmbg</code>)</td><td><code>custom_nodes/</code></td><td><span class="badge">Already installed</span></td></tr>
+<tr><td><code>ComfyUI-GameAssetsMaker</code> (only if Aseprite atlas format is required)</td><td><code>custom_nodes/</code></td><td><span class="badge">Not installed, optional</span></td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2>Output Folder Structure</h2>
+<div class="diagram">character_name/
+├── character_ref.png              (Stage 1)
+├── poses/                         (Stage 2 — shared across all characters)
+│   ├── pose_walk_01.png … 08.png
+│   └── pose_idle_01.png … 03.png
+├── walk_raw_00.png … 07.png        (Stage 3)
+├── walk_00.png … 07.png            (Stage 4 — alpha channel)
+├── walk_atlas.png                  (Stage 5)
+└── walk_atlas.json                 (Stage 5)</div>
+
+<hr>
+
+<h2>Time / Setup Notes</h2>
+<ul>
+  <li>Stage 2 is a one-time cost per motion type (walk, idle, run, attack, ...), not per character.</li>
+  <li>Stages 1, 3, 4, 5 repeat per character but are fully scriptable once the workflow JSON and packing script exist.</li>
+  <li>Total one-time download size for Prerequisites: roughly 5-8 GB (SD1.5 checkpoint + ControlNet + IPAdapter + CLIP vision).</li>
+</ul>
+
+<hr>
+
+<h2>Open Decisions Needed</h2>
+<ol>
+  <li><strong>Target game engine</strong> — determines whether the Stage 5 atlas should be TexturePacker-style JSON (Unity/Cocos2d/Phaser/PixiJS/LibGDX/Godot) or Aseprite-format.</li>
+  <li><strong>Character reference source</strong> — generate fresh via the existing Z-Image-Turbo template, or supply an existing illustration to use as the IPAdapter anchor.</li>
+</ol>
+
+<hr>
+
+<h2>Related Docs</h2>
+<ul>
+  <li><code>Doc/ComfyUI_SDXL_IPAdapter_img2img_Manual_Workflow_Guide.docx</code></li>
+  <li><code>Doc/New Text Document.md</code> — animation format comparison (Spine vs frame-sequence vs spritesheet) for AI batch reskinning</li>
+  <li><code>TestData/Text2Image/run_text2image.py</code> — existing ComfyUI automation pattern this pipeline extends</li>
+</ul>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "style_profile_id": "default_parameters",
+  "style_version": "1.0.0",
+  "description": "Base fantasy repaint profile shared by static and spine assets.",
+  "checkpoint_model": "put_your_model_name_here.safetensors",
+  "hero_reference": "_pipeline/style_profiles/references/hero_reference.png",
+  "ip_adapter_strength": 0.75,
+  "controlnet": {
+    "static": "canny",
+    "spine": "tile"
+  },
+  "sampler": {
+    "seed_policy": "per_source_group_fixed",
+    "steps": 30,
+    "cfg_scale": 6.5
+  },
+  "spine_safety_rules": {
+    "preserve_alpha_silhouette": true,
+    "preserve_attachment_dimensions": true,
+    "preserve_pivot_consistency": true
+  }
+}

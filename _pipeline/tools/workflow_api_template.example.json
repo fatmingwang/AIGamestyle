@@ -1,0 +1,24 @@
+{
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "__INPUT_IMAGE__"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "__STYLE_REFERENCE__"
+    }
+  },
+  "10": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "__OUTPUT_PREFIX__",
+      "images": [
+        "3",
+        0
+      ]
+    }
+  }
+}

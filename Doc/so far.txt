@@ -1,0 +1,11 @@
+PROJECT GOAL
+
+assign a source folder(it might has static pictures UI or animation folder)
+apply new style to these folder by AI(python to comfuUI)
+copy output files to online web server
+run game with specific key can show result
+
+
+use local AI can make working flow and pipleline fixed and stable
+online AI is possible change everyday
+Today and tomorrow might get different result

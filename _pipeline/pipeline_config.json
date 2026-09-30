@@ -1,0 +1,33 @@
+{
+  "project_root": "game",
+  "scan_folders": [
+    "textures",
+    "spine"
+  ],
+  "static_extensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp"
+  ],
+  "spine_source_extensions": [
+    ".json",
+    ".atlas",
+    ".skel"
+  ],
+  "exclude_extensions": [
+    ".meta",
+    ".pac",
+    ".fnt",
+    ".prefab",
+    ".m4a",
+    ".mp3",
+    ".wav",
+    ".ogg",
+    ".aac",
+    ".flac"
+  ],
+  "default_style_profile_id": "default_parameters",
+  "group_token_delimiter": "_",
+  "min_group_token_length": 2
+}

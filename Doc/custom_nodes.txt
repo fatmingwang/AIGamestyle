@@ -1,0 +1,34 @@
+ComfyUI-Fast-Style-Transfer  is not worth to study , because group is small and mode is limited, so just ignore this
+
+
+cd <path-to-your-clone>\_comfyui\ComfyUI\custom_nodes
+
+git clone https://github.com/zeroxoxo/ComfyUI-Fast-Style-Transfer.git
+
+
+
+
+
+
+
+Step 1
+
+Open ComfyUI in browser.
+
+Step 2
+
+Click:
+
+Manager
+
+(left sidebar or top menu depending on version)
+
+Step 3
+
+Choose:
+
+Install Missing Custom Nodes
+
+or:
+
+Install Missing Nodes

@@ -1,0 +1,7 @@
+File	Use for
+ip-adapter_sd15.safetensors			        basic SD1.5 reference
+ip-adapter-plus_sd15.safetensors		    stronger SD1.5 style/reference
+ip-adapter-plus-face_sd15.safetensors		SD1.5 face reference
+ip-adapter_sdxl_vit-h.safetensors		    basic SDXL reference
+ip-adapter-plus_sdxl_vit-h.safetensors		stronger SDXL style/reference
+ip-adapter-plus-face_sdxl_vit-h.safetensors	SDXL face reference

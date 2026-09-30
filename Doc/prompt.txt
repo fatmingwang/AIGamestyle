@@ -1,0 +1,7 @@
+Positive Prompt
+Describe what the output should look like — 
+the target style from Image B, while keeping Image A's structure.
+
+
+
+The negative prompt should describe what you don't want, not what to replace

@@ -1,0 +1,241 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "1.Load Checkpoint"
+    }
+  },
+  "2": {
+    "inputs": {
+      "image": "P1.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "2.Load Image A(Source)"
+    }
+  },
+  "3": {
+    "inputs": {
+      "pixels": [
+        "13",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "3.VAE Encode"
+    }
+  },
+  "4": {
+    "inputs": {
+      "text": "cute style,anthropomorphic rabbit warrior, cute bunny character, \npink rabbit, same pose and composition, holding axe weapon, \nround face, big green eyes, cartoon game art style, \ncolorful, polished render, high quality game icon, keep weapon",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "4.CLIP Text Encode (Prompt) Positive"
+    }
+  },
+  "5": {
+    "inputs": {
+      "text": "human face, human skin, realistic, photorealistic, \ndeformed, bad anatomy, blurry, low quality, \nextra limbs, ugly, watermark",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "4.CLIP Text Encode (Prompt) Negative"
+    }
+  },
+  "6": {
+    "inputs": {
+      "image": "W1.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "5.Load Image B(Reference)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "6.Load CLIP Vision"
+    }
+  },
+  "8": {
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "class_type": "IPAdapterModelLoader",
+    "_meta": {
+      "title": "7.IPAdapter Model Loader"
+    }
+  },
+  "9": {
+    "inputs": {
+      "weight": 0.6,
+      "weight_type": "linear",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 1,
+      "embeds_scaling": "V only",
+      "model": [
+        "1",
+        0
+      ],
+      "ipadapter": [
+        "8",
+        0
+      ],
+      "image": [
+        "6",
+        0
+      ],
+      "clip_vision": [
+        "7",
+        0
+      ]
+    },
+    "class_type": "IPAdapterAdvanced",
+    "_meta": {
+      "title": "8.IPAdapter Advanced"
+    }
+  },
+  "10": {
+    "inputs": {
+      "seed": 637492996062205,
+      "steps": 20,
+      "cfg": 6,
+      "sampler_name": "dpmpp_2m_sde",
+      "scheduler": "karras",
+      "denoise": 0.65,
+      "model": [
+        "9",
+        0
+      ],
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "3",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "9.KSampler"
+    }
+  },
+  "11": {
+    "inputs": {
+      "samples": [
+        "10",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "10.VAE Decode"
+    }
+  },
+  "12": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "12.Save Image"
+    }
+  },
+  "13": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "disabled",
+      "image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "2b.Upscale Image A to 1024x1024"
+    }
+  },
+  "14": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": [
+        "15",
+        0
+      ],
+      "height": [
+        "15",
+        1
+      ],
+      "crop": "disabled",
+      "image": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "ImageScale",
+    "_meta": {
+      "title": "11b.Downscale Output to Source Size"
+    }
+  },
+  "15": {
+    "inputs": {
+      "image": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Get Source Image Size"
+    }
+  },
+  "16": {
+    "inputs": {
+      "image": [
+        "14",
+        0
+      ],
+      "torchscript_jit": "on"
+    },
+    "class_type": "InspyrenetRembg",
+    "_meta": {
+      "title": "Remove Background (Transparent)"
+    }
+  }
+}
