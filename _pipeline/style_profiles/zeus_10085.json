@@ -1,7 +1,7 @@
 {
   "about": "Ancient Greek / Zeus restyle of game 10085 (an Oktoberfest slot): the same objects dressed in the style of Mount Olympus (white marble, gold laurel and Greek key patterns, Aegean sky blue, clouds and lightning), letters and numbers kept exact, effects and flipbook frames unchanged. Read by _pipeline/tools/restyle_game.py; Doc/Reskin_Game_Art.md.",
-  "source": "../tests/10085",
-  "output": "../tests/10085_zeus",
+  "source": "TestData/10085",
+  "output": "output/10085_zeus",
   "style": "ancient greek mythology theme, Zeus and Mount Olympus, white marble, gold laurel leaves, gold greek key meander pattern, aegean sky blue, soft white clouds, small golden lightning bolts, divine warm light, glossy casual slot game art, vivid white gold and blue, clean edges",
   "negative": "blurry, low quality, deformed, extra objects, misspelled text, warped letters, watermark, photo, dark, muddy colours, cropped, christmas, snow, modern",
   "kinds": {

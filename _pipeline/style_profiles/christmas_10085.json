@@ -1,7 +1,7 @@
 {
   "about": "Christmas restyle of game 10085 (an Oktoberfest slot): the same objects dressed for Christmas, letters and numbers kept exact, effects and flipbook frames unchanged. Read by _pipeline/tools/restyle_game.py; Doc/Reskin_Game_Art.md.",
-  "source": "../tests/10085",
-  "output": "../tests/10085_christmas",
+  "source": "TestData/10085",
+  "output": "output/10085_christmas",
   "style": "christmas theme, fresh snow, holly leaves and red berries, red and white candy cane stripes, gold accents, warm festive lighting, glossy casual slot game art, vivid red green and gold, clean edges",
   "negative": "blurry, low quality, deformed, extra objects, misspelled text, warped letters, watermark, photo, dark, muddy colours, cropped",
   "kinds": {

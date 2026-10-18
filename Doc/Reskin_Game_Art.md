@@ -115,8 +115,8 @@ PNGs at build time, so replacing the PNGs is enough.
 ```jsonc
 {
   "about": "one line: what this reskin is",
-  "source": "../tests/10085",          // the original game, relative to AIGamestyle/ (or an absolute path)
-  "output": "../tests/10085_zeus",     // where the reskinned copy goes (the original is never changed)
+  "source": "TestData/10085",          // the original game, relative to AIGamestyle/ (or an absolute path)
+  "output": "output/10085_zeus",       // where the reskinned copy goes (the original is never changed)
   "style": "ancient greek theme, white marble, gold laurel ...",   // added to every prompt
   "negative": "blurry, low quality, deformed, misspelled text ...", // what to avoid, every picture
   "kinds": {                           // strength (denoise) and outline hold (control) per kind
@@ -167,7 +167,7 @@ The two 10085 plans are complete, working examples of every field.
 
 1. **Set up the PC** ([Reskin_Setup_New_PC.md](Reskin_Setup_New_PC.md)) and start ComfyUI. `check_reskin_setup.py`
    should say `ready`.
-2. **Copy the game's art folder** somewhere the tools can read, such as a `tests/<game>` folder. The tool copies it to
+2. **Copy the game's art folder** somewhere the tools can read, such as `AIGamestyle/TestData/<game>`. The tool copies it to
    the output and never writes to the source.
 3. **Look at what is in it.** Static pictures (symbols, background, frames, buttons), Spine pages (`.atlas` + `.png`
    + `.json`/`.skel`), and engine files. Decide per picture: object, text, frame, scene, or keep. Keep pictures that
@@ -247,7 +247,7 @@ game data in TOMS is in the TOMS repository: `docs/27_AI_SPRITES.md`.
 | `ab_maingame/spine/`, `ab_freegame/spine/` | 22 Spine 3.8 skeletons on 19 pages | part by part |
 | `ab_freegame/prefab/` | Cocos prefabs | copied unchanged |
 
-**Christmas** (`christmas_10085.json`, output `tests/10085_christmas`, 2026-10-17). The owner's choices:
+**Christmas** (`christmas_10085.json`, output `output/10085_christmas`, 2026-10-17). The owner's choices:
 
 - the same objects dressed for Christmas: snow, holly, candy-cane stripes, red / green / gold, and the waitress in a
   red dress with white fur;
@@ -257,7 +257,7 @@ game data in TOMS is in the TOMS repository: `docs/27_AI_SPRITES.md`.
 Result: 63 of 69 pictures restyled (47 static, 16 Spine pages: 81 parts restyled, 227 kept) and 6 kept.
 `check_restyle.py` passes. A full run takes about 35 minutes.
 
-**Zeus / ancient Greek** (`zeus_10085.json`, output `tests/10085_zeus`, 2026-10-18). The owner's choices:
+**Zeus / ancient Greek** (`zeus_10085.json`, output `output/10085_zeus`, 2026-10-18). The owner's choices:
 
 - the same objects Greek-dressed;
 - a marble, gold and sky-blue palette: white marble, gold laurel and Greek key patterns, Aegean blue, clouds, small

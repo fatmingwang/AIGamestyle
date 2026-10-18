@@ -102,8 +102,8 @@ Spine 不需要重新匯出。
 ```jsonc
 {
   "about": "一行說明這次換皮",
-  "source": "../tests/10085",          // 原始遊戲，相對於 AIGamestyle/（或絕對路徑）
-  "output": "../tests/10085_zeus",     // 換皮後副本的位置（原始檔絕不更改）
+  "source": "TestData/10085",          // 原始遊戲，相對於 AIGamestyle/（或絕對路徑）
+  "output": "output/10085_zeus",       // 換皮後副本的位置（原始檔絕不更改）
   "style": "ancient greek theme, white marble, gold laurel ...",   // 加到每個提示詞
   "negative": "blurry, low quality, deformed, misspelled text ...", // 每張圖都要避免的
   "kinds": {                           // 每類的強度（denoise）與輪廓維持（control）
@@ -152,7 +152,7 @@ Spine 不需要重新匯出。
 
 1. **安裝電腦**（[Reskin_Setup_New_PC.zh-TW.md](Reskin_Setup_New_PC.zh-TW.md)）並啟動 ComfyUI。
    `check_reskin_setup.py` 應顯示 `ready`。
-2. **複製遊戲的美術資料夾**到工具讀得到的地方，例如 `tests/<遊戲>` 資料夾。工具會把它複製到輸出，絕不寫入來源。
+2. **複製遊戲的美術資料夾**到工具讀得到的地方，例如 `AIGamestyle/TestData/<遊戲>`。工具會把它複製到輸出，絕不寫入來源。
 3. **看看裡面有什麼。** 靜態圖（符號、背景、框、按鈕）、Spine 頁面（`.atlas` + `.png` + `.json`／`.skel`）與引擎檔案。
    逐張決定：物件、文字、框、場景，或保留。保留的有：大多是文字段落的圖（規則頁）、純黑或陰影圖層、特效圖。
 4. **寫計畫檔。** 把 `zeus_10085.json` 複製成 `style_profiles/<風格>_<遊戲>.json`。設定 `source`、`output`、`style`
@@ -223,7 +223,7 @@ python sprite_sheet.py sheet.png <輸出資料夾> --big
 | `ab_maingame/spine/`、`ab_freegame/spine/` | 19 個頁面上的 22 個 Spine 3.8 骨架 | 逐部件 |
 | `ab_freegame/prefab/` | Cocos prefab | 原樣複製 |
 
-**聖誕**（`christmas_10085.json`，輸出 `tests/10085_christmas`，2026-10-17）。擁有者的選擇：
+**聖誕**（`christmas_10085.json`，輸出 `output/10085_christmas`，2026-10-17）。擁有者的選擇：
 
 - 相同物件換上聖誕裝飾：雪、冬青、拐杖糖條紋、紅／綠／金，女服務生穿白毛邊紅洋裝；
 - 字母保持完全相同；
@@ -232,7 +232,7 @@ python sprite_sheet.py sheet.png <輸出資料夾> --big
 結果：69 張中 63 張換皮（47 張靜態、16 個 Spine 頁面：81 個部件換皮、227 個保留），6 張保留。`check_restyle.py`
 通過。全面執行約 35 分鐘。
 
-**宙斯／古希臘**（`zeus_10085.json`，輸出 `tests/10085_zeus`，2026-10-18）。擁有者的選擇：
+**宙斯／古希臘**（`zeus_10085.json`，輸出 `output/10085_zeus`，2026-10-18）。擁有者的選擇：
 
 - 相同物件換上希臘裝扮；
 - 大理石、金色與天藍配色：白色大理石、金色月桂與希臘回紋、愛琴海藍、雲朵、小金色閃電；
