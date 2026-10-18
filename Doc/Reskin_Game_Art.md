@@ -200,6 +200,7 @@ and run. Most of the Spine part rules (keep_parts, parts) carry over unchanged.
 | objects only changed colour (Zeus pilot at 0.72) | `kinds.object.denoise` 0.8 |
 | a new shape asked for (a wreath around a hat) did not appear | expected: the alpha is the original's, so a style shows through materials and patterns inside the shape. Ask for what can be inside |
 | text pictures change little | the price of exact letters. A stronger change means a higher text strength and checking each letter |
+| a static symbol and its Spine parts came out different (static at text strength, parts at object strength) | compare each static symbol with its Spine page on the sheets. Give such symbols their own kind between text and object (`badge`, 0.6 / 0.85), and plain Spine parts matching `parts` subjects |
 | a "keep the old word" prompt was not obeyed | put the new style's own unwanted words in `negative` (the Zeus plan has `christmas, snow, modern`) |
 
 ## 9. New pixel-art sprites (make_sprites.py)
@@ -255,8 +256,22 @@ Result: 63 of 69 pictures restyled (47 static, 16 Spine pages: 81 parts restyled
 - effects unchanged;
 - letters exact.
 
-Objects run at strength 0.8. The background became a marble temple hall on Olympus, and the sausages sit on a painted
-Greek plate.
+Objects run at strength 0.8. Result: 63 of 69 pictures restyled (47 static, 16 Spine pages: 81 parts restyled,
+227 kept) and 6 kept. `check_restyle.py` passes. A full run took about 35 minutes. What changed:
+
+- the background became a marble temple hall on Olympus;
+- the waitress wears a white chiton with gold trim;
+- the sausages sit on a painted Greek plate;
+- the prize wheel is gold and marble;
+- the symbol tiles, panels and reel frame are marble with gold.
+
+The review found that the static ×-badges (text strength) had stayed wooden, while their Spine discs (object strength)
+had turned to marble, one of them with a horse painted on. The symbol would change look when it animated. The fix:
+
+- the badges got their own kind, `badge` (strength 0.6, outline hold 0.85, "keep the exact same number");
+- the three plain Spine discs got matching `parts` subjects with `"reference": false`.
+
+Both now show marble with the numbers unchanged.
 
 ## 11. Known limits
 

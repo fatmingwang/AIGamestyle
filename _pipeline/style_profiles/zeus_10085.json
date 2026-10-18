@@ -22,7 +22,12 @@
       "denoise": 0.6,
       "control": 0.55
     },
-    "keep": {}
+    "keep": {},
+    "badge": {
+      "denoise": 0.6,
+      "control": 0.85,
+      "prompt_extra": "keep the exact same number, crisp readable gold number"
+    }
   },
   "static": [
     {
@@ -67,33 +72,33 @@
     },
     {
       "file": "ab_maingame/textures/symbols/X1.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x1"
+      "kind": "badge",
+      "subject": "a round green marble medallion with a gold greek key rim and the gold number x1"
     },
     {
       "file": "ab_maingame/textures/symbols/X2.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x2"
+      "kind": "badge",
+      "subject": "a round green marble medallion with a gold greek key rim and the gold number x2"
     },
     {
       "file": "ab_maingame/textures/symbols/X3.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x3"
+      "kind": "badge",
+      "subject": "a round purple marble medallion with a gold greek key rim and the gold number x3"
     },
     {
       "file": "ab_maingame/textures/symbols/X5.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x5"
+      "kind": "badge",
+      "subject": "a round purple marble medallion with a gold greek key rim and the gold number x5"
     },
     {
       "file": "ab_maingame/textures/symbols/X10.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x10"
+      "kind": "badge",
+      "subject": "a round red marble medallion with a gold greek key rim and the gold number x10"
     },
     {
       "file": "ab_maingame/textures/symbols/X15.png",
-      "kind": "text",
-      "subject": "a round gold greek coin medallion with a laurel border and the gold number x15"
+      "kind": "badge",
+      "subject": "a round red marble medallion with a gold greek key rim and the gold number x15"
     },
     {
       "file": "ab_maingame/textures/symbols/WH.png",
@@ -280,7 +285,24 @@
       {
         "atlas": "ab_maingame/spine/amin_sym_m.atlas",
         "reference": "ab_maingame/textures/symbols/X10.png",
-        "subject": "part of a round gold greek coin multiplier medallion"
+        "subject": "part of a round gold greek coin multiplier medallion",
+        "parts": {
+          "bg_green_m3": {
+            "subject": "a plain round green marble disc with a thin gold rim, smooth, nothing in the middle, no emblem",
+            "reference": false,
+            "denoise": 0.6
+          },
+          "bg_purple_m2": {
+            "subject": "a plain round purple marble disc with a thin gold rim, smooth, nothing in the middle, no emblem",
+            "reference": false,
+            "denoise": 0.6
+          },
+          "bg_red_m1": {
+            "subject": "a plain round red marble disc with a thin gold rim, smooth, nothing in the middle, no emblem",
+            "reference": false,
+            "denoise": 0.6
+          }
+        }
       },
       {
         "atlas": "ab_maingame/spine/anim_btn_spin.atlas",
