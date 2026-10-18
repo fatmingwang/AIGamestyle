@@ -34,6 +34,7 @@ All in `AIGamestyle/_pipeline/tools/`. Run them with Python 3.11 (Pillow + numpy
 | `restyle_pilot.py <picture> <out> --prompt ... --denoise 0.5 0.7` | one picture at several strengths, for trying a style |
 | `spine_page_restyle.py <page.atlas> <out> --prompt ...` | one Spine page part by part (what `restyle_game.py` does per page) |
 | `spine_page_preview.py <original.atlas> <restyled_dir> <out.png>` | puts a page's parts back together (before / after) to check a whole object |
+| `repair_edges.py <plan>` | applies step 6 to an output made before it existed: every restyled picture, and each restyled Spine part inside its own footprint; no AI run |
 | `check_restyle.py <original> <restyled>` | proves the output is a drop-in replacement: same files, sizes and alpha; other files byte-identical |
 | `check_reskin_setup.py` | checks ComfyUI has the nodes and models (setup document, section 7) |
 | `make_sprites.py`, `sprite_sheet.py` | new small pixel-art sprites from descriptions (section 9) |
@@ -59,6 +60,13 @@ strengths), so a new style or a new game needs no code change. Examples: `christ
    (shown = colour × a + grey × (1 − a)), so its own colour is recovered as (shown − grey × (1 − a)) / a. Without
    this, dark see-through buttons come out grey and every soft edge gets a grey fringe. Pixels under 8 % alpha keep
    the original colour.
+6. **Rebuild the soft edges** (`fix_edges`). Step 5 divides by alpha, so on nearly transparent edge pixels small
+   errors blow up to white: a jagged, whitish fringe on hanging flags and on the prize wheel's rim. And the model drew
+   no dark rim where the silhouette met the grey. So every pixel that is not solid in the original (alpha below 250)
+   and lies within 4 px of a solid one takes the colour of the nearest solid pixel of the restyled picture, darkened
+   or lightened as much as the original's edge pixel was against its own nearest solid pixel. The result is the new
+   colour with the original's rim. See-through areas farther inside (glass, a veil) keep their restyled colour. Alpha
+   is never touched. On 10085's wheel rim the near-white edge pixels went from 30 % to 0 %.
 
 **A picture with letters or numbers** uses the same steps with a low strength (0.45), a strong outline hold (0.85) and
 "keep the exact same letters and numbers, crisp readable lettering" added to the prompt.
@@ -201,6 +209,7 @@ and run. Most of the Spine part rules (keep_parts, parts) carry over unchanged.
 | a new shape asked for (a wreath around a hat) did not appear | expected: the alpha is the original's, so a style shows through materials and patterns inside the shape. Ask for what can be inside |
 | text pictures change little | the price of exact letters. A stronger change means a higher text strength and checking each letter |
 | a static symbol and its Spine parts came out different (static at text strength, parts at object strength) | compare each static symbol with its Spine page on the sheets. Give such symbols their own kind between text and object (`badge`, 0.6 / 0.85), and plain Spine parts matching `parts` subjects |
+| jagged white fringe on soft edges (hanging flags, the wheel's rim), seen in the game | fixed in the tool: the soft edges are rebuilt from the nearest solid pixels with the original's rim (section 3, step 6). Older outputs: `repair_edges.py <plan>` (both 10085 outputs were repaired, 2026-10-18). A ComfyUI "polish" pass would not help: the original alpha is put back after it, and the edge pixels would come out the same |
 | a "keep the old word" prompt was not obeyed | put the new style's own unwanted words in `negative` (the Zeus plan has `christmas, snow, modern`) |
 
 ## 9. New pixel-art sprites (make_sprites.py)

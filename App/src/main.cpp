@@ -24,8 +24,8 @@ int main(int argc, char* argv[])
     // per-config PreprocessorDefinitions), and even in Debug it only applies when truly no
     // arguments were given: passing real ones (via VS's Command Arguments field or an actual
     // command line, e.g. to debug the GUI instead) always overrides this.
-    if (args.isEmpty())
-        args << QStringLiteral("--headless");
+    //if (args.isEmpty())
+      //  args << QStringLiteral("--headless");
 #endif
 
     const QString mode = args.isEmpty() ? QString() : args.first();

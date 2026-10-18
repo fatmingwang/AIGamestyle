@@ -115,7 +115,68 @@ def finish(gen: Image.Image, src: Image.Image, bg=(128, 128, 128)) -> Image.Imag
         rgb = (shown - grey * (1.0 - a)) / np.maximum(a, 1e-6)
     rgb = np.where(a > 0.08, rgb, s[..., :3])
     out = np.concatenate([np.clip(rgb, 0, 255), s[..., 3:4]], axis=-1).astype(np.uint8)
-    return Image.fromarray(out, "RGBA")
+    return fix_edges(Image.fromarray(out, "RGBA"), src)
+
+
+def fix_edges(out: Image.Image, src: Image.Image, solid=250, radius=4) -> Image.Image:
+    """Smooth, dark-rimmed soft edges like the original's.
+
+    The see-through edge pixels cannot be trusted after the restyle: recovering their colour divides by their alpha,
+    which blows small errors up to white on nearly transparent pixels (a jagged white fringe on flags and the wheel's
+    rim), and the model drew no rim there anyway (the silhouette sat on grey). So every pixel that is not solid in the
+    original takes the colour of the nearest solid pixel of the restyled picture, darkened or lightened as much as
+    the original's edge pixel was against its own nearest solid pixel -- the new colour with the old rim. A pixel
+    farther than `radius` from any solid one is a see-through area of its own (glass, a veil): it keeps its restyled
+    colour when it is fairly opaque, the original's when it is faint (where the recovery is unreliable). Alpha is
+    never touched.
+    """
+    import numpy as np
+    o = np.asarray(out.convert("RGBA"), dtype=np.float32)
+    s = np.asarray(src.convert("RGBA"), dtype=np.float32)
+    alpha = s[..., 3]
+    known = alpha >= solid
+    if known.all() or not known.any():
+        return out
+    near_out = np.where(known[..., None], o[..., :3], 0)    # nearest solid colour, restyled
+    near_src = np.where(known[..., None], s[..., :3], 0)    # ... and in the original
+    have = known.copy()
+    h, w = alpha.shape
+    for _ in range(radius):   # grow the solid colours outward one pixel per round (8 neighbours)
+        if have.all():
+            break
+        grow = np.zeros_like(have)
+        acc_o = np.zeros_like(near_out)
+        acc_s = np.zeros_like(near_src)
+        cnt = np.zeros((h, w), dtype=np.float32)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy == 0 and dx == 0:
+                    continue
+                sh = np.zeros_like(have)
+                so = np.zeros_like(near_out)
+                ss = np.zeros_like(near_src)
+                ys, yd = (slice(0, h - dy), slice(dy, h)) if dy >= 0 else (slice(-dy, h), slice(0, h + dy))
+                xs, xd = (slice(0, w - dx), slice(dx, w)) if dx >= 0 else (slice(-dx, w), slice(0, w + dx))
+                sh[yd, xd] = have[ys, xs]
+                so[yd, xd] = near_out[ys, xs]
+                ss[yd, xd] = near_src[ys, xs]
+                take = sh & ~have
+                acc_o[take] += so[take]
+                acc_s[take] += ss[take]
+                cnt[take] += 1
+                grow |= take
+        near_out[grow] = acc_o[grow] / cnt[grow][:, None]
+        near_src[grow] = acc_s[grow] / cnt[grow][:, None]
+        have |= grow
+    lum = lambda c: c[..., 0] * 0.299 + c[..., 1] * 0.587 + c[..., 2] * 0.114
+    ratio = np.clip(lum(s[..., :3]) / np.maximum(lum(near_src), 1.0), 0.0, 1.3)[..., None]
+    edge = (~known) & (alpha > 0) & have
+    rgb = o[..., :3].copy()
+    rgb[edge] = np.clip(near_out * ratio, 0, 255)[edge]
+    faint = (~known) & (alpha > 0) & (alpha < 100) & ~have
+    rgb[faint] = s[..., :3][faint]
+    res = np.concatenate([rgb, s[..., 3:4]], axis=-1).astype(np.uint8)
+    return Image.fromarray(res, "RGBA")
 
 
 def main():

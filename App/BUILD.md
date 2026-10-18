@@ -87,6 +87,19 @@ Both files must exist before proceeding.
 
 ---
 
+## Quick way — Visual Studio solution
+
+After Qt is installed (Step 1), run from `App/` (no Developer Command Prompt needed):
+
+```bat
+make_vs_solution.bat          rem writes build_vs\GameStyleAI.slnx (VS 2026) or .sln (VS 2022)
+make_vs_solution.bat open     rem ... and opens it
+```
+
+It finds the newest Visual Studio with the C++ tools (vswhere) and uses the CMake bundled with it (CMake 3.31 on PATH does not know Visual Studio 2026), and finds Qt under `%USERPROFILE%\Qt` or `C:\Qt`. Override with `set QT_DIR=...` or `set VS_GENERATOR=Visual Studio 17 2022`. Run it again after adding a source file to `CMakeLists.txt`. Steps 2–4 below are the manual way.
+
+---
+
 ## Step 2 â€” Open a Visual Studio Developer Command Prompt
 
 Qt's MSVC build requires the MSVC compiler on PATH.

@@ -17,6 +17,7 @@
 mono_crash.*
 output/
 App/out/
+App/build_vs/
 HeadlessTestClient/out/
 # Build results
 [Dd]ebug/
