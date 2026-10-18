@@ -1,7 +1,7 @@
 """New 32 x 32 pixel-art sprites for TOMS from descriptions (docs/27_AI_SPRITES.md).
 
     python make_sprites.py <out_dir> --sprite id "description" [--sprite id2 "description2" ...] [--seed 3]
-    python make_sprites.py <out_dir> --plan sprites.json [--only monster_] [--force]
+    python make_sprites.py <out_dir> --plan sprites.json [--only m_wolf,npc_baker] [--force]
 
 Each sprite is made in three steps, so it matches the art already in the game (32 x 32, flat colours, a dark
 outline, a transparent background):
@@ -253,9 +253,10 @@ def main():
                 jobs.append((sid, d, cat.get("anchor", "bottom"), cat.get("style", STYLE), cat.get("mode", "sprite"),
                              tuple(cat["reference"]) if cat.get("reference") else None, cat.get("negative", ""),
                              base, cat.get("denoise", 0.7)))
+    only = [o for o in a.only.split(",") if o]   # one or more id parts, comma-separated
     refs = {}   # per category: the game's sprites of that kind (characters for creatures, items for items ...)
     for i, (sid, d, anchor, style, mode, ref_names, neg, base, denoise) in enumerate(jobs):
-        if a.only and a.only not in sid:
+        if only and not any(o in sid for o in only):
             continue
         ref = None
         if not a.no_reference:
