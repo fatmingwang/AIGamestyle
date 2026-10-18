@@ -1,0 +1,411 @@
+{
+  "about": "Christmas restyle of game 10085 (an Oktoberfest slot): the same objects dressed for Christmas, letters and numbers kept exact, effects and flipbook frames unchanged. Read by _pipeline/tools/restyle_game.py; Doc/Reskin_Game_Art.md.",
+  "source": "../tests/10085",
+  "output": "../tests/10085_christmas",
+  "style": "christmas theme, fresh snow, holly leaves and red berries, red and white candy cane stripes, gold accents, warm festive lighting, glossy casual slot game art, vivid red green and gold, clean edges",
+  "negative": "blurry, low quality, deformed, extra objects, misspelled text, warped letters, watermark, photo, dark, muddy colours, cropped",
+  "kinds": {
+    "object": {
+      "denoise": 0.72,
+      "control": 0.6
+    },
+    "text": {
+      "denoise": 0.45,
+      "control": 0.85,
+      "prompt_extra": "keep the exact same letters and numbers, crisp readable lettering"
+    },
+    "frame": {
+      "denoise": 0.6,
+      "control": 0.7
+    },
+    "scene": {
+      "denoise": 0.6,
+      "control": 0.55
+    },
+    "keep": {}
+  },
+  "static": [
+    {
+      "file": "ab_maingame/textures/symbols/H1.png",
+      "kind": "object",
+      "subject": "a heart-shaped gingerbread cookie with white icing and a red flower, sprinkled with sugar snow"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H2.png",
+      "kind": "object",
+      "subject": "two grilled sausages on a wooden plate with holly and a small christmas bow"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H3.png",
+      "kind": "object",
+      "subject": "a green alpine hat decorated for christmas, snow on the brim, a candy cane striped feather, holly and a golden bell"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/W1.png",
+      "kind": "text",
+      "subject": "a frosty beer mug with snow on the foam, the gold word WILD with snow on top and a candy cane"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L1.png",
+      "kind": "text",
+      "subject": "the letter A, red and white candy cane pattern, gold rim, a little snow on top"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L2.png",
+      "kind": "text",
+      "subject": "the letter K, red and white candy cane pattern, gold rim, a little snow on top"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L3.png",
+      "kind": "text",
+      "subject": "the letter Q, red and white candy cane pattern, gold rim, a little snow on top"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L4.png",
+      "kind": "text",
+      "subject": "the letter J, red and white candy cane pattern, gold rim, a little snow on top"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X1.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x1"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X2.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x2"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X3.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x3"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X5.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x5"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X10.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x10"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X15.png",
+      "kind": "text",
+      "subject": "a round christmas ornament badge with the gold number x15"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/WH.png",
+      "kind": "object",
+      "subject": "a round prize wheel symbol like a christmas wreath, gold rim with small lights, icy blue and white segments"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/WH_EB.png",
+      "kind": "object",
+      "subject": "a round prize wheel symbol like a christmas wreath, gold rim with small lights, red and white candy segments"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, purple knitted christmas sweater pattern with snowflakes, soft border"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, green knitted christmas sweater pattern with snowflakes, soft border"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/W_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, red knitted christmas sweater pattern with snowflakes, soft border"
+    },
+    {
+      "file": "ab_maingame/textures/game/main_bg.jpg",
+      "kind": "scene",
+      "subject": "a cosy wooden tavern hall decorated for christmas, garlands with lights, wreaths, snow falling outside the windows, warm fireplace glow"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_ree_down.png",
+      "kind": "frame",
+      "subject": "a red velvet stage curtain valance with white fur trim and small gold bells"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_ree_up.png",
+      "kind": "frame",
+      "subject": "an ornate gold frame with snow on top and holly leaves, an empty inside"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel.png",
+      "kind": "frame",
+      "subject": "a carved wooden reel frame decorated for christmas, snow on the top arch, garlands with small lights, gingerbread barrels"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_mg_left.png",
+      "kind": "frame",
+      "subject": "a vertical green painted wooden plank with a little frost"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_mg_right.png",
+      "kind": "frame",
+      "subject": "a vertical icy blue painted wooden plank with a little frost"
+    },
+    {
+      "file": "ab_maingame/textures/game/img_win_bg.png",
+      "kind": "frame",
+      "subject": "a carved gold and wood banner frame with snow on top and holly"
+    },
+    {
+      "file": "ab_maingame/textures/game/img_win_wheel_bg.png",
+      "kind": "text",
+      "subject": "two carved gold and wood banner frames with snow, the word WHEEL in gold on the lower one"
+    },
+    {
+      "file": "ab_maingame/textures/game/wheel_in.png",
+      "kind": "frame",
+      "subject": "a prize wheel disc with colourful wooden segments, frosted, christmas colours"
+    },
+    {
+      "file": "ab_maingame/textures/game/wheel_out.png",
+      "kind": "frame",
+      "subject": "the icy blue wooden outer ring of a prize wheel, frosted with snow"
+    },
+    {
+      "file": "ab_maingame/textures/game/black_back.png",
+      "kind": "keep"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_right.png",
+      "kind": "keep"
+    },
+    {
+      "file": "ab_maingame/textures/game/guide_page.png",
+      "kind": "keep"
+    },
+    {
+      "glob": "ab_maingame/textures/panel/auto_*_btn_normal.png",
+      "kind": "text",
+      "subject": "a round game button with its number, red and gold christmas style, a little snow"
+    },
+    {
+      "glob": "ab_maingame/textures/panel/*.png",
+      "kind": "text",
+      "subject": "a game control button, red green and gold christmas style, a little snow, keep its icon"
+    }
+  ],
+  "spine": {
+    "keep_words": [
+      "fx",
+      "light",
+      "glow",
+      "flash",
+      "flare",
+      "shine",
+      "sun",
+      "star",
+      "spark",
+      "particle",
+      "ring",
+      "lens",
+      "shock",
+      "sweep",
+      "circle",
+      "gradient",
+      "smoke",
+      "bubble",
+      "color_paper",
+      "black",
+      "dot",
+      "water",
+      "liquid",
+      "expl",
+      "shadow",
+      "line",
+      "frame_in_glow",
+      "lightdot",
+      "drop",
+      "frame_square"
+    ],
+    "sequence_pattern": "_\\d{2,3}$",
+    "min_size": 40,
+    "pages": [
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h1.atlas",
+        "reference": "ab_maingame/textures/symbols/H1.png",
+        "subject": "a heart-shaped gingerbread cookie with icing and a red flower, christmas",
+        "parts": {
+          "Cake": {
+            "subject": "a plain golden brown heart-shaped gingerbread cookie, smooth baked surface, no icing, no decoration, no border",
+            "reference": false,
+            "denoise": 0.55
+          }
+        }
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h2.atlas",
+        "reference": "ab_maingame/textures/symbols/H2.png",
+        "subject": "grilled sausages on a wooden plate, christmas holly",
+        "parts": {
+          "tray": {
+            "subject": "an empty round wooden serving plate with a thin red and white candy cane rim and a little snow, christmas, nothing on the plate, no food",
+            "reference": false
+          },
+          "near sausage": {
+            "subject": "one plain grilled sausage, glossy, appetising, christmas lighting",
+            "reference": false,
+            "denoise": 0.6
+          },
+          "far sausage": {
+            "subject": "one plain grilled sausage, glossy, appetising, christmas lighting",
+            "reference": false,
+            "denoise": 0.6
+          }
+        }
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h3.atlas",
+        "reference": "ab_maingame/textures/symbols/H3.png",
+        "subject": "part of a green alpine hat decorated for christmas, snow, holly, candy cane feather"
+      },
+      {
+        "atlas": "ab_maingame/spine/sym_sym_w1.atlas",
+        "reference": "ab_maingame/textures/symbols/W1.png",
+        "subject": "part of a frosty beer mug with snow on the foam, christmas"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_l.atlas",
+        "reference": "ab_maingame/textures/symbols/L1.png",
+        "subject": "a letter with red and white candy cane pattern and gold rim"
+      },
+      {
+        "atlas": "ab_maingame/spine/amin_sym_m.atlas",
+        "reference": "ab_maingame/textures/symbols/X10.png",
+        "subject": "part of a round christmas ornament multiplier badge"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_btn_spin.atlas",
+        "subject": "part of a round spin button, red and gold christmas style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_button.atlas",
+        "subject": "part of a game button, red green and gold christmas style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_mark.atlas",
+        "subject": "a game badge, red and gold christmas style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_on_fx.atlas",
+        "subject": "part of a frame, gold christmas style",
+        "keep_parts": [
+          "frame",
+          "frame2",
+          "frame3"
+        ]
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_mg_bg.atlas",
+        "reference": "ab_maingame/textures/game/main_bg.jpg",
+        "subject": "a wooden barrel or a pennant flag, decorated for christmas with snow and lights"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_mg.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim with lights, christmas wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_bg.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim with lights, christmas wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_bg_light.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim with lights, christmas wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_role/anim_role.atlas",
+        "subject": "part of the dress of a cheerful cartoon waitress, a red christmas dress with white fur trim and holly, christmas",
+        "also": [
+          "ab_maingame/spine/anim_role/anim_epic.atlas",
+          "ab_maingame/spine/anim_role/anim_role_wheel.atlas"
+        ],
+        "denoise": 0.78,
+        "keep_parts": [
+          "head",
+          "eyeball_l",
+          "nose",
+          "oral",
+          "far arm",
+          "front arm",
+          "far forearm",
+          "far forearm2",
+          "front forearm",
+          "front forearm2",
+          "fingers_r",
+          "leg_l",
+          "leg_r",
+          "braid",
+          "far bangs",
+          "front bangs",
+          "head far side bangs",
+          "hair bun",
+          "top hair"
+        ],
+        "control": 0.45
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_big.atlas",
+        "subject": "part of a big win celebration, christmas style",
+        "parts": {
+          "tray": {
+            "subject": "an empty round wooden serving plate with a thin red and white candy cane rim and a little snow, christmas, nothing on the plate, no food",
+            "reference": false
+          },
+          "near sausage2": {
+            "subject": "one plain grilled sausage with a line of mustard, glossy, christmas lighting",
+            "reference": false,
+            "denoise": 0.6
+          }
+        }
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_mega.atlas",
+        "subject": "part of a mega win celebration with a frosty beer glass, christmas style"
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_super.atlas",
+        "subject": "part of a super win celebration with a christmas cake, christmas style",
+        "parts": {
+          "Cake": {
+            "subject": "a plain golden brown heart-shaped gingerbread cookie, smooth baked surface, no icing, no decoration, no border",
+            "reference": false,
+            "denoise": 0.55
+          }
+        }
+      }
+    ],
+    "text_names": [
+      "A",
+      "K",
+      "Q",
+      "J",
+      "ex",
+      "bar",
+      "on bar",
+      "off bar",
+      "q-mark",
+      "x10",
+      "x15",
+      "x2",
+      "x3",
+      "x5",
+      "wild"
+    ],
+    "text_prefixes": [
+      "logo/",
+      "txt_"
+    ],
+    "reference_weight": 0.35
+  }
+}

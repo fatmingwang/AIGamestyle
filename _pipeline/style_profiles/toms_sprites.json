@@ -1,0 +1,1349 @@
+{
+ "about": "New TOMS sprites (docs/27_AI_SPRITES.md); written by make_toms_sprites_plan.py",
+ "categories": [
+  {
+   "name": "monsters",
+   "anchor": "bottom",
+   "reference": [
+    "slime",
+    "bat",
+    "golem",
+    "skeleton",
+    "wraith",
+    "demon",
+    "npc_villager",
+    "npc_king",
+    "npc_sorcerer",
+    "player"
+   ],
+   "sprites": {
+    "m_mossling": "a small round moss creature with leaf sprouts on its head",
+    "m_sprout_imp": "a mischievous sprout imp with a leaf hat",
+    "m_thorn_boar": "a wild boar covered in thorny vines",
+    "m_forest_wolf": "a grey forest wolf snarling",
+    "m_horn_beetle": "a giant green horned beetle",
+    "m_toadstool": "a walking red toadstool mushroom with angry eyes",
+    "m_vine_snake": "a green snake made of twisting vines",
+    "m_bear_cub": "an angry brown bear cub with claws",
+    "m_pixie": "a trickster pixie with butterfly wings and a wand",
+    "m_bandit": "a hooded forest bandit with a dagger",
+    "m_red_bat": "a red cave bat with big ears",
+    "m_rock_crab": "a crab with a shell made of grey rock",
+    "m_mole_miner": "a mole miner with a helmet lamp and pickaxe",
+    "m_crystal_spider": "a spider with glowing purple crystal legs",
+    "m_cave_troll": "a hunched grey cave troll with a club",
+    "m_gem_slime": "a slime with shiny gems inside it",
+    "m_kobold": "a small kobold scout with a spear",
+    "m_stone_lizard": "a lizard with stone scales",
+    "m_glow_worm": "a fat glowing cave worm",
+    "m_ore_golem": "a small golem made of iron ore chunks",
+    "m_zombie": "a green zombie peasant with torn clothes",
+    "m_ghost_maiden": "a pale floating ghost maiden",
+    "m_bone_archer": "a skeleton archer with a bow",
+    "m_mummy": "a mummy wrapped in bandages with glowing eyes",
+    "m_vampire_bat": "a dark red vampire bat with fangs",
+    "m_ghoul": "a hunched grey ghoul with long claws",
+    "m_lich": "a skeletal lich mage in a purple robe with a staff",
+    "m_skull_knight": "a skeleton knight in rusty armor with a shield",
+    "m_banshee": "a screaming blue banshee spirit",
+    "m_grave_rat": "a big rat with glowing green eyes",
+    "m_salamander": "a red fire salamander with flames on its back",
+    "m_magma_slime": "a glowing orange magma slime",
+    "m_fire_imp": "a small red imp holding a fireball",
+    "m_ember_wolf": "a wolf with a burning mane",
+    "m_flame_spirit": "a living flame spirit with a face",
+    "m_lava_golem": "a golem of black rock with lava cracks",
+    "m_fire_drake": "a small red winged fire drake",
+    "m_ash_wraith": "a grey wraith made of smoke and ash",
+    "m_phoenix_chick": "a fluffy baby phoenix bird made of fire",
+    "m_cinder_beetle": "a black beetle with glowing red cracks",
+    "m_ice_golem": "an ice golem made of blue crystal blocks",
+    "m_frost_wolf": "a white frost wolf with icy fur",
+    "m_yeti": "a big white furry yeti",
+    "m_ice_slime": "a translucent light blue ice slime",
+    "m_frost_fairy": "a frost fairy with icicle wings",
+    "m_penguin_knight": "a penguin knight with a tiny sword and helmet",
+    "m_ice_wraith": "a pale blue ghost with icicles",
+    "m_mammoth": "a woolly mammoth calf with tusks",
+    "m_crystal_serpent": "a serpent made of ice crystals",
+    "m_blizzard_owl": "a white snowy owl with icy feathers",
+    "m_dark_knight": "a dark armored knight with a sword",
+    "m_gargoyle": "a stone gargoyle with bat wings",
+    "m_demon_guard": "a red demon guard with a halberd",
+    "m_shadow_assassin": "a black-clad shadow assassin with twin daggers",
+    "m_chimera": "a chimera with a lion head and snake tail",
+    "m_minotaur": "a muscular minotaur with an axe",
+    "m_dark_mage": "a dark mage in a black robe with a glowing orb",
+    "m_hellhound": "a black hellhound with fiery eyes",
+    "m_armored_ogre": "a big ogre in iron armor with a mace",
+    "m_demon_general": "a horned demon general in black and gold armor"
+   }
+  },
+  {
+   "name": "npcs",
+   "anchor": "bottom",
+   "reference": [
+    "slime",
+    "bat",
+    "golem",
+    "skeleton",
+    "wraith",
+    "demon",
+    "npc_villager",
+    "npc_king",
+    "npc_sorcerer",
+    "player"
+   ],
+   "sprites": {
+    "npc_farmer": "a farmer in overalls with a straw hat and a pitchfork",
+    "npc_farmer_wife": "a farmer's wife with an apron and a basket of eggs",
+    "npc_fisherman": "an old fisherman with a fishing rod and a hat",
+    "npc_shepherd_girl": "a shepherd girl with a crook",
+    "npc_old_woman": "a kind old woman with a shawl and a cane",
+    "npc_village_boy": "a cheerful village boy with a slingshot",
+    "npc_village_girl": "a village girl with braids and a flower",
+    "npc_baker": "a plump baker with a white hat holding bread",
+    "npc_weaver": "a weaver woman holding yarn",
+    "npc_miller": "a dusty miller with a flour sack",
+    "npc_merchant": "a merchant with a big backpack of goods",
+    "npc_potion_seller": "a potion seller with colorful bottles",
+    "npc_jeweler": "a jeweler with a monocle holding a gem",
+    "npc_peddler": "a traveling peddler with a cart bag",
+    "npc_innkeeper": "a friendly innkeeper with a mug",
+    "npc_blacksmith": "a bearded blacksmith with an apron and hammer",
+    "npc_armorer": "an armorer holding a shield",
+    "npc_fletcher": "a fletcher with a bundle of arrows",
+    "npc_cartographer": "a cartographer holding a rolled map",
+    "npc_tailor": "a tailor with a measuring tape",
+    "npc_town_guard": "a town guard with a spear and helmet",
+    "npc_guard_captain": "a guard captain with a red cape",
+    "npc_knight_errant": "a wandering knight in shining armor",
+    "npc_archer_scout": "an archer scout in a green hood",
+    "npc_gatekeeper": "an old gatekeeper with a ring of keys",
+    "npc_duke": "a duke in a fur cloak and a small crown",
+    "npc_duchess": "a duchess in an elegant purple gown",
+    "npc_young_lord": "a young lord in a fancy blue coat",
+    "npc_jester": "a court jester with a bell hat",
+    "npc_advisor": "a royal advisor with a long beard and a scroll",
+    "npc_priest": "a priest in white robes with a golden symbol",
+    "npc_nun": "a kind nun in black and white robes",
+    "npc_monk": "a bald monk in brown robes with prayer beads",
+    "npc_oracle": "a blindfolded oracle with a glowing orb",
+    "npc_healer": "a healer woman with a herb pouch",
+    "npc_bard": "a bard playing a lute",
+    "npc_pilgrim": "a pilgrim with a walking staff and a cloak",
+    "npc_wandering_mage": "a wandering mage with a pointed hat and a staff",
+    "npc_explorer": "an explorer with a pith helmet and a backpack",
+    "npc_fortune_teller": "a fortune teller with a scarf and a crystal ball",
+    "npc_hunter": "a hunter with a bow and a fur vest",
+    "npc_ranger": "a forest ranger with a cloak",
+    "npc_old_hero": "a retired old hero with a scar and a cane sword",
+    "npc_scholar": "a scholar with glasses and a big book",
+    "npc_alchemist": "an alchemist holding a bubbling flask",
+    "npc_miner": "a miner with a helmet and a pickaxe",
+    "npc_lumberjack": "a lumberjack with a plaid shirt and an axe",
+    "npc_sailor": "a sailor in a striped shirt",
+    "npc_dwarf": "a stout dwarf with a big braided beard",
+    "npc_elf": "an elf traveler with pointy ears and a green cloak"
+   }
+  },
+  {
+   "name": "players",
+   "anchor": "bottom",
+   "reference": [
+    "slime",
+    "bat",
+    "golem",
+    "skeleton",
+    "wraith",
+    "demon",
+    "npc_villager",
+    "npc_king",
+    "npc_sorcerer",
+    "player"
+   ],
+   "sprites": {
+    "player_red": "a young hero swordsman in a red tunic",
+    "player_mage": "a young mage hero with a blue hat and a staff",
+    "player_rogue": "a rogue hero in a dark green hood with daggers",
+    "player_paladin": "a paladin hero in white and gold armor",
+    "player_ranger": "a ranger hero with a bow and a brown cloak",
+    "player_knight_girl": "a girl knight hero with a ponytail and a sword",
+    "player_monk": "a monk hero in an orange gi",
+    "player_pirate": "a pirate hero with a hat and a cutlass",
+    "player_ninja": "a ninja hero in black with a scarf",
+    "player_viking": "a viking hero with a horned helmet and an axe"
+   }
+  },
+  {
+   "name": "doors",
+   "base": "door_yellow",
+   "denoise": 0.8,
+   "style": "pixel art, retro game sprite, flat colors, thick black outline, simple shapes",
+   "negative": "person, character, people, figure, face",
+   "sprites": {
+    "door_emerald": "a green emerald stone door, a square closed door with a keyhole",
+    "door_amethyst": "a purple amethyst crystal door, a square closed door with a keyhole",
+    "door_silver": "a shiny silver metal door, a square closed door with a keyhole",
+    "door_bronze": "an old bronze door with rivets, a square closed door with a keyhole",
+    "door_obsidian": "a black obsidian door with purple runes, a square closed door with a keyhole",
+    "door_frost": "a frozen ice door with frost, a square closed door with a keyhole",
+    "door_flame": "a door of black iron with flames, a square closed door with a keyhole",
+    "door_bone": "a door made of bones and skulls, a square closed door with a keyhole",
+    "door_rune": "a grey stone door with glowing blue runes, a square closed door with a keyhole",
+    "door_sun": "a golden door with a sun emblem, a square closed door with a keyhole"
+   }
+  },
+  {
+   "name": "keys",
+   "base": "key_yellow",
+   "denoise": 0.8,
+   "style": "pixel art, retro game sprite, flat colors, thick black outline, simple shapes",
+   "negative": "person, character, people, figure, face",
+   "sprites": {
+    "key_emerald": "a green emerald key, lying sideways",
+    "key_amethyst": "a purple amethyst key, lying sideways",
+    "key_silver": "a silver key, lying sideways",
+    "key_bronze": "a bronze key, lying sideways",
+    "key_obsidian": "a black obsidian key, lying sideways",
+    "key_frost": "a light blue ice key, lying sideways",
+    "key_flame": "a flaming orange key, lying sideways",
+    "key_bone": "a bone key, lying sideways",
+    "key_rune": "a stone key with a blue rune, lying sideways",
+    "key_sun": "a golden key with a sun, lying sideways"
+   }
+  },
+  {
+   "name": "items",
+   "anchor": "center",
+   "style": "pixel art, 32x32 retro game item icon, a single object, centered, thick black outline, flat colors, 4 to 6 colors, simple shapes, plain white background",
+   "negative": "person, character, people, figure, face",
+   "reference": [
+    "gem_atk",
+    "gem_def",
+    "potion_red",
+    "potion_blue",
+    "coin",
+    "key_yellow",
+    "key_blue",
+    "key_red",
+    "scroll",
+    "exp_up"
+   ],
+   "sprites": {
+    "item_ancient_amulet": "an ancient gold amulet with a red gem",
+    "item_silver_ring": "a silver ring with a blue stone",
+    "item_lost_crown": "a small golden crown",
+    "item_healing_herb": "a bundle of green healing herbs",
+    "item_treasure_map": "an old treasure map with a red X",
+    "item_sealed_letter": "a letter with a red wax seal",
+    "item_old_lantern": "an old oil lantern glowing",
+    "item_spell_book": "a purple spell book with a star",
+    "item_golden_chalice": "a golden chalice",
+    "item_phoenix_feather": "a glowing orange phoenix feather",
+    "item_broken_sword": "a broken old sword",
+    "item_magic_mirror": "a magic hand mirror with a gold frame",
+    "item_music_box": "a small wooden music box",
+    "item_crystal_ball": "a crystal ball on a stand",
+    "item_dragon_egg": "a spotted dragon egg",
+    "item_holy_water": "a bottle of holy water with a cross",
+    "item_rope": "a coil of rope",
+    "item_pickaxe": "a mining pickaxe",
+    "item_fishing_rod": "a fishing rod",
+    "item_lucky_clover": "a four-leaf clover",
+    "item_silver_bell": "a small silver bell",
+    "item_hourglass": "an hourglass with blue sand",
+    "item_compass": "a brass compass",
+    "item_star_fragment": "a glowing yellow star fragment",
+    "item_moon_stone": "a pale blue crescent moon stone",
+    "item_sun_medallion": "a gold sun medallion",
+    "item_wooden_doll": "a small wooden doll",
+    "item_family_portrait": "a small framed family portrait",
+    "item_locket": "a heart-shaped gold locket",
+    "item_ancient_coin": "an ancient bronze coin with a face",
+    "item_bone_flute": "a flute carved from bone",
+    "item_rune_stone": "a grey rune stone with a glowing symbol",
+    "item_candle": "a lit white candle",
+    "item_bread_loaf": "a loaf of bread",
+    "item_red_apple": "a shiny red apple",
+    "item_cheese_wheel": "a wheel of yellow cheese",
+    "item_wine_bottle": "a bottle of red wine",
+    "item_flower_bouquet": "a bouquet of colorful flowers",
+    "item_bird_cage": "a small bird cage with a yellow bird",
+    "item_quill": "a feather quill and an ink pot",
+    "item_spectacles": "a pair of round spectacles",
+    "item_pocket_watch": "a golden pocket watch",
+    "item_emblem_shield": "a small shield with a lion emblem",
+    "item_war_horn": "a war horn",
+    "item_prayer_beads": "a string of prayer beads",
+    "item_poison_vial": "a green poison vial with a skull",
+    "item_antidote": "a small blue antidote bottle",
+    "item_mushroom_basket": "a basket of mushrooms",
+    "item_crystal_shard": "a sharp purple crystal shard",
+    "item_old_key_ring": "an iron ring of old keys"
+   }
+  },
+  {
+   "name": "stairs",
+   "base": {
+    "stairs_up": "stairs_up",
+    "stairs_down": "stairs_down"
+   },
+   "denoise": 0.8,
+   "style": "pixel art, retro game sprite, flat colors, thick black outline, simple shapes",
+   "negative": "person, character, people, figure, face",
+   "sprites": {
+    "stairs_up_forest": "stone steps of mossy stone going up, seen from the front, no people",
+    "stairs_up_cave": "stone steps of rough rock going up, seen from the front, no people",
+    "stairs_up_crypt": "stone steps of old grey stone going up, seen from the front, no people",
+    "stairs_up_lava": "stone steps of black basalt going up, seen from the front, no people",
+    "stairs_up_ice": "stone steps of ice going up, seen from the front, no people",
+    "stairs_up_castle": "stone steps of polished grey stone going up, seen from the front, no people",
+    "stairs_up_sand": "stone steps of sandstone going up, seen from the front, no people",
+    "stairs_up_wood": "stone steps of wood going up, seen from the front, no people",
+    "stairs_up_crystal": "stone steps of purple crystal going up, seen from the front, no people",
+    "stairs_up_shadow": "stone steps of obsidian going up, seen from the front, no people",
+    "stairs_down_forest": "steps of mossy stone going down into a dark hole, seen from above, no people",
+    "stairs_down_cave": "steps of rough rock going down into a dark hole, seen from above, no people",
+    "stairs_down_crypt": "steps of old grey stone going down into a dark hole, seen from above, no people",
+    "stairs_down_lava": "steps of black basalt going down into a dark hole, seen from above, no people",
+    "stairs_down_ice": "steps of ice going down into a dark hole, seen from above, no people",
+    "stairs_down_castle": "steps of polished grey stone going down into a dark hole, seen from above, no people",
+    "stairs_down_sand": "steps of sandstone going down into a dark hole, seen from above, no people",
+    "stairs_down_wood": "steps of wood going down into a dark hole, seen from above, no people",
+    "stairs_down_crystal": "steps of purple crystal going down into a dark hole, seen from above, no people",
+    "stairs_down_shadow": "steps of obsidian going down into a dark hole, seen from above, no people"
+   }
+  },
+  {
+   "name": "walls",
+   "base": "wall",
+   "denoise": 0.8,
+   "style": "pixel art, retro game sprite, flat colors, thick black outline, simple shapes, top-down wall tile, fills the image",
+   "negative": "person, character, people, figure, face",
+   "sprites": {
+    "wall_forest": "a wall of mossy green stone bricks",
+    "wall_cave": "a wall of rough brown cave rock",
+    "wall_crypt": "a wall of old grey bricks with small skulls",
+    "wall_lava": "a wall of black basalt with glowing lava cracks",
+    "wall_ice": "a wall of light blue ice blocks",
+    "wall_castle": "a wall of large grey castle stone blocks",
+    "wall_sand": "a wall of yellow sandstone bricks",
+    "wall_wood": "a wall of wooden plank wall",
+    "wall_crystal": "a wall of purple crystal wall",
+    "wall_shadow": "a wall of dark purple obsidian bricks"
+   }
+  },
+  {
+   "name": "floors",
+   "base": "floor",
+   "denoise": 0.8,
+   "style": "pixel art, retro game sprite, flat colors, thick black outline, simple shapes, top-down floor tile, fills the image",
+   "negative": "person, character, people, figure, face",
+   "sprites": {
+    "floor_forest": "grass and dirt path",
+    "floor_cave": "dark brown cave ground with pebbles",
+    "floor_crypt": "cracked grey crypt tiles",
+    "floor_lava": "dark volcanic stone with red cracks",
+    "floor_ice": "smooth white snow and ice",
+    "floor_castle": "red carpet on stone",
+    "floor_sand": "desert sand tiles",
+    "floor_wood": "wooden floor boards",
+    "floor_crystal": "shiny purple crystal floor",
+    "floor_shadow": "dark purple stone tiles"
+   }
+  }
+ ],
+ "monsters": {
+  "1": {
+   "theme": "forest",
+   "rows": [
+    [
+     "m_mossling",
+     "Mossling",
+     "苔蘚球"
+    ],
+    [
+     "m_sprout_imp",
+     "Sprout Imp",
+     "芽苗小鬼"
+    ],
+    [
+     "m_thorn_boar",
+     "Thorn Boar",
+     "荊棘野豬"
+    ],
+    [
+     "m_forest_wolf",
+     "Forest Wolf",
+     "森林狼"
+    ],
+    [
+     "m_horn_beetle",
+     "Horn Beetle",
+     "角甲蟲"
+    ],
+    [
+     "m_toadstool",
+     "Toadstool",
+     "毒蕈怪"
+    ],
+    [
+     "m_vine_snake",
+     "Vine Snake",
+     "藤蔓蛇"
+    ],
+    [
+     "m_bear_cub",
+     "Bear Cub",
+     "暴躁小熊"
+    ],
+    [
+     "m_pixie",
+     "Trickster Pixie",
+     "惡作劇妖精"
+    ],
+    [
+     "m_bandit",
+     "Forest Bandit",
+     "森林盜賊"
+    ]
+   ]
+  },
+  "2": {
+   "theme": "cave",
+   "rows": [
+    [
+     "m_red_bat",
+     "Red Cave Bat",
+     "赤洞蝙蝠"
+    ],
+    [
+     "m_rock_crab",
+     "Rock Crab",
+     "岩殼蟹"
+    ],
+    [
+     "m_mole_miner",
+     "Mole Miner",
+     "鼴鼠礦工"
+    ],
+    [
+     "m_crystal_spider",
+     "Crystal Spider",
+     "水晶蜘蛛"
+    ],
+    [
+     "m_cave_troll",
+     "Cave Troll",
+     "洞穴巨魔"
+    ],
+    [
+     "m_gem_slime",
+     "Gem Slime",
+     "寶石史萊姆"
+    ],
+    [
+     "m_kobold",
+     "Kobold Scout",
+     "狗頭人斥候"
+    ],
+    [
+     "m_stone_lizard",
+     "Stone Lizard",
+     "石鱗蜥蜴"
+    ],
+    [
+     "m_glow_worm",
+     "Glow Worm",
+     "螢光蠕蟲"
+    ],
+    [
+     "m_ore_golem",
+     "Ore Golem",
+     "礦石魔像"
+    ]
+   ]
+  },
+  "3": {
+   "theme": "undead",
+   "rows": [
+    [
+     "m_zombie",
+     "Zombie",
+     "殭屍"
+    ],
+    [
+     "m_ghost_maiden",
+     "Ghost Maiden",
+     "幽魂少女"
+    ],
+    [
+     "m_bone_archer",
+     "Bone Archer",
+     "骸骨弓手"
+    ],
+    [
+     "m_mummy",
+     "Mummy",
+     "木乃伊"
+    ],
+    [
+     "m_vampire_bat",
+     "Vampire Bat",
+     "吸血蝙蝠"
+    ],
+    [
+     "m_ghoul",
+     "Ghoul",
+     "食屍鬼"
+    ],
+    [
+     "m_lich",
+     "Lich Apprentice",
+     "巫妖學徒"
+    ],
+    [
+     "m_skull_knight",
+     "Skull Knight",
+     "骷髏騎士"
+    ],
+    [
+     "m_banshee",
+     "Banshee",
+     "報喪女妖"
+    ],
+    [
+     "m_grave_rat",
+     "Grave Rat",
+     "墓穴巨鼠"
+    ]
+   ]
+  },
+  "4": {
+   "theme": "fire",
+   "rows": [
+    [
+     "m_salamander",
+     "Fire Salamander",
+     "火蜥蜴"
+    ],
+    [
+     "m_magma_slime",
+     "Magma Slime",
+     "熔岩史萊姆"
+    ],
+    [
+     "m_fire_imp",
+     "Fire Imp",
+     "火焰小鬼"
+    ],
+    [
+     "m_ember_wolf",
+     "Ember Wolf",
+     "餘燼狼"
+    ],
+    [
+     "m_flame_spirit",
+     "Flame Spirit",
+     "火焰精靈"
+    ],
+    [
+     "m_lava_golem",
+     "Lava Golem",
+     "熔岩魔像"
+    ],
+    [
+     "m_fire_drake",
+     "Fire Drake",
+     "火焰飛龍"
+    ],
+    [
+     "m_ash_wraith",
+     "Ash Wraith",
+     "灰燼怨靈"
+    ],
+    [
+     "m_phoenix_chick",
+     "Phoenix Chick",
+     "雛鳳凰"
+    ],
+    [
+     "m_cinder_beetle",
+     "Cinder Beetle",
+     "灰燼甲蟲"
+    ]
+   ]
+  },
+  "5": {
+   "theme": "ice",
+   "rows": [
+    [
+     "m_ice_golem",
+     "Ice Golem",
+     "冰魔像"
+    ],
+    [
+     "m_frost_wolf",
+     "Frost Wolf",
+     "霜狼"
+    ],
+    [
+     "m_yeti",
+     "Yeti",
+     "雪怪"
+    ],
+    [
+     "m_ice_slime",
+     "Ice Slime",
+     "冰史萊姆"
+    ],
+    [
+     "m_frost_fairy",
+     "Frost Fairy",
+     "霜之妖精"
+    ],
+    [
+     "m_penguin_knight",
+     "Penguin Knight",
+     "企鵝騎士"
+    ],
+    [
+     "m_ice_wraith",
+     "Ice Wraith",
+     "冰之怨靈"
+    ],
+    [
+     "m_mammoth",
+     "Mammoth Calf",
+     "小長毛象"
+    ],
+    [
+     "m_crystal_serpent",
+     "Crystal Serpent",
+     "冰晶巨蛇"
+    ],
+    [
+     "m_blizzard_owl",
+     "Blizzard Owl",
+     "暴雪貓頭鷹"
+    ]
+   ]
+  },
+  "6": {
+   "theme": "castle",
+   "rows": [
+    [
+     "m_dark_knight",
+     "Dark Knight",
+     "黑暗騎士"
+    ],
+    [
+     "m_gargoyle",
+     "Gargoyle",
+     "石像鬼"
+    ],
+    [
+     "m_demon_guard",
+     "Demon Guard",
+     "惡魔守衛"
+    ],
+    [
+     "m_shadow_assassin",
+     "Shadow Assassin",
+     "暗影刺客"
+    ],
+    [
+     "m_chimera",
+     "Chimera",
+     "奇美拉"
+    ],
+    [
+     "m_minotaur",
+     "Minotaur",
+     "牛頭人"
+    ],
+    [
+     "m_dark_mage",
+     "Dark Mage",
+     "黑暗法師"
+    ],
+    [
+     "m_hellhound",
+     "Hellhound",
+     "地獄犬"
+    ],
+    [
+     "m_armored_ogre",
+     "Armored Ogre",
+     "鐵甲食人魔"
+    ],
+    [
+     "m_demon_general",
+     "Demon General",
+     "惡魔將軍"
+    ]
+   ]
+  }
+ },
+ "npcs": [
+  [
+   "npc_farmer",
+   "Farmer",
+   "農夫"
+  ],
+  [
+   "npc_farmer_wife",
+   "Farmer's Wife",
+   "農婦"
+  ],
+  [
+   "npc_fisherman",
+   "Fisherman",
+   "漁夫"
+  ],
+  [
+   "npc_shepherd_girl",
+   "Shepherd Girl",
+   "牧羊女"
+  ],
+  [
+   "npc_old_woman",
+   "Old Woman",
+   "老婆婆"
+  ],
+  [
+   "npc_village_boy",
+   "Village Boy",
+   "村裡的男孩"
+  ],
+  [
+   "npc_village_girl",
+   "Village Girl",
+   "村裡的女孩"
+  ],
+  [
+   "npc_baker",
+   "Baker",
+   "麵包師"
+  ],
+  [
+   "npc_weaver",
+   "Weaver",
+   "織布女"
+  ],
+  [
+   "npc_miller",
+   "Miller",
+   "磨坊主"
+  ],
+  [
+   "npc_merchant",
+   "Merchant",
+   "商人"
+  ],
+  [
+   "npc_potion_seller",
+   "Potion Seller",
+   "藥水商人"
+  ],
+  [
+   "npc_jeweler",
+   "Jeweler",
+   "珠寶商"
+  ],
+  [
+   "npc_peddler",
+   "Peddler",
+   "行腳商"
+  ],
+  [
+   "npc_innkeeper",
+   "Innkeeper",
+   "旅店老闆"
+  ],
+  [
+   "npc_blacksmith",
+   "Blacksmith",
+   "鐵匠"
+  ],
+  [
+   "npc_armorer",
+   "Armorer",
+   "盔甲匠"
+  ],
+  [
+   "npc_fletcher",
+   "Fletcher",
+   "箭匠"
+  ],
+  [
+   "npc_cartographer",
+   "Cartographer",
+   "製圖師"
+  ],
+  [
+   "npc_tailor",
+   "Tailor",
+   "裁縫"
+  ],
+  [
+   "npc_town_guard",
+   "Town Guard",
+   "城鎮衛兵"
+  ],
+  [
+   "npc_guard_captain",
+   "Guard Captain",
+   "衛兵隊長"
+  ],
+  [
+   "npc_knight_errant",
+   "Knight Errant",
+   "遊俠騎士"
+  ],
+  [
+   "npc_archer_scout",
+   "Archer Scout",
+   "弓箭斥候"
+  ],
+  [
+   "npc_gatekeeper",
+   "Gatekeeper",
+   "守門人"
+  ],
+  [
+   "npc_duke",
+   "Duke",
+   "公爵"
+  ],
+  [
+   "npc_duchess",
+   "Duchess",
+   "公爵夫人"
+  ],
+  [
+   "npc_young_lord",
+   "Young Lord",
+   "少爺"
+  ],
+  [
+   "npc_jester",
+   "Court Jester",
+   "宮廷弄臣"
+  ],
+  [
+   "npc_advisor",
+   "Royal Advisor",
+   "皇家顧問"
+  ],
+  [
+   "npc_priest",
+   "Priest",
+   "神父"
+  ],
+  [
+   "npc_nun",
+   "Nun",
+   "修女"
+  ],
+  [
+   "npc_monk",
+   "Monk",
+   "僧侶"
+  ],
+  [
+   "npc_oracle",
+   "Oracle",
+   "神諭者"
+  ],
+  [
+   "npc_healer",
+   "Healer",
+   "治療師"
+  ],
+  [
+   "npc_bard",
+   "Bard",
+   "吟遊詩人"
+  ],
+  [
+   "npc_pilgrim",
+   "Pilgrim",
+   "朝聖者"
+  ],
+  [
+   "npc_wandering_mage",
+   "Wandering Mage",
+   "流浪法師"
+  ],
+  [
+   "npc_explorer",
+   "Explorer",
+   "探險家"
+  ],
+  [
+   "npc_fortune_teller",
+   "Fortune Teller",
+   "占卜師"
+  ],
+  [
+   "npc_hunter",
+   "Hunter",
+   "獵人"
+  ],
+  [
+   "npc_ranger",
+   "Ranger",
+   "遊俠"
+  ],
+  [
+   "npc_old_hero",
+   "Old Hero",
+   "退休的老英雄"
+  ],
+  [
+   "npc_scholar",
+   "Scholar",
+   "學者"
+  ],
+  [
+   "npc_alchemist",
+   "Alchemist",
+   "鍊金術士"
+  ],
+  [
+   "npc_miner",
+   "Miner",
+   "礦工"
+  ],
+  [
+   "npc_lumberjack",
+   "Lumberjack",
+   "伐木工"
+  ],
+  [
+   "npc_sailor",
+   "Sailor",
+   "水手"
+  ],
+  [
+   "npc_dwarf",
+   "Dwarf",
+   "矮人"
+  ],
+  [
+   "npc_elf",
+   "Elf Traveler",
+   "精靈旅人"
+  ]
+ ],
+ "players": [
+  [
+   "player_red",
+   "Red Hero",
+   "紅衣勇者"
+  ],
+  [
+   "player_mage",
+   "Mage",
+   "法師"
+  ],
+  [
+   "player_rogue",
+   "Rogue",
+   "盜賊"
+  ],
+  [
+   "player_paladin",
+   "Paladin",
+   "聖騎士"
+  ],
+  [
+   "player_ranger",
+   "Ranger",
+   "遊俠"
+  ],
+  [
+   "player_knight_girl",
+   "Knight Girl",
+   "少女騎士"
+  ],
+  [
+   "player_monk",
+   "Monk",
+   "武僧"
+  ],
+  [
+   "player_pirate",
+   "Pirate",
+   "海盜"
+  ],
+  [
+   "player_ninja",
+   "Ninja",
+   "忍者"
+  ],
+  [
+   "player_viking",
+   "Viking",
+   "維京戰士"
+  ]
+ ],
+ "gates": [
+  [
+   "emerald",
+   "Emerald",
+   "翡翠"
+  ],
+  [
+   "amethyst",
+   "Amethyst",
+   "紫水晶"
+  ],
+  [
+   "silver",
+   "Silver",
+   "白銀"
+  ],
+  [
+   "bronze",
+   "Bronze",
+   "青銅"
+  ],
+  [
+   "obsidian",
+   "Obsidian",
+   "黑曜石"
+  ],
+  [
+   "frost",
+   "Frost",
+   "寒冰"
+  ],
+  [
+   "flame",
+   "Flame",
+   "烈焰"
+  ],
+  [
+   "bone",
+   "Bone",
+   "骸骨"
+  ],
+  [
+   "rune",
+   "Rune",
+   "符文"
+  ],
+  [
+   "sun",
+   "Sun",
+   "太陽"
+  ]
+ ],
+ "items": [
+  [
+   "item_ancient_amulet",
+   "Ancient Amulet",
+   "古代護身符"
+  ],
+  [
+   "item_silver_ring",
+   "Silver Ring",
+   "銀戒指"
+  ],
+  [
+   "item_lost_crown",
+   "Lost Crown",
+   "遺失的王冠"
+  ],
+  [
+   "item_healing_herb",
+   "Healing Herb",
+   "治療草藥"
+  ],
+  [
+   "item_treasure_map",
+   "Treasure Map",
+   "藏寶圖"
+  ],
+  [
+   "item_sealed_letter",
+   "Sealed Letter",
+   "封印信件"
+  ],
+  [
+   "item_old_lantern",
+   "Old Lantern",
+   "舊油燈"
+  ],
+  [
+   "item_spell_book",
+   "Spell Book",
+   "魔法書"
+  ],
+  [
+   "item_golden_chalice",
+   "Golden Chalice",
+   "黃金聖杯"
+  ],
+  [
+   "item_phoenix_feather",
+   "Phoenix Feather",
+   "鳳凰羽毛"
+  ],
+  [
+   "item_broken_sword",
+   "Broken Sword",
+   "斷劍"
+  ],
+  [
+   "item_magic_mirror",
+   "Magic Mirror",
+   "魔鏡"
+  ],
+  [
+   "item_music_box",
+   "Music Box",
+   "音樂盒"
+  ],
+  [
+   "item_crystal_ball",
+   "Crystal Ball",
+   "水晶球"
+  ],
+  [
+   "item_dragon_egg",
+   "Dragon Egg",
+   "龍蛋"
+  ],
+  [
+   "item_holy_water",
+   "Holy Water",
+   "聖水"
+  ],
+  [
+   "item_rope",
+   "Rope",
+   "繩索"
+  ],
+  [
+   "item_pickaxe",
+   "Pickaxe",
+   "十字鎬"
+  ],
+  [
+   "item_fishing_rod",
+   "Fishing Rod",
+   "釣竿"
+  ],
+  [
+   "item_lucky_clover",
+   "Lucky Clover",
+   "幸運草"
+  ],
+  [
+   "item_silver_bell",
+   "Silver Bell",
+   "銀鈴"
+  ],
+  [
+   "item_hourglass",
+   "Hourglass",
+   "沙漏"
+  ],
+  [
+   "item_compass",
+   "Compass",
+   "羅盤"
+  ],
+  [
+   "item_star_fragment",
+   "Star Fragment",
+   "星之碎片"
+  ],
+  [
+   "item_moon_stone",
+   "Moon Stone",
+   "月之石"
+  ],
+  [
+   "item_sun_medallion",
+   "Sun Medallion",
+   "太陽徽章"
+  ],
+  [
+   "item_wooden_doll",
+   "Wooden Doll",
+   "木偶"
+  ],
+  [
+   "item_family_portrait",
+   "Family Portrait",
+   "全家福"
+  ],
+  [
+   "item_locket",
+   "Locket",
+   "心型項鍊墜"
+  ],
+  [
+   "item_ancient_coin",
+   "Ancient Coin",
+   "古代錢幣"
+  ],
+  [
+   "item_bone_flute",
+   "Bone Flute",
+   "骨笛"
+  ],
+  [
+   "item_rune_stone",
+   "Rune Stone",
+   "符文石"
+  ],
+  [
+   "item_candle",
+   "Candle",
+   "蠟燭"
+  ],
+  [
+   "item_bread_loaf",
+   "Bread Loaf",
+   "麵包"
+  ],
+  [
+   "item_red_apple",
+   "Red Apple",
+   "紅蘋果"
+  ],
+  [
+   "item_cheese_wheel",
+   "Cheese Wheel",
+   "起司"
+  ],
+  [
+   "item_wine_bottle",
+   "Wine Bottle",
+   "葡萄酒"
+  ],
+  [
+   "item_flower_bouquet",
+   "Flower Bouquet",
+   "花束"
+  ],
+  [
+   "item_bird_cage",
+   "Bird Cage",
+   "鳥籠"
+  ],
+  [
+   "item_quill",
+   "Quill and Ink",
+   "羽毛筆與墨水"
+  ],
+  [
+   "item_spectacles",
+   "Spectacles",
+   "眼鏡"
+  ],
+  [
+   "item_pocket_watch",
+   "Pocket Watch",
+   "懷錶"
+  ],
+  [
+   "item_emblem_shield",
+   "Emblem Shield",
+   "紋章盾"
+  ],
+  [
+   "item_war_horn",
+   "War Horn",
+   "戰號角"
+  ],
+  [
+   "item_prayer_beads",
+   "Prayer Beads",
+   "念珠"
+  ],
+  [
+   "item_poison_vial",
+   "Poison Vial",
+   "毒藥瓶"
+  ],
+  [
+   "item_antidote",
+   "Antidote",
+   "解毒劑"
+  ],
+  [
+   "item_mushroom_basket",
+   "Mushroom Basket",
+   "蘑菇籃"
+  ],
+  [
+   "item_crystal_shard",
+   "Crystal Shard",
+   "水晶碎片"
+  ],
+  [
+   "item_old_key_ring",
+   "Old Key Ring",
+   "舊鑰匙圈"
+  ]
+ ],
+ "themes": [
+  [
+   "forest",
+   "Forest",
+   "森林"
+  ],
+  [
+   "cave",
+   "Cave",
+   "洞窟"
+  ],
+  [
+   "crypt",
+   "Crypt",
+   "地下墓穴"
+  ],
+  [
+   "lava",
+   "Lava",
+   "熔岩"
+  ],
+  [
+   "ice",
+   "Ice",
+   "冰原"
+  ],
+  [
+   "castle",
+   "Castle",
+   "城堡"
+  ],
+  [
+   "sand",
+   "Desert",
+   "沙漠"
+  ],
+  [
+   "wood",
+   "Wooden Hall",
+   "木屋"
+  ],
+  [
+   "crystal",
+   "Crystal",
+   "水晶洞"
+  ],
+  [
+   "shadow",
+   "Shadow",
+   "暗影"
+  ]
+ ]
+}

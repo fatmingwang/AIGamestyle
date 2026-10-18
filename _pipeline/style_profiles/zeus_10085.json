@@ -1,0 +1,411 @@
+{
+  "about": "Ancient Greek / Zeus restyle of game 10085 (an Oktoberfest slot): the same objects dressed in the style of Mount Olympus (white marble, gold laurel and Greek key patterns, Aegean sky blue, clouds and lightning), letters and numbers kept exact, effects and flipbook frames unchanged. Read by _pipeline/tools/restyle_game.py; Doc/Reskin_Game_Art.md.",
+  "source": "../tests/10085",
+  "output": "../tests/10085_zeus",
+  "style": "ancient greek mythology theme, Zeus and Mount Olympus, white marble, gold laurel leaves, gold greek key meander pattern, aegean sky blue, soft white clouds, small golden lightning bolts, divine warm light, glossy casual slot game art, vivid white gold and blue, clean edges",
+  "negative": "blurry, low quality, deformed, extra objects, misspelled text, warped letters, watermark, photo, dark, muddy colours, cropped, christmas, snow, modern",
+  "kinds": {
+    "object": {
+      "denoise": 0.8,
+      "control": 0.6
+    },
+    "text": {
+      "denoise": 0.45,
+      "control": 0.85,
+      "prompt_extra": "keep the exact same letters and numbers, crisp readable lettering"
+    },
+    "frame": {
+      "denoise": 0.6,
+      "control": 0.7
+    },
+    "scene": {
+      "denoise": 0.6,
+      "control": 0.55
+    },
+    "keep": {}
+  },
+  "static": [
+    {
+      "file": "ab_maingame/textures/symbols/H1.png",
+      "kind": "object",
+      "subject": "a heart-shaped honey cake with white marble-like icing and a gold laurel sprig, ancient greek"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H2.png",
+      "kind": "object",
+      "subject": "two grilled sausages on a painted greek pottery plate with a gold meander rim and olive leaves"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H3.png",
+      "kind": "object",
+      "subject": "a green alpine hat decorated in ancient greek style, a gold laurel wreath around the crown, a gold greek key band, a white feather with a small gold lightning bolt"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/W1.png",
+      "kind": "text",
+      "subject": "a white marble and gold drinking mug with foam, the gold word WILD with a laurel wreath and a small lightning bolt"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L1.png",
+      "kind": "text",
+      "subject": "the letter A, white marble with gold rim and a small gold laurel leaf"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L2.png",
+      "kind": "text",
+      "subject": "the letter K, white marble with gold rim and a small gold laurel leaf"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L3.png",
+      "kind": "text",
+      "subject": "the letter Q, white marble with gold rim and a small gold laurel leaf"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L4.png",
+      "kind": "text",
+      "subject": "the letter J, white marble with gold rim and a small gold laurel leaf"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X1.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x1"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X2.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x2"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X3.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x3"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X5.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x5"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X10.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x10"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/X15.png",
+      "kind": "text",
+      "subject": "a round gold greek coin medallion with a laurel border and the gold number x15"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/WH.png",
+      "kind": "object",
+      "subject": "a round prize wheel symbol like a gold laurel wreath, gold rim, sky blue and white marble segments"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/WH_EB.png",
+      "kind": "object",
+      "subject": "a round prize wheel symbol like a gold laurel wreath, gold rim, gold and white marble segments, small lightning bolts"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/H_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, purple marble with a thin gold greek key border"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/L_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, sky blue marble with a thin gold greek key border"
+    },
+    {
+      "file": "ab_maingame/textures/symbols/W_bg.png",
+      "kind": "frame",
+      "subject": "a square symbol tile, gold and white marble with a thin gold greek key border"
+    },
+    {
+      "file": "ab_maingame/textures/game/main_bg.jpg",
+      "kind": "scene",
+      "subject": "a grand white marble greek temple hall on Mount Olympus, columns, gold statues, laurel garlands, blue sky and clouds through the arches, warm divine light"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_ree_down.png",
+      "kind": "frame",
+      "subject": "a white marble frieze valance with a gold greek key pattern and hanging laurel garlands"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_ree_up.png",
+      "kind": "frame",
+      "subject": "an ornate gold frame with a laurel wreath on top and greek key edges, an empty inside"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel.png",
+      "kind": "frame",
+      "subject": "a white marble reel frame like a greek temple front, a pediment arch on top, fluted columns, gold laurel garlands, gold amphorae instead of barrels"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_mg_left.png",
+      "kind": "frame",
+      "subject": "a vertical sky blue marble column panel with a thin gold edge"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_mg_right.png",
+      "kind": "frame",
+      "subject": "a vertical white marble column panel with a thin gold edge"
+    },
+    {
+      "file": "ab_maingame/textures/game/img_win_bg.png",
+      "kind": "frame",
+      "subject": "a carved white marble and gold banner frame with a laurel wreath"
+    },
+    {
+      "file": "ab_maingame/textures/game/img_win_wheel_bg.png",
+      "kind": "text",
+      "subject": "two carved white marble and gold banner frames with laurel, the word WHEEL in gold on the lower one"
+    },
+    {
+      "file": "ab_maingame/textures/game/wheel_in.png",
+      "kind": "frame",
+      "subject": "a prize wheel disc with colourful marble segments, white gold and sky blue, greek style"
+    },
+    {
+      "file": "ab_maingame/textures/game/wheel_out.png",
+      "kind": "frame",
+      "subject": "the sky blue and gold outer ring of a prize wheel with a greek key pattern"
+    },
+    {
+      "file": "ab_maingame/textures/game/black_back.png",
+      "kind": "keep"
+    },
+    {
+      "file": "ab_maingame/textures/game/bg_reel_right.png",
+      "kind": "keep"
+    },
+    {
+      "file": "ab_maingame/textures/game/guide_page.png",
+      "kind": "keep"
+    },
+    {
+      "glob": "ab_maingame/textures/panel/auto_*_btn_normal.png",
+      "kind": "text",
+      "subject": "a round game button with its number, white marble and gold greek style"
+    },
+    {
+      "glob": "ab_maingame/textures/panel/*.png",
+      "kind": "text",
+      "subject": "a game control button, white marble, gold and sky blue greek style, keep its icon"
+    }
+  ],
+  "spine": {
+    "keep_words": [
+      "fx",
+      "light",
+      "glow",
+      "flash",
+      "flare",
+      "shine",
+      "sun",
+      "star",
+      "spark",
+      "particle",
+      "ring",
+      "lens",
+      "shock",
+      "sweep",
+      "circle",
+      "gradient",
+      "smoke",
+      "bubble",
+      "color_paper",
+      "black",
+      "dot",
+      "water",
+      "liquid",
+      "expl",
+      "shadow",
+      "line",
+      "frame_in_glow",
+      "lightdot",
+      "drop",
+      "frame_square"
+    ],
+    "sequence_pattern": "_\\d{2,3}$",
+    "min_size": 40,
+    "pages": [
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h1.atlas",
+        "reference": "ab_maingame/textures/symbols/H1.png",
+        "subject": "a heart-shaped honey cake with icing and a gold laurel sprig, ancient greek",
+        "parts": {
+          "Cake": {
+            "subject": "a plain golden brown heart-shaped honey cake, smooth baked surface, no icing, no decoration, no border",
+            "reference": false,
+            "denoise": 0.55
+          }
+        }
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h2.atlas",
+        "reference": "ab_maingame/textures/symbols/H2.png",
+        "subject": "grilled sausages on a painted greek pottery plate with olive leaves",
+        "parts": {
+          "tray": {
+            "subject": "an empty round painted greek pottery plate with a thin gold meander rim, nothing on the plate, no food",
+            "reference": false
+          },
+          "near sausage": {
+            "subject": "one plain grilled sausage, glossy, appetising, warm light",
+            "reference": false,
+            "denoise": 0.6
+          },
+          "far sausage": {
+            "subject": "one plain grilled sausage, glossy, appetising, warm light",
+            "reference": false,
+            "denoise": 0.6
+          }
+        }
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_h3.atlas",
+        "reference": "ab_maingame/textures/symbols/H3.png",
+        "subject": "part of a green alpine hat in ancient greek style, gold laurel wreath, gold greek key band, white feather"
+      },
+      {
+        "atlas": "ab_maingame/spine/sym_sym_w1.atlas",
+        "reference": "ab_maingame/textures/symbols/W1.png",
+        "subject": "part of a white marble and gold drinking mug with foam, greek style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_sym_l.atlas",
+        "reference": "ab_maingame/textures/symbols/L1.png",
+        "subject": "a letter of white marble with a gold rim"
+      },
+      {
+        "atlas": "ab_maingame/spine/amin_sym_m.atlas",
+        "reference": "ab_maingame/textures/symbols/X10.png",
+        "subject": "part of a round gold greek coin multiplier medallion"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_btn_spin.atlas",
+        "subject": "part of a round spin button, white marble and gold greek style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_button.atlas",
+        "subject": "part of a game button, white marble, gold and sky blue greek style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_mark.atlas",
+        "subject": "a game badge, white marble and gold greek style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_ex_on_fx.atlas",
+        "subject": "part of a frame, gold greek style",
+        "keep_parts": [
+          "frame",
+          "frame2",
+          "frame3"
+        ]
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_mg_bg.atlas",
+        "reference": "ab_maingame/textures/game/main_bg.jpg",
+        "subject": "a gold amphora or a pennant flag with a greek key pattern, Mount Olympus"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_mg.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim, laurel wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_bg.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim, laurel wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_wheel/anim_wheel_bg_light.atlas",
+        "reference": "ab_maingame/textures/symbols/WH.png",
+        "subject": "part of a prize wheel, gold rim, laurel wreath style"
+      },
+      {
+        "atlas": "ab_maingame/spine/anim_role/anim_role.atlas",
+        "subject": "part of the dress of a cheerful cartoon waitress, a white ancient greek chiton dress with a gold meander border and a gold laurel belt",
+        "also": [
+          "ab_maingame/spine/anim_role/anim_epic.atlas",
+          "ab_maingame/spine/anim_role/anim_role_wheel.atlas"
+        ],
+        "denoise": 0.78,
+        "keep_parts": [
+          "head",
+          "eyeball_l",
+          "nose",
+          "oral",
+          "far arm",
+          "front arm",
+          "far forearm",
+          "far forearm2",
+          "front forearm",
+          "front forearm2",
+          "fingers_r",
+          "leg_l",
+          "leg_r",
+          "braid",
+          "far bangs",
+          "front bangs",
+          "head far side bangs",
+          "hair bun",
+          "top hair"
+        ],
+        "control": 0.45
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_big.atlas",
+        "subject": "part of a big win celebration, ancient greek style, gold laurel and lightning",
+        "parts": {
+          "tray": {
+            "subject": "an empty round painted greek pottery plate with a thin gold meander rim, nothing on the plate, no food",
+            "reference": false
+          },
+          "near sausage2": {
+            "subject": "one plain grilled sausage with a line of mustard, glossy, appetising, warm light",
+            "reference": false,
+            "denoise": 0.6
+          }
+        }
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_mega.atlas",
+        "subject": "part of a mega win celebration with a white marble and gold drinking glass, ancient greek style"
+      },
+      {
+        "atlas": "ab_freegame/spine/anim_super.atlas",
+        "subject": "part of a super win celebration with a honey cake, ancient greek style",
+        "parts": {
+          "Cake": {
+            "subject": "a plain golden brown heart-shaped honey cake, smooth baked surface, no icing, no decoration, no border",
+            "reference": false,
+            "denoise": 0.55
+          }
+        }
+      }
+    ],
+    "text_names": [
+      "A",
+      "K",
+      "Q",
+      "J",
+      "ex",
+      "bar",
+      "on bar",
+      "off bar",
+      "q-mark",
+      "x10",
+      "x15",
+      "x2",
+      "x3",
+      "x5",
+      "wild"
+    ],
+    "text_prefixes": [
+      "logo/",
+      "txt_"
+    ],
+    "reference_weight": 0.35
+  }
+}
