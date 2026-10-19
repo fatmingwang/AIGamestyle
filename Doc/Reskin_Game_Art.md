@@ -42,6 +42,39 @@ All in `AIGamestyle/_pipeline/tools/`. Run them with Python 3.11 (Pillow + numpy
 A plan is a JSON file in `AIGamestyle/_pipeline/style_profiles/`. It holds every choice (style, which file is what,
 strengths), so a new style or a new game needs no code change. Examples: `christmas_10085.json`, `zeus_10085.json`.
 
+### 2.1 AI models ComfyUI needs
+
+The tools send ComfyUI jobs that ask for these model files **by exact file name**. A missing or differently named
+file makes the job fail with `value_not_in_list`, so rename a download to the name in the first column. Put each file
+in `AIGamestyle\_comfyui\ComfyUI\models\<folder>\`, or in the shared folder named in `extra_model_paths.yaml`
+(setup document, section 5), then restart ComfyUI.
+
+| File name the tools use | ComfyUI folder | Size (bytes) | Download (Hugging Face) | Needed by |
+|---|---|---|---|---|
+| `Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors` | `checkpoints` | 7 105 348 188 | `RunDiffusion/Juggernaut-XL-v9`, the same file name | restyle |
+| `controlnet-union-sdxl-promax.safetensors` | `controlnet` | 2 513 342 408 | `xinsir/controlnet-union-sdxl-1.0`, file `diffusion_pytorch_model_promax.safetensors` (**rename**) | restyle, derived sprites |
+| `ip-adapter-plus_sdxl_vit-h.safetensors` | `ipadapter` | 847 517 512 | `h94/IP-Adapter`, file `sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors` | restyle, sprites |
+| `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` | `clip_vision` | 2 528 373 448 | `h94/IP-Adapter`, file `models/image_encoder/model.safetensors` (**rename**) | restyle, sprites |
+| `sd_xl_base_1.0.safetensors` | `checkpoints` | 6 938 078 334 | `stabilityai/stable-diffusion-xl-base-1.0`, the same file name | pixel sprites only |
+| `pixel-art-xl.safetensors` | `loras` | 170 543 052 | `nerijs/pixel-art-xl`, the same file name | pixel sprites only |
+
+A download link is `https://huggingface.co/<repository>/resolve/main/<file>`, for example
+`https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors`.
+Compare the size after downloading: a cut-off file fails only when a job runs.
+
+Which tool needs what:
+
+| Tool | Models | Custom nodes |
+|---|---|---|
+| `restyle_game.py`, `restyle_pilot.py`, `spine_page_restyle.py` | the first four (about 13 GB): Juggernaut XL v9, ControlNet Union promax, IP-Adapter plus SDXL, CLIP-ViT-H | **ComfyUI_IPAdapter_plus** |
+| `make_sprites.py` | SDXL base 1.0, pixel-art-xl LoRA, ControlNet Union promax, IP-Adapter plus SDXL, CLIP-ViT-H; plus Inspyrenet's `ckpt_base.pth` (367 MB, downloaded by itself on first use to `%USERPROFILE%\.transparent-background\`; copy it there on a PC without internet) | **ComfyUI_IPAdapter_plus**, **ComfyUI-Inspyrenet-Rembg** |
+| `repair_edges.py`, `check_restyle.py`, `spine_page_preview.py`, `sprite_sheet.py` | none (no ComfyUI needed) | none |
+
+The names are set in the code: `CHECKPOINT` and `CONTROLNET` at the top of `restyle_pilot.py` (the IP-Adapter and
+CLIP-Vision names in its `workflow()`), and `CHECKPOINT` and `LORA` at the top of `make_sprites.py`. With ComfyUI
+running, `check_reskin_setup.py` lists each file and node as `OK` or `MISSING`. Installing the nodes and the model
+folders is in [Reskin_Setup_New_PC.md](Reskin_Setup_New_PC.md), sections 4 and 5.
+
 ## 3. How one picture is restyled
 
 `restyle_pilot.py` (used by everything else):

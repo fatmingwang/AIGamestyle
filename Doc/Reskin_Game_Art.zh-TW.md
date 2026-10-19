@@ -39,6 +39,38 @@
 計畫檔是 `AIGamestyle/_pipeline/style_profiles/` 中的 JSON。它記錄所有選擇（風格、哪個檔案是什麼、強度），
 所以新風格或新遊戲都不需要改程式。範例：`christmas_10085.json`、`zeus_10085.json`。
 
+### 2.1 ComfyUI 需要的 AI 模型
+
+工具送給 ComfyUI 的工作會用**完全相同的檔名**指定下列模型檔。檔案缺少或名稱不同，工作就會以 `value_not_in_list`
+失敗，所以下載後請改成第一欄的名稱。每個檔案放在 `AIGamestyle\_comfyui\ComfyUI\models\<資料夾>\`，或放在
+`extra_model_paths.yaml` 指定的共用資料夾（安裝文件第 5 節），然後重新啟動 ComfyUI。
+
+| 工具使用的檔名 | ComfyUI 資料夾 | 大小（位元組） | 下載（Hugging Face） | 用於 |
+|---|---|---|---|---|
+| `Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors` | `checkpoints` | 7 105 348 188 | `RunDiffusion/Juggernaut-XL-v9`，檔名相同 | 換皮 |
+| `controlnet-union-sdxl-promax.safetensors` | `controlnet` | 2 513 342 408 | `xinsir/controlnet-union-sdxl-1.0`，檔案 `diffusion_pytorch_model_promax.safetensors`（**需改名**） | 換皮、衍生像素圖 |
+| `ip-adapter-plus_sdxl_vit-h.safetensors` | `ipadapter` | 847 517 512 | `h94/IP-Adapter`，檔案 `sdxl_models/ip-adapter-plus_sdxl_vit-h.safetensors` | 換皮、像素圖 |
+| `CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors` | `clip_vision` | 2 528 373 448 | `h94/IP-Adapter`，檔案 `models/image_encoder/model.safetensors`（**需改名**） | 換皮、像素圖 |
+| `sd_xl_base_1.0.safetensors` | `checkpoints` | 6 938 078 334 | `stabilityai/stable-diffusion-xl-base-1.0`，檔名相同 | 僅像素圖 |
+| `pixel-art-xl.safetensors` | `loras` | 170 543 052 | `nerijs/pixel-art-xl`，檔名相同 | 僅像素圖 |
+
+下載連結格式為 `https://huggingface.co/<儲存庫>/resolve/main/<檔案>`，例如
+`https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors`。
+下載後請比對大小：下載不完整的檔案要到執行工作時才會失敗。
+
+各工具需要什麼：
+
+| 工具 | 模型 | 自訂節點 |
+|---|---|---|
+| `restyle_game.py`、`restyle_pilot.py`、`spine_page_restyle.py` | 前四個（約 13 GB）：Juggernaut XL v9、ControlNet Union promax、IP-Adapter plus SDXL、CLIP-ViT-H | **ComfyUI_IPAdapter_plus** |
+| `make_sprites.py` | SDXL base 1.0、pixel-art-xl LoRA、ControlNet Union promax、IP-Adapter plus SDXL、CLIP-ViT-H；另加 Inspyrenet 的 `ckpt_base.pth`（367 MB，第一次使用時自動下載到 `%USERPROFILE%\.transparent-background\`；沒有網路的電腦要手動複製過去） | **ComfyUI_IPAdapter_plus**、**ComfyUI-Inspyrenet-Rembg** |
+| `repair_edges.py`、`check_restyle.py`、`spine_page_preview.py`、`sprite_sheet.py` | 不需要（不用 ComfyUI） | 不需要 |
+
+檔名寫在程式中：`restyle_pilot.py` 開頭的 `CHECKPOINT` 與 `CONTROLNET`（IP-Adapter 與 CLIP-Vision 的名稱在它的
+`workflow()` 中），以及 `make_sprites.py` 開頭的 `CHECKPOINT` 與 `LORA`。ComfyUI 執行中時，`check_reskin_setup.py`
+會把每個檔案與節點列為 `OK` 或 `MISSING`。節點安裝與模型資料夾設定見
+[Reskin_Setup_New_PC.zh-TW.md](Reskin_Setup_New_PC.zh-TW.md) 第 4、5 節。
+
 ## 3. 一張圖怎麼換皮
 
 `restyle_pilot.py`（其他工具都用它）：
