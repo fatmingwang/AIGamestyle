@@ -74,7 +74,7 @@ def workflow(image_name, prompt, negative, denoise, seed, control_strength, step
     return wf
 
 
-def run(wf):
+def run(wf, rgba=False):
     prompt_id = json.loads(http("/prompt", json.dumps({"prompt": wf, "client_id": uuid.uuid4().hex}).encode()))["prompt_id"]
     while True:
         hist = json.loads(http(f"/history/{prompt_id}"))
@@ -85,7 +85,7 @@ def run(wf):
             for node in h["outputs"].values():
                 for im in node.get("images", []):
                     q = f"/view?filename={im['filename']}&subfolder={im['subfolder']}&type={im['type']}"
-                    return Image.open(io.BytesIO(http(q))).convert("RGB")
+                    return Image.open(io.BytesIO(http(q))).convert("RGBA" if rgba else "RGB")
         time.sleep(0.5)
 
 
@@ -177,6 +177,35 @@ def fix_edges(out: Image.Image, src: Image.Image, solid=250, radius=4) -> Image.
     rgb[faint] = s[..., :3][faint]
     res = np.concatenate([rgb, s[..., 3:4]], axis=-1).astype(np.uint8)
     return Image.fromarray(res, "RGBA")
+
+
+def is_premultiplied(img: Image.Image) -> bool:
+    """True when the picture's colours are premultiplied by its alpha (a Spine page packed with "premultiply alpha":
+    no colour above its alpha, nothing in fully transparent pixels). Such a picture must be read with
+    unpremultiply() and written with premultiply(), or the game adds the stray colour to the screen (a ghost of a
+    removed skirt, glowing part edges). A picture with no soft pixels cannot tell, and counts as not premultiplied."""
+    import numpy as np
+    a = np.asarray(img.convert("RGBA"), dtype=np.int32)
+    al, mx = a[..., 3], a[..., :3].max(-1)
+    soft = (al > 0) & (al < 250)
+    if soft.sum() < 200:
+        return False
+    return bool(((mx > al + 2) & (al > 0)).sum() <= soft.sum() * 0.002 and ((al == 0) & (mx > 2)).sum() <= (al == 0).sum() * 0.002)
+
+
+def premultiply(img: Image.Image) -> Image.Image:
+    import numpy as np
+    a = np.asarray(img.convert("RGBA"), dtype=np.float32)
+    a[..., :3] *= a[..., 3:4] / 255.0
+    return Image.fromarray(np.clip(np.round(a), 0, 255).astype(np.uint8), "RGBA")
+
+
+def unpremultiply(img: Image.Image) -> Image.Image:
+    import numpy as np
+    a = np.asarray(img.convert("RGBA"), dtype=np.float32)
+    al = a[..., 3:4]
+    a[..., :3] = np.where(al > 0, a[..., :3] * 255.0 / np.maximum(al, 1), 0)
+    return Image.fromarray(np.clip(np.round(a), 0, 255).astype(np.uint8), "RGBA")
 
 
 def keep_skin(out: Image.Image, src: Image.Image, min_area=200) -> Image.Image:

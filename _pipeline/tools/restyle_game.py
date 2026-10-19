@@ -128,8 +128,11 @@ def main():
             continue
         t = time.time()
         img = Image.open(src / f).convert("RGBA")
+        pma = rp.is_premultiplied(img)   # premultiplied pictures: restyled in plain colours, written premultiplied
+        if pma:
+            img = rp.unpremultiply(img)
         styled = restyle_picture(plan, img, it["kind"], it.get("subject", ""), a.seed, upload_name="s_" + f.replace("/", "_"))
-        save(styled, out / f)
+        save(rp.premultiply(styled) if pma else styled, out / f)
         report["static"][f] = {"kind": it["kind"], "seconds": round(time.time() - t, 1)}
         report_path.write_text(json.dumps(report, indent=1), encoding="utf-8")
         print(f"static {it['kind']:<6} {f}  {time.time() - t:.1f}s")
@@ -148,8 +151,10 @@ def main():
             if page_rel in done_pages or (page_rel in report["spine"] and not a.force):
                 continue
             done_pages.add(page_rel)
-            before = Image.open(src / page_rel).convert("RGBA")
-            after = before.copy()
+            stored = Image.open(src / page_rel).convert("RGBA")
+            after = stored.copy()
+            pma = rp.is_premultiplied(stored)   # a premultiplied page: parts restyled in plain colours, written back premultiplied
+            before = rp.unpremultiply(stored) if pma else stored
             parts = {}
             t0 = time.time()
             for r in page["regions"]:
@@ -177,6 +182,8 @@ def main():
                                          upload_name=f"p_{Path(pg['atlas']).stem}_{r['name']}.png".replace("/", "_"))
                 if po.get("keep_skin"):   # a part of skin and clothes: the original's skin back (rp.keep_skin)
                     styled = rp.keep_skin(styled, upright)
+                if pma:
+                    styled = rp.premultiply(styled)
                 after.paste(styled.transpose(Image.ROTATE_90) if r["rotated"] else styled, box[:2])
                 parts[r["name"]] = kind
             save(after, out / page_rel)

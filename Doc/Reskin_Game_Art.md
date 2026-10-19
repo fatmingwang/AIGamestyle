@@ -34,6 +34,8 @@ All in `AIGamestyle/_pipeline/tools/`. Run them with Python 3.11 (Pillow + numpy
 | `restyle_pilot.py <picture> <out> --prompt ... --denoise 0.5 0.7` | one picture at several strengths, for trying a style |
 | `spine_page_restyle.py <page.atlas> <out> --prompt ...` | one Spine page part by part (what `restyle_game.py` does per page) |
 | `spine_page_preview.py <original.atlas> <restyled_dir> <out.png>` | puts a page's parts back together (before / after) to check a whole object |
+| `spine_render.py <skeleton.json> <page dir> <out.png> [--anim A --t T]` | draws a Spine skeleton put together, in its setup pose or a frame of an animation: the check for any reskinned character |
+| `character_swap.py <plan> [--frames]` | changes a Spine character (a woman into a man) without the Spine editor (section 11) |
 | `repair_edges.py <plan>` | applies step 6 to an output made before it existed: every restyled picture, and each restyled Spine part inside its own footprint; no AI run |
 | `check_restyle.py <original> <restyled>` | proves the output is a drop-in replacement: same files, sizes and alpha; other files byte-identical |
 | `check_reskin_setup.py` | checks ComfyUI has the nodes and models (setup document, section 7) |
@@ -245,6 +247,7 @@ and run. Most of the Spine part rules (keep_parts, parts) carry over unchanged.
 | a static symbol and its Spine parts came out different (static at text strength, parts at object strength) | compare each static symbol with its Spine page on the sheets. Give such symbols their own kind between text and object (`badge`, 0.6 / 0.85), and plain Spine parts matching `parts` subjects |
 | jagged white fringe on soft edges (hanging flags, the wheel's rim), seen in the game | fixed in the tool: the soft edges are rebuilt from the nearest solid pixels with the original's rim (section 3, step 6). Older outputs: `repair_edges.py <plan>` (both 10085 outputs were repaired, 2026-10-18). A ComfyUI "polish" pass would not help: the original alpha is put back after it, and the edge pixels would come out the same |
 | the waitress's neck came out white (the `torso` part holds her neck, shoulders and dress top, and was restyled as clothes); in the game a white neck showed under her chin | the part's `"keep_skin": true`: after the restyle, the original's bare skin is put back (`restyle_pilot.keep_skin`). Skin is found by colour in the original: warm hue 8–40°, saturation 0.18–0.82 (shaded skin reaches 0.78; a red bodice beside it is near 0° and about 0.92), not dark. Only the biggest such area (and any other at least a quarter of its size) counts, so trim or an orange fold of the same hue stays restyled; the edge is feathered. Both 10085 outputs have it (2026-10-19). Watch any part where skin and clothes share one image |
+| a ghost of the cut-off skirt and glowing lines along part edges, seen in the game (the man, 2026-10-19); the Zeus page had them faintly too | the Spine pages are **premultiplied** (Cocos draws them with one / one-minus-src-alpha) and the tools wrote straight colours: colour left in fully transparent pixels is ADDED by the game, and colour brighter than its alpha glows. Fixed in every tool (`restyle_pilot.is_premultiplied / premultiply / unpremultiply`): such a page is read unpremultiplied and written premultiplied, with no colour where alpha is 0. Both 10085 outputs were repaired with `repair_edges.py`. Preview what the game shows with `spine_render.py ... --pma on` |
 | a "keep the old word" prompt was not obeyed | put the new style's own unwanted words in `negative` (the Zeus plan has `christmas, snow, modern`) |
 
 ## 9. New pixel-art sprites (make_sprites.py)
@@ -317,7 +320,99 @@ had turned to marble, one of them with a horse painted on. The symbol would chan
 
 Both now show marble with the numbers unchanged.
 
-## 11. Known limits
+## 11. Changing a character (character_swap.py)
+
+The reskin above keeps every part's outline, so a character can change clothes and colours but not body. To change
+the body -- 10085's waitress into a man -- `character_swap.py` uses one rule of Spine: **a part's picture may lose
+pixels, but must not grow** past its old outline (a mesh only shows what is inside it). So the new character is the
+old one's outline, cut down where the new body is smaller, and repainted inside. No Spine editor, and the .atlas and
+skeleton .json stay unchanged, so all bones and animations keep working.
+
+1. **The guide** (`spine_render.py` draws the setup pose from the .json, .atlas and page): the plan's `hide` parts
+   left out (her braid, hair bun, ribbon and long side locks) and the torso cut into **trousers**. The waist is the
+   torso's narrowest row; each trouser leg tapers from the hip to its real calf just below the skirt's hem; the leg
+   pictures keep only what showed below the hem. `cover_shoulders` paints the bare skin below the neck in the shirt's
+   colour, so the concept does not copy an off-shoulder neckline.
+2. **The concept:** ComfyUI redraws the guide as the new character (img2img, ControlNet canny holding the new
+   outline). Without step 1's cut it keeps her skirt and face: the guide has to have the new silhouette already.
+3. **The projection** (`spine_project.py`): each part takes the concept's colours where it is the part seen in the
+   setup pose. Its hidden pixels take their nearest seen pixel's colour. `hide` parts become transparent, and the
+   torso and legs shrink to the cuts. `keep` parts keep their own pixels: arms, hands, sleeves and the mug are the
+   same for him, and they still cover what lies under them (the torso under the hand takes no colour from the
+   concept's hand, which would be a ghost hand when the arm moves). Every projected part is also cut to the concept's
+   own outline (background removal), and colour is taken only well inside it, so the concept's background leaves no
+   light halo around the hair. Projected, mostly hidden parts came out streaked (the far sleeve took skin and hair
+   colours), which is why the arms are kept.
+4. **Single parts:** `cloth_parts` repaints whole parts as plain cloth of one colour with their own soft shading
+   (the puffed sleeves with a bare shoulder became shirt sleeves; the lace goes). `restyle_parts` restyles single
+   parts with ComfyUI in place (his closed eyelids, without lashes).
+5. **The motion** (the only step that changes the skeleton files, in the output's copies): long trousers inside
+   the skirt part were not acceptable in the game. The skirt part swings and flares (skirt bones, a mesh deform in
+   `trans_wheel`) and her legs kick out from under it, so the trousers swung like a skirt and a gap opened above
+   the shoes. Her leg pictures begin at the knee, so the plan now makes **knee breeches** (`"hem": "knee"`): the
+   torso is cut at the knees, overlapping the legs' tops by `overlap` px, and the legs (socks and shoes) are kept.
+   `still` takes the skirt bones' timelines out of every animation, and `rebind_breeches` binds the breeches part
+   of the torso mesh to the leg bones: each vertex below the waist takes, more and more toward the hem, the
+   weights of the nearest leg vertex, with the bone-local positions recomputed so the setup pose stays the same.
+   The torso's deform timelines are dropped (they belong to the old weights). The hem now follows the knees in
+   every animation, the kick included.
+6. **The check:** `--frames` renders the setup pose and animation frames before | after (the after frames use the
+   output's skeleton). For one render as the game draws it: `spine_render.py ... --pma on` (section 8,
+   premultiplied pages).
+
+```
+python character_swap.py ..\style_profiles\man_10085.json --concept-only --seed 23   # try a concept
+python character_swap.py ..\style_profiles\man_10085.json --frames                   # the whole swap (~30 s)
+```
+
+**Result (2026-10-19, `output/10085_man`):** the waitress is a young Bavarian man: short blond hair, a man's face,
+white shirt with plain sleeves, a vest with suspenders, green knee breeches, her knit socks, shoes and mug. The first
+result was not acceptable in the game (a ghost of the skirt and glowing part edges: premultiplied pages, section 8),
+and neither was the second (long trousers swinging with the skirt, step 5); both were redone the same day. 19 parts changed on her page
+(`pic.png`): the head, face features, hair, torso and legs, and 6 hair and ribbon parts hidden. Her three skeletons
+(`anim_role`, `anim_epic`, `anim_role_wheel`) share that page, so every animation of hers shows him; checked on the
+setup pose and frames of `wild`, `loop_cheers` and the wink.
+
+**Limits:**
+- He keeps her **outline where it is bigger than his**: puffed sleeves and ruffled cuffs (now plain white cloth).
+  A part cannot grow, so broader shoulders or a bigger build are impossible; he is slim.
+- Parts **never seen in the setup pose** keep her look unless listed in `restyle_parts` (the eyelids are); other
+  mouth shapes are not.
+- A small dark-green spot of the concept's trousers shows beside his hip, behind the hand (in `torso`).
+- His skirt bones no longer move, so his hips are a little stiller than hers; `.json` files in the output are
+  rewritten compactly (one line).
+- The concept's **art style** is a little softer than the original's (a "3D cartoon" look); a stronger reference
+  (IP-Adapter on the original art) would match it closer.
+- `spine_render.py` is a check, not Spine: curves are linear, IK and draw-order changes are skipped. Look at the
+  result in the game (Cocos) too.
+- For a change the outline cannot hold (a much bigger body, wings), the art still needs a Spine artist to redraw
+  meshes and weights; this tool can make the part pictures for that.
+
+### Conclusion: changing a body needs a Spine tool (2026-10-19)
+
+The owner stopped the woman → man swap after the third try. The pictures were right, but in the game **he moved
+in odd ways**. The cause is the method itself, not a setting: the skeleton, meshes, weights and animations were all
+made for **her** shape. Repainting the parts cannot change how they move:
+- trousers painted into her skirt part swing and flare like a skirt;
+- a leg kicks out from under a skirt that is no longer there;
+- every repair to the animation data (`still`, `rebind_breeches`) fixes one pose and makes another one look odd.
+
+**What works and what does not:**
+
+| Change | Method |
+|---|---|
+| clothes, colours, materials, style (Christmas, Zeus); same body shape | this guide's reskin (sections 3–7) |
+| small shape changes inside the old outline (hair shorter, a face changed, a part hidden) | `character_swap.py` (`hide`, the projection, `restyle_parts`) |
+| a **different body shape** (woman → man, a skirt → trousers, bigger, wings) | **not with these tools.** Make it in a Spine tool (Spine editor, or a tool that builds a whole new skeleton): new part pictures, new meshes and weights fitted to the new shape, and new animations made for that body |
+
+For a new shape, the AI pipeline can still help before the Spine work:
+- the concept (`character_swap.py --concept-only`);
+- the art for each part, drawn to the new outlines.
+
+The rigging and the animation have to be made for the new body in Spine. `output/10085_man` stays as a record of the
+try; it is not for the game.
+
+## 12. Known limits
 
 - **Large pictures are made at 1024 and scaled up** (`bg_reel.png` is 1574 × 1190), so they come out softer than the
   original. A tiled upscale pass would be the next step if it shows in the game.

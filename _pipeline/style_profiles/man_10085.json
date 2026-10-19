@@ -1,0 +1,100 @@
+{
+  "about": "Game 10085's waitress as a man (an Oktoberfest man in a shirt, vest and leather knee breeches), by character_swap.py: her parts cut down and repainted, the Spine files unchanged. Doc/Reskin_Game_Art.md, Changing a character.",
+  "source": "TestData/10085",
+  "output": "output/10085_man",
+  "skeleton": "ab_maingame/spine/anim_role/anim_role.json",
+  "scale": 0.66,
+  "hide": [
+    "braid",
+    "hair bun",
+    "ribbon",
+    "near side bangs",
+    "head far side bangs",
+    "far bangs"
+  ],
+  "keep": [
+    "far arm",
+    "far forearm",
+    "far sleeve",
+    "far sleeve cover",
+    "front arm",
+    "front forearm",
+    "front sleeve",
+    "front sleeve cover",
+    "fingers_r",
+    "front hand shadow",
+    "beer",
+    "bubble",
+    "glass",
+    "glass2",
+    "handle",
+    "black",
+    "leg_l",
+    "leg_r"
+  ],
+  "trousers": {
+    "torso": "torso",
+    "legs": [
+      "leg_l",
+      "leg_r"
+    ],
+    "seat": 0.45,
+    "margin": 8,
+    "cover_shoulders": [
+      236,
+      232,
+      222
+    ],
+    "hem": "knee",
+    "overlap": 30
+  },
+  "prompt": "a cheerful handsome young bavarian man, short swept blond hair, masculine face, strong jaw, thick eyebrows, no makeup, white linen shirt closed over both shoulders, plain sleeves, dark green felt vest with horn buttons, brown leather lederhosen knee breeches with suspenders, bare knees, grey knit knee socks, brown shoes, holding a beer mug, same pose, full body, glossy casual slot game character art, clean edges",
+  "negative": "woman, girl, female, feminine, breasts, cleavage, dress, skirt, bodice, corset, long hair, braid, makeup, lipstick, eyeliner, eyelashes, earrings, necklace, blurry, deformed, extra limbs, extra arms, bare shoulders, off-shoulder, lace, long trousers, jeans",
+  "seed": 22,
+  "denoise": 0.8,
+  "control": 0.55,
+  "frames": [
+    [
+      "wild",
+      0.75
+    ],
+    [
+      "loop_cheers",
+      0.9
+    ],
+    [
+      "trans_wheel",
+      0.6
+    ],
+    [
+      "trans_wheel",
+      1.2
+    ]
+  ],
+  "frames_hide": "bubble",
+  "restyle_parts": {
+    "eyelip_l": "a man's closed eyelid, skin coloured, no eyelashes, no makeup",
+    "eyelip_r": "a man's closed eyelid, skin coloured, no eyelashes, no makeup"
+  },
+  "part_denoise": 0.65,
+  "part_control": 0.55,
+  "cloth_parts": {
+    "parts": [
+      "front arm",
+      "far arm",
+      "front sleeve",
+      "far sleeve",
+      "front sleeve cover",
+      "far sleeve cover"
+    ],
+    "colour": [
+      238,
+      234,
+      224
+    ],
+    "blur": 2.5
+  },
+  "still": {
+    "bones": "^skirt"
+  }
+}
