@@ -179,6 +179,64 @@ def fix_edges(out: Image.Image, src: Image.Image, solid=250, radius=4) -> Image.
     return Image.fromarray(res, "RGBA")
 
 
+def keep_skin(out: Image.Image, src: Image.Image, min_area=200) -> Image.Image:
+    """The original's bare skin back in a restyled part (a plan part's "keep_skin": true).
+
+    A part can hold skin and clothes together -- a character's torso is her neck, shoulders and dress top -- and the
+    restyle paints the skin in the new clothes' colour (a white neck under the face). Skin is told by colour in the
+    original (warm hue 8-40 degrees, saturation 0.18-0.82, not dark: shaded skin reaches 0.78, while a red
+    bodice next to it is near 0 degrees and around 0.92); only the largest skin areas (at least min_area
+    pixels, and the biggest one plus any other at least a quarter of it) count, so a gold button, embroidery or a
+    shaded fold of the same hue stays restyled. The edge is feathered so there is
+    no seam. Alpha is never touched.
+    """
+    import numpy as np
+    from PIL import ImageFilter
+    o = np.asarray(out.convert("RGBA"), dtype=np.float32)
+    s = np.asarray(src.convert("RGBA"), dtype=np.float32)
+    rgb = s[..., :3] / 255.0
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    d = mx - mn + 1e-6
+    hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60
+    sat = d / (mx + 1e-6)
+    skin = (hue >= 8) & (hue <= 40) & (sat >= 0.18) & (sat <= 0.82) & (mx >= 0.35) & (s[..., 3] > 10) & (r > g) & (g >= b * 0.9)
+    # connected skin areas (4-neighbour flood fill); small ones are trim of a skin-like colour, not skin
+    h, w = skin.shape
+    seen = np.zeros_like(skin)
+    areas = []
+    for y0, x0 in zip(*np.nonzero(skin)):
+        if seen[y0, x0]:
+            continue
+        stack, area = [(y0, x0)], []
+        seen[y0, x0] = True
+        while stack:
+            y, x = stack.pop()
+            area.append((y, x))
+            for ny, nx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                if 0 <= ny < h and 0 <= nx < w and skin[ny, nx] and not seen[ny, nx]:
+                    seen[ny, nx] = True
+                    stack.append((ny, nx))
+        if len(area) >= min_area:
+            areas.append(area)
+    if not areas:
+        return out
+    # the skin is the biggest area, plus any other at least a quarter of it (two bare arms); a smaller skin-coloured
+    # patch is shading on the clothes (a red bodice's orange tip)
+    biggest = max(len(a) for a in areas)
+    keep = np.zeros_like(skin)
+    for area in areas:
+        if len(area) * 4 >= biggest:
+            ys, xs = zip(*area)
+            keep[list(ys), list(xs)] = True
+    m = np.asarray(Image.fromarray((keep * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+                   .filter(ImageFilter.GaussianBlur(1.2)), dtype=np.float32)[..., None] / 255.0
+    res = o.copy()
+    res[..., :3] = o[..., :3] * (1 - m) + s[..., :3] * m
+    res[..., 3] = s[..., 3]
+    return Image.fromarray(np.clip(res, 0, 255).astype(np.uint8), "RGBA")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("input")

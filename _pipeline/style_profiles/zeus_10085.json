@@ -374,7 +374,12 @@
           "hair bun",
           "top hair"
         ],
-        "control": 0.45
+        "control": 0.45,
+        "parts": {
+          "torso": {
+            "keep_skin": true
+          }
+        }
       },
       {
         "atlas": "ab_freegame/spine/anim_big.atlas",

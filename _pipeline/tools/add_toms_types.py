@@ -2,8 +2,9 @@
 
     python add_toms_types.py <sprites_dir> [--plan ../style_profiles/toms_sprites.json] [--dry-run]
 
-  * every <id>.png of the plan in <sprites_dir> is copied to assets/media/sprites/ and listed in its manifest.json
-    (the stage editor's sprite list; the atlas is rebuilt after: atlaspack build ... --all-variants);
+  * every <id>.png of the plan in <sprites_dir> is copied to art_raw/sprites/ (the raw art) and listed in its
+    manifest.json; the cooked atlas is rebuilt after: atlaspack refs art_raw/atlas/game.atlasproj --import new,
+    then atlaspack build art_raw/atlas/game.atlasproj --all-variants;
   * monsters -> assets/data/enemies.json, with draft stats by tier (marked "draft": true);
   * NPCs -> assets/data/npcs/<id>.json + a one-page dialogue (assets/data/dialogue/<id>.json);
   * event items -> assets/data/items.json, type "story" (kept by the player, not usable);
@@ -20,7 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 DATA = ROOT / "assets" / "data"
-SPRITES = ROOT / "assets" / "media" / "sprites"
+SPRITES = ROOT / "art_raw" / "sprites"
 
 # draft stats per tier (1 forest .. 6 castle): hp, atk, def, exp, gold -- around the shipped monsters (slime 24 hp,
 # golem 70, imp 90); each of the ten varies a little

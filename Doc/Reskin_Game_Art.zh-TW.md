@@ -133,7 +133,8 @@ Spine 不需要重新匯出。
         "denoise": 0.78, "control": 0.45,                     // 可選，用於這頁的 object 部件
         "keep_parts": ["head", "front bangs"],                // 可選：保持原樣
         "parts": {                                            // 可選：某部件自己的描述
-          "tray": { "subject": "an empty round greek pottery plate, nothing on it", "reference": false, "denoise": 0.6 }
+          "tray": { "subject": "an empty round greek pottery plate, nothing on it", "reference": false, "denoise": 0.6 },
+          "torso": { "keep_skin": true }                      // 皮膚與衣服在同一個部件：皮膚保持原樣
         },
         "also": ["ab_maingame/spine/anim_role/anim_epic.atlas"]   // 只是備註，工具不讀：見下方
       }
@@ -189,6 +190,7 @@ Spine 不需要重新匯出。
 | 文字圖片變化很小 | 保持字母完全相同的代價。要變化更大就得提高文字強度並逐字檢查 |
 | 靜態符號與它的 Spine 部件結果不同（靜態用文字強度，部件用物件強度） | 在預覽圖上比對每個靜態符號與它的 Spine 頁面。這類符號給一個介於文字與物件之間的類別（`badge`，0.6／0.85），素色 Spine 部件給相配的 `parts` 主題 |
 | 柔邊出現鋸齒狀白邊（懸掛的旗子、轉盤外緣），在遊戲中看得到 | 工具已修正：以最近的實心像素加上原圖的邊重建柔邊（第 3 節第 6 步）。舊的輸出用 `repair_edges.py <計畫檔>`（10085 的兩個輸出已於 2026-10-18 修復）。用 ComfyUI 做「潤飾」沒有幫助：之後會放回原始 alpha，邊緣像素結果一樣 |
+| 女服務生的脖子變成白色（`torso` 部件同時包含她的脖子、肩膀與洋裝上半部，被當成衣服換皮）；遊戲中她的下巴下方出現白色脖子 | 部件設定 `"keep_skin": true`：換皮後把原圖的裸露皮膚放回去（`restyle_pilot.keep_skin`）。以原圖的顏色判斷皮膚：暖色色相 8–40°、飽和度 0.18–0.82（陰影中的皮膚可達 0.78；旁邊的紅色馬甲接近 0°、約 0.92）、不太暗。只算最大的那一塊（以及其他至少有它四分之一大的），所以同色相的裝飾或橘色皺褶仍會換皮；邊緣有羽化。10085 的兩個輸出都已套用（2026-10-19）。皮膚與衣服在同一張圖的部件都要注意 |
 | 舊風格的字詞還是出現 | 把不想要的字詞放進 `negative`（宙斯計畫檔有 `christmas, snow, modern`） |
 
 ## 9. 新的像素圖（make_sprites.py）

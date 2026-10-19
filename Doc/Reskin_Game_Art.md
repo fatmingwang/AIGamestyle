@@ -146,7 +146,8 @@ PNGs at build time, so replacing the PNGs is enough.
         "denoise": 0.78, "control": 0.45,                     // optional, for this page's object parts
         "keep_parts": ["head", "front bangs"],                // optional: left as they are
         "parts": {                                            // optional: one part's own description
-          "tray": { "subject": "an empty round greek pottery plate, nothing on it", "reference": false, "denoise": 0.6 }
+          "tray": { "subject": "an empty round greek pottery plate, nothing on it", "reference": false, "denoise": 0.6 },
+          "torso": { "keep_skin": true }                      // skin and clothes in one part: the skin stays as it was
         },
         "also": ["ab_maingame/spine/anim_role/anim_epic.atlas"]   // a note only, not read by the tool: see below
       }
@@ -210,6 +211,7 @@ and run. Most of the Spine part rules (keep_parts, parts) carry over unchanged.
 | text pictures change little | the price of exact letters. A stronger change means a higher text strength and checking each letter |
 | a static symbol and its Spine parts came out different (static at text strength, parts at object strength) | compare each static symbol with its Spine page on the sheets. Give such symbols their own kind between text and object (`badge`, 0.6 / 0.85), and plain Spine parts matching `parts` subjects |
 | jagged white fringe on soft edges (hanging flags, the wheel's rim), seen in the game | fixed in the tool: the soft edges are rebuilt from the nearest solid pixels with the original's rim (section 3, step 6). Older outputs: `repair_edges.py <plan>` (both 10085 outputs were repaired, 2026-10-18). A ComfyUI "polish" pass would not help: the original alpha is put back after it, and the edge pixels would come out the same |
+| the waitress's neck came out white (the `torso` part holds her neck, shoulders and dress top, and was restyled as clothes); in the game a white neck showed under her chin | the part's `"keep_skin": true`: after the restyle, the original's bare skin is put back (`restyle_pilot.keep_skin`). Skin is found by colour in the original: warm hue 8–40°, saturation 0.18–0.82 (shaded skin reaches 0.78; a red bodice beside it is near 0° and about 0.92), not dark. Only the biggest such area (and any other at least a quarter of its size) counts, so trim or an orange fold of the same hue stays restyled; the edge is feathered. Both 10085 outputs have it (2026-10-19). Watch any part where skin and clothes share one image |
 | a "keep the old word" prompt was not obeyed | put the new style's own unwanted words in `negative` (the Zeus plan has `christmas, snow, modern`) |
 
 ## 9. New pixel-art sprites (make_sprites.py)

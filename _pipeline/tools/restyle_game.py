@@ -14,6 +14,7 @@
              since a repaint breaks additive blending, and frames repainted one by one would flicker;
      text    parts with letters or numbers (logo/WIN, wild, x10, A ...): gently, the letters kept;
      object  everything else: fully, following the object's restyled static symbol (IP-Adapter) so the parts match it.
+             A part's "keep_skin": true keeps the original's bare skin in it (a torso: neck and shoulders).
    The .atlas and the skeleton .json are never changed: every part keeps its place and size on the page.
 
 Each file is done once (resume by running again; --force redoes). <output>/_restyle_report.json says what was done to
@@ -174,6 +175,8 @@ def main():
                                          control=pg.get("control") if kind == "object" else None,
                                          ref_weight=sp.get("reference_weight", 0.35),
                                          upload_name=f"p_{Path(pg['atlas']).stem}_{r['name']}.png".replace("/", "_"))
+                if po.get("keep_skin"):   # a part of skin and clothes: the original's skin back (rp.keep_skin)
+                    styled = rp.keep_skin(styled, upright)
                 after.paste(styled.transpose(Image.ROTATE_90) if r["rotated"] else styled, box[:2])
                 parts[r["name"]] = kind
             save(after, out / page_rel)
