@@ -4,7 +4,8 @@
 
   * every <id>.png of the plan in <sprites_dir> is copied to art_raw/sprites/ (the raw art) and listed in its
     manifest.json; the cooked atlas is rebuilt after: atlaspack refs art_raw/atlas/game.atlasproj --import new,
-    then atlaspack build art_raw/atlas/game.atlasproj --all-variants;
+    then atlaspack build art_raw/atlas/game.atlasproj --all-variants, then python tools/refresh_meshes.py (the
+    sprite meshes skinned and deformed clips bend, cut again from the new pixels; TOMS docs/34_MESH_ANIMATION.md);
   * monsters -> assets/data/enemies.json, with draft stats by tier (marked "draft": true);
   * NPCs -> assets/data/npcs/<id>.json + a one-page dialogue (assets/data/dialogue/<id>.json);
   * event items -> assets/data/items.json, type "story" (kept by the player, not usable);
