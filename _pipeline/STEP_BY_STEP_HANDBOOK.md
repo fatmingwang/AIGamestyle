@@ -177,7 +177,7 @@ python ".\_pipeline\tools\asset_pipeline.py" classify --target-folder "E:\GameAr
 What this setup does:
 
 - checks required commands (`git`, `python`, `powershell`)
-- clones/updates ComfyUI to `_comfyui/ComfyUI`
+- clones ComfyUI to `_comfyui/ComfyUI` at the tested version, if it is not there (an existing one keeps its version)
 - creates virtual environment
 - installs Python dependencies
 - installs ComfyUI-Manager (if possible)

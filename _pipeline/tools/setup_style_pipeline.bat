@@ -5,6 +5,8 @@ set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..\..") do set "PROJECT_ROOT=%%~fI"
 set "COMFY_ROOT=%PROJECT_ROOT%\_comfyui"
 set "COMFY_DIR=%COMFY_ROOT%\ComfyUI"
+rem The ComfyUI version these tools were tested on (Doc/Reskin_Setup_New_PC.md section 3). Set COMFYUI_VERSION to try another.
+if "%COMFYUI_VERSION%"=="" set "COMFYUI_VERSION=v0.44.2"
 set "VENV_DIR=%COMFY_DIR%\.venv"
 set "PYTHON_IN_VENV=%VENV_DIR%\Scripts\python.exe"
 set "MANAGER_DIR=%COMFY_DIR%\custom_nodes\ComfyUI-Manager"
@@ -37,13 +39,14 @@ if not exist "%COMFY_DIR%\main.py" (
         call :fail "Failed to clone ComfyUI. Check internet/firewall and Git credentials."
         goto :end_fail
     )
-    call :ok "ComfyUI cloned."
+    git -C "%COMFY_DIR%" checkout -q "%COMFYUI_VERSION%"
+    if errorlevel 1 (
+        call :fail "Failed to check out ComfyUI %COMFYUI_VERSION%. Check the version name."
+        goto :end_fail
+    )
+    call :ok "ComfyUI %COMFYUI_VERSION% cloned."
 ) else (
-    call :warn "[1/8] ComfyUI already exists; pulling latest."
-    pushd "%COMFY_DIR%"
-    git pull
-    if errorlevel 1 call :warn "git pull failed; continuing with existing files."
-    popd
+    call :warn "[1/8] ComfyUI already exists; leaving its version as it is. Tested version: %COMFYUI_VERSION% (Doc/Reskin_Setup_New_PC.md section 3)."
 )
 
 if not exist "%VENV_DIR%\Scripts\python.exe" (

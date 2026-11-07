@@ -14,7 +14,7 @@ Checked on the working PC on 2026-10-18; the versions below are the ones that wo
 |---|---|---|---|
 | 1 | NVIDIA GPU with 12 GB VRAM (tested: RTX 4070), recent NVIDIA driver | — | 1 |
 | 2 | Git, Python 3.11 | — | 2 |
-| 3 | ComfyUI (0.21.1) in `AIGamestyle/_comfyui/ComfyUI`, with its own `.venv` and PyTorch 2.6.0 + CUDA 12.4 | ~6 GB with PyTorch | 3 |
+| 3 | ComfyUI (0.44.2) in `AIGamestyle/_comfyui/ComfyUI`, with its own `.venv` and PyTorch 2.14.1 + CUDA 13.0 | ~6 GB with PyTorch | 3 |
 | 4 | Two custom nodes: **ComfyUI_IPAdapter_plus** and **ComfyUI-Inspyrenet-Rembg** | small | 4 |
 | 5 | Six model files (table in section 5) | ~20 GB | 5 |
 | 6 | Pillow and numpy for the Python that runs the tools | small | 2 |
@@ -37,7 +37,7 @@ other install.
 |---|---|---|
 | Git | any recent | https://git-scm.com/download/win |
 | Python | **3.11** (3.11.9 here); tick "Add to PATH" | https://www.python.org/downloads/windows/ |
-| NVIDIA driver | one that supports CUDA 12.4 or later | https://www.nvidia.com/drivers |
+| NVIDIA driver | a recent one (617.42 works here with the CUDA 13.0 PyTorch) | https://www.nvidia.com/drivers |
 
 The tools also need **Pillow** and **numpy** in the Python that runs them:
 
@@ -52,28 +52,50 @@ the tools too.
 
 **One-click way:** `AIGamestyle\_pipeline\tools\setup_style_pipeline.bat` does all of this:
 
-- clones ComfyUI into `AIGamestyle\_comfyui\ComfyUI`;
+- clones ComfyUI into `AIGamestyle\_comfyui\ComfyUI` at the tested version, if it is not there (an existing one keeps its version);
 - creates its `.venv` and installs `requirements.txt`;
 - adds ComfyUI-Manager;
 - makes the model folders.
 
 [_pipeline/STEP_BY_STEP_HANDBOOK.md](../_pipeline/STEP_BY_STEP_HANDBOOK.md) sections 0.5 and 2 describe it and what to
-do when it fails. The first start (`start_comfyui_with_flags.bat`, section 6) installs PyTorch with CUDA 12.4 by
-itself.
+do when it fails. The first start (`start_comfyui_with_flags.bat`, section 6) installs PyTorch with CUDA 13.0 by
+itself, when PyTorch is missing.
 
 **By hand** (the same steps, from `AIGamestyle\`):
 
 ```
 git clone https://github.com/comfyanonymous/ComfyUI.git _comfyui\ComfyUI
 cd _comfyui\ComfyUI
+git checkout v0.44.2
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+.venv\Scripts\python.exe -m pip install torch==2.14.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-The working PC runs ComfyUI **0.21.1** (commit `26515acd`, 2026-05-13). A newer ComfyUI should work: the tools use
-only standard nodes. If a newer one breaks a node, go back with `git checkout 26515acd`.
+The working PC runs ComfyUI **0.44.2** with PyTorch 2.14.1 (updated 2026-11-07 from 0.21.1 and 2.6.0). On it,
+`check_reskin_setup.py` says `ready`, and `restyle_pilot.py` and `spine_page_restyle.py --reference` (IP-Adapter) gave a
+page with the same size, alpha, `.atlas` and skeleton. Not run on it: a whole `restyle_game.py` plan, `make_sprites.py`,
+`character_swap.py`, and this install on a clean PC.
+
+**ComfyUI and PyTorch go together:** ComfyUI 0.44 needs PyTorch 2.7 or newer and does not start on 2.6.
+
+**Updating an older install**, from `_comfyui\ComfyUI`:
+
+```
+git fetch --tags
+git checkout v0.44.2
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+```
+
+**Going back**, if a node breaks:
+
+```
+git checkout v0.21.1
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+```
 
 Check that the GPU is seen:
 
@@ -81,7 +103,7 @@ Check that the GPU is seen:
 .venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-It should print `2.6.0+cu124 True NVIDIA ...`.
+It should print `2.14.1+cu130 True NVIDIA ...`.
 
 ## 4. Custom nodes
 

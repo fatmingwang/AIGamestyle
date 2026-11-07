@@ -13,7 +13,7 @@
 |---|---|---|---|
 | 1 | 12 GB 顯示記憶體的 NVIDIA 顯示卡（已測：RTX 4070），較新的 NVIDIA 驅動程式 | — | 1 |
 | 2 | Git、Python 3.11 | — | 2 |
-| 3 | ComfyUI（0.21.1），位於 `AIGamestyle/_comfyui/ComfyUI`，有自己的 `.venv` 與 PyTorch 2.6.0 + CUDA 12.4 | 含 PyTorch 約 6 GB | 3 |
+| 3 | ComfyUI（0.44.2），位於 `AIGamestyle/_comfyui/ComfyUI`，有自己的 `.venv` 與 PyTorch 2.14.1 + CUDA 13.0 | 含 PyTorch 約 6 GB | 3 |
 | 4 | 兩個自訂節點：**ComfyUI_IPAdapter_plus** 與 **ComfyUI-Inspyrenet-Rembg** | 很小 | 4 |
 | 5 | 六個模型檔（第 5 節的表） | 約 20 GB | 5 |
 | 6 | 執行工具的 Python 需有 Pillow 與 numpy | 很小 | 2 |
@@ -35,7 +35,7 @@
 |---|---|---|
 | Git | 任一較新版本 | https://git-scm.com/download/win |
 | Python | **3.11**（此處為 3.11.9）；安裝時勾選「Add to PATH」 | https://www.python.org/downloads/windows/ |
-| NVIDIA 驅動程式 | 支援 CUDA 12.4 以上 | https://www.nvidia.com/drivers |
+| NVIDIA 驅動程式 | 較新的版本（此處 617.42 可搭配 CUDA 13.0 版 PyTorch） | https://www.nvidia.com/drivers |
 
 工具還需要執行它們的 Python 有 **Pillow** 與 **numpy**：
 
@@ -50,27 +50,49 @@ ComfyUI 的 `.venv`（第 3 節）已經有這兩個套件，所以也可以用
 
 **一鍵方式：** `AIGamestyle\_pipeline\tools\setup_style_pipeline.bat` 會做完這些事：
 
-- 把 ComfyUI clone 到 `AIGamestyle\_comfyui\ComfyUI`；
+- 如果 `AIGamestyle\_comfyui\ComfyUI` 不存在，clone 測試過的 ComfyUI 版本（已存在的版本不變）；
 - 建立它的 `.venv` 並安裝 `requirements.txt`；
 - 加入 ComfyUI-Manager；
 - 建立模型資料夾。
 
 [_pipeline/STEP_BY_STEP_HANDBOOK.md](../_pipeline/STEP_BY_STEP_HANDBOOK.md) 第 0.5 與第 2 節說明它的用法，以及失敗時
-怎麼辦。第一次啟動（`start_comfyui_with_flags.bat`，第 6 節）會自動安裝 CUDA 12.4 版的 PyTorch。
+怎麼辦。第一次啟動（`start_comfyui_with_flags.bat`，第 6 節）在缺少 PyTorch 時會自動安裝 CUDA 13.0 版。
 
 **手動方式**（相同步驟，在 `AIGamestyle\` 下執行）：
 
 ```
 git clone https://github.com/comfyanonymous/ComfyUI.git _comfyui\ComfyUI
 cd _comfyui\ComfyUI
+git checkout v0.44.2
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install torch==2.6.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+.venv\Scripts\python.exe -m pip install torch==2.14.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
 .venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-可用的電腦上是 ComfyUI **0.21.1**（commit `26515acd`，2026-05-13）。較新的 ComfyUI 應該也可以：工具只用標準節點。
-若新版讓某個節點壞掉，用 `git checkout 26515acd` 退回。
+可用的電腦上是 ComfyUI **0.44.2** 與 PyTorch 2.14.1（2026-11-07 由 0.21.1 與 2.6.0 更新）。在這個版本上，
+`check_reskin_setup.py` 顯示 `ready`，`restyle_pilot.py` 與 `spine_page_restyle.py --reference`（IP-Adapter）產生的頁面，
+大小、alpha、`.atlas` 與骨架都相同。尚未在此版本執行：完整的 `restyle_game.py` 計畫、`make_sprites.py`、
+`character_swap.py`，以及在乾淨電腦上的這個安裝流程。
+
+**ComfyUI 與 PyTorch 要一起更新：** ComfyUI 0.44 需要 PyTorch 2.7 以上，在 2.6 上無法啟動。
+
+**更新舊的安裝**，在 `_comfyui\ComfyUI` 下執行：
+
+```
+git fetch --tags
+git checkout v0.44.2
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+```
+
+**退回舊版**（如果某個節點壞掉）：
+
+```
+git checkout v0.21.1
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+```
 
 確認抓得到顯示卡：
 
@@ -78,7 +100,7 @@ python -m venv .venv
 .venv\Scripts\python.exe -c "import torch; print(torch.__version__, torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
-應印出 `2.6.0+cu124 True NVIDIA ...`。
+應印出 `2.14.1+cu130 True NVIDIA ...`。
 
 ## 4. 自訂節點
 

@@ -54,7 +54,7 @@ set "HAS_NVIDIA_GPU=0"
 where nvidia-smi >nul 2>nul
 if not errorlevel 1 set "HAS_NVIDIA_GPU=1"
 
-if "%PYTORCH_CUDA_INDEX_URL%"=="" set "PYTORCH_CUDA_INDEX_URL=https://download.pytorch.org/whl/cu124"
+if "%PYTORCH_CUDA_INDEX_URL%"=="" set "PYTORCH_CUDA_INDEX_URL=https://download.pytorch.org/whl/cu130"
 if "%PYTORCH_CPU_INDEX_URL%"=="" set "PYTORCH_CPU_INDEX_URL=https://download.pytorch.org/whl/cpu"
 if "%PYTORCH_INDEX_URL%"=="" (
     if "!HAS_NVIDIA_GPU!"=="1" (
