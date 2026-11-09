@@ -1,0 +1,16 @@
+# ComfyLive: only the sources, the scripts and the README are kept (README.md "Build").
+# build.cmd output (Ninja)
+/build/
+/build.log
+# make_vs_solution.bat output (the Visual Studio solution)
+/build_vs/
+# Visual Studio "Open Folder" (its own CMake build) and its settings
+/out/
+/.vs/
+CMakeSettings.json
+CMakeUserPresets.json
+# test and screenshot runs started from this folder
+*.png
+*.mp3
+*.flac
+*.log
