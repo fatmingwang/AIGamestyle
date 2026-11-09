@@ -1,4 +1,5 @@
 #include "HeadlessServer.h"
+#include "SongTools.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -126,9 +127,14 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             if (!suffix.isEmpty() && QFileInfo(path).suffix().compare(suffix, Qt::CaseInsensitive) != 0)
                 path = QFileInfo(path).path() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QLatin1Char('.') + suffix;
             QFile f(path);
-            if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size())
+            if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size()) {
+                f.close();
                 e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath());
-            else
+                // the settings beside it: load-graph with them and generate makes this song again
+                const QJsonObject sent = client_.sentGraph(id);
+                if (!sent.isEmpty() && Workflow::writeSettings(path, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, nullptr))
+                    e[QStringLiteral("settings")] = QDir::toNativeSeparators(QFileInfo(Workflow::settingsPathFor(path)).absoluteFilePath());
+            } else
                 e[QStringLiteral("error")] = QStringLiteral("could not write ") + path;
         }
         gotImage_ = true;
@@ -445,11 +451,30 @@ void HeadlessServer::run(const Job& job)
             clock_.start();
             client_.queuePrompt(workflow_.graph());
         });
+    } else if (cmd == QStringLiteral("transpose")) {
+        const QString in = a.value(QStringLiteral("path")).toString();
+        const int semitones = a.value(QStringLiteral("semitones")).toInt();
+        if (!QFileInfo(in).isFile() || semitones < -12 || semitones > 12 || semitones == 0) {
+            end(2, QStringLiteral("transpose needs \"path\" (an audio file) and \"semitones\" (-12..12, not 0)"));
+            return;
+        }
+        const QString out = a.value(QStringLiteral("out")).toString(SongTools::transposedPath(in, semitones));
+        SongTools::transpose(SongTools::findFfmpeg(a.value(QStringLiteral("ffmpeg")).toString()), in, semitones, out,
+                             [this, in, semitones](bool ok, const QString& message) {
+                                 if (ok) {
+                                     Workflow::copySettings(in, message, {{QStringLiteral("transpose"), semitones},
+                                                                          {QStringLiteral("transposedFrom"), QFileInfo(in).fileName()}});
+                                     result({{QStringLiteral("path"), QDir::toNativeSeparators(QFileInfo(message).absoluteFilePath())}});
+                                     end(0, QStringLiteral("done"));
+                                 } else {
+                                     end(1, message);
+                                 }
+                             });
     } else if (cmd == QStringLiteral("stop")) {
         end(0, QStringLiteral("nothing is running"));
     } else {
         end(2, QStringLiteral("unknown command \"%1\": comfyui-status, comfyui-launch, connect, get-params, set-params, load-graph, "
-                              "save-graph, reset-graph, generate, stop, exit").arg(cmd));
+                              "save-graph, reset-graph, generate, transpose, stop, exit").arg(cmd));
     }
 }
 
@@ -527,6 +552,17 @@ int runHeadlessTest(const HeadlessServer::Options& options, const QString& outPa
             return;
         }
         current = steps.takeFirst();
+        if (current.value(QStringLiteral("command")).toString() == QStringLiteral("_same-file")) {   // a check of the test's own
+            const QJsonObject a = current.value(QStringLiteral("args")).toObject();
+            QFile fa(a.value(QStringLiteral("a")).toString()), fb(a.value(QStringLiteral("b")).toString());
+            const bool same = fa.open(QIODevice::ReadOnly) && fb.open(QIODevice::ReadOnly) && fa.size() > 0 && fa.readAll() == fb.readAll();
+            ++checks;
+            if (!same)
+                ++failures;
+            say(QStringLiteral("%1 the song from its settings file is the same song, byte for byte").arg(same ? QStringLiteral("ok  ") : QStringLiteral("FAIL")));
+            QTimer::singleShot(0, [&] { sendNext(); });
+            return;
+        }
         QJsonObject wire{{QStringLiteral("command"), current.value(QStringLiteral("command"))}, {QStringLiteral("args"), current.value(QStringLiteral("args"))}};
         say(QStringLiteral("-> ") + QString::fromUtf8(QJsonDocument(wire).toJson(QJsonDocument::Compact)));
         socket.write(QJsonDocument(wire).toJson(QJsonDocument::Compact) + "\n");
@@ -549,9 +585,14 @@ int runHeadlessTest(const HeadlessServer::Options& options, const QString& outPa
           << step(QStringLiteral("generate"), {{QStringLiteral("out"), outPath}, {QStringLiteral("random-seed"), true}}, true);
     if (music) {   // the ACE-Step song graph: a short song, saved as .mp3 next to the picture
         const QString songPath = QFileInfo(outPath).path() + QLatin1Char('/') + QFileInfo(outPath).completeBaseName() + QStringLiteral("_song.mp3");
+        const QString againPath = QFileInfo(outPath).path() + QLatin1Char('/') + QFileInfo(outPath).completeBaseName() + QStringLiteral("_song_again.mp3");
         steps << step(QStringLiteral("reset-graph"), {{QStringLiteral("graph"), QStringLiteral("music")}}, true)
               << step(QStringLiteral("set-params"), {{QStringLiteral("params"), QJsonObject{{QStringLiteral("duration"), 20}}}}, true)
               << step(QStringLiteral("generate"), {{QStringLiteral("out"), songPath}, {QStringLiteral("random-seed"), true}}, true)
+              << step(QStringLiteral("transpose"), {{QStringLiteral("path"), songPath}, {QStringLiteral("semitones"), 2}}, true)
+              << step(QStringLiteral("load-graph"), {{QStringLiteral("path"), Workflow::settingsPathFor(songPath)}}, true)
+              << step(QStringLiteral("generate"), {{QStringLiteral("out"), againPath}}, true)
+              << step(QStringLiteral("_same-file"), {{QStringLiteral("a"), songPath}, {QStringLiteral("b"), againPath}}, true)
               << step(QStringLiteral("reset-graph"), {{QStringLiteral("graph"), QStringLiteral("image")}}, true);
     }
     QObject::connect(&socket, &QTcpSocket::connected, [&] { sendNext(); });

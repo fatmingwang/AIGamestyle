@@ -32,6 +32,15 @@ ComfyClient::ComfyClient(QObject* parent)
     connect(&socket_, &MiniWebSocket::binaryMessage, this, &ComfyClient::onSocketBinary);
 }
 
+ComfyClient::~ComfyClient()
+{
+    // Members go in reverse order: reconnect_ before socket_. Stop listening to the socket first, so its closing
+    // cannot start the timer that is already destroyed (the crash on closing the window), nor emit to the window.
+    wanted_ = false;
+    QObject::disconnect(&socket_, nullptr, this, nullptr);
+    reconnect_.stop();
+}
+
 QUrl ComfyClient::url(const QString& path) const
 {
     return QUrl(QStringLiteral("http://") + server_ + path);
@@ -94,7 +103,7 @@ void ComfyClient::queuePrompt(const QJsonObject& graph)
     QNetworkRequest request(url(QStringLiteral("/prompt")));
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     QNetworkReply* reply = net_.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, [this, reply] {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, graph] {
         reply->deleteLater();
         const QByteArray data = reply->readAll();
         const QJsonObject answer = QJsonDocument::fromJson(data).object();
@@ -116,7 +125,12 @@ void ComfyClient::queuePrompt(const QJsonObject& graph)
             emit promptRejected(why);
             return;
         }
-        emit queued(answer.value(QStringLiteral("prompt_id")).toString(), answer.value(QStringLiteral("number")).toInt());
+        const QString id = answer.value(QStringLiteral("prompt_id")).toString();
+        sent_.insert(id, graph);
+        sentOrder_ << id;
+        while (sentOrder_.size() > 50)
+            sent_.remove(sentOrder_.takeFirst());
+        emit queued(id, answer.value(QStringLiteral("number")).toInt());
     });
 }
 

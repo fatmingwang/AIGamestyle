@@ -14,6 +14,7 @@ class MiniWebSocket : public QObject
     Q_OBJECT
 public:
     explicit MiniWebSocket(QObject* parent = nullptr);
+    ~MiniWebSocket() override;   // silent: no closed() while it is being destroyed
 
     // pathAndQuery: e.g. "/ws?clientId=..."
     void open(const QString& host, quint16 port, const QString& pathAndQuery);

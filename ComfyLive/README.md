@@ -57,6 +57,33 @@ Arguments**. With F5, headless and test runs open a console window of their own 
    `duration` and **Length** `seconds` are one value: changing either changes both.
 3. **Generate.** The song is saved as MP3.
 
+**Song helpers** (any ACE-Step graph, in its Song group):
+
+| Control | Does |
+|---|---|
+| **Singer** | Male, Female, Duet (male + female), Choir, Instrumental. Writes `male vocals`, `female vocals` ... first in `tags` and takes the previous choice out. Instrumental also puts `[Instrumental]` in the lyrics, and picking a singer again brings the lyrics back. |
+| **Voice** | Soft, Breathy, Powerful, Falsetto, Raspy, in the same way (`breathy voice` ...). |
+| **keyscale ▼ ▲** | The key one semitone down or up (D minor → D# minor). The next Generate makes a new song in that key: the melody changes too. |
+| **Transpose** (song row) | The finished song, the same melody, −6 … +6 semitones, same length. It saves a new file next to it (`..._+2st.mp3`) and plays it. Up to ±3 sounds natural. It uses ffmpeg: TOMS' `tools/ffmpeg/ffmpeg.exe` when ComfyLive sits in `TOMS/AIGamestyle`, else `ffmpeg.exe` next to `ComfyLive.exe` or on PATH. |
+
+**Settings file: the same song again.** Every song is saved with a `.json` of the same name beside it:
+`ComfyLive_00007.mp3` + `ComfyLive_00007.json`. It goes in ComfyLive's audio folder, beside ComfyUI's own file in
+`output/audio` when ComfyUI runs on this PC, and beside the copy made by **Save audio...** or **Transpose**. It holds
+the graph exactly as it was sent: every value, both seeds and the model name. A transposed song's file also says
+`"transpose": 2` and which song it came from. **Open graph...** with that `.json`, then **Generate**: the same song
+again. Opening it turns off **New seed each run**. Headless: `generate` reports it as `settings`, and `load-graph`
+takes it. The same model, seed and values give the same song. While the same ComfyUI is still running, it even hands
+back the identical file from its cache.
+
+**Parameter help.** Rest the mouse on a parameter marked ⓘ to see what it does to the result. **?** next to
+**Built-in** lists every parameter of the graph with that text. It is in the window's language and covers the
+sampler, the picture graph and every ACE-Step song input (tags, lyrics, the two seeds, bpm, key, cfg_scale,
+temperature, top_p, top_k, min_p ...). Inputs it doesn't know show ComfyUI's own tooltip. The text is in
+`src/ParamHelp.cpp`.
+
+The model follows the singer words most of the time, not always: generate again (a new seed) if a take has the
+wrong voice. `--song-test` checks the Singer / Voice / key rules without ComfyUI.
+
 Other ACE-Step graphs work too, such as ComfyUI's XL or split-model templates: in ComfyUI use **Workflow > Export
 (API)**, then **Open graph...**. Keep a real singer's name out of the tags and use lyrics you have the rights to.
 
@@ -102,6 +129,7 @@ Commands run one after another. The graph and its values stay for the next comma
 | `save-graph` | `path` | Saves the graph with its current values |
 | `reset-graph` | `graph`? `"image"` (default) or `"music"` | A built-in graph: SDXL text to image, or ACE-Step 1.5 text to music |
 | `generate` | `params`?, `random-seed`?, `out`?, `preview-dir`? | Runs the graph. Events: `queued {promptId}`, `progress {value,max}`, `preview {index,width,height,path?}`, `image {file,width,height,path?}` or `audio {file,format,bytes,path?}`, then result `{seconds, previews, output}`. For audio, `out` takes the real format's extension (`song.wav` from an MP3 graph is written as `song.mp3`) |
+| `transpose` | `path`, `semitones` (−12…12), `out`? | Transposes an audio file with ffmpeg (same melody, same length). result `{path}`; default out `<name>_+Nst.<ext>` |
 | `stop` | | Stops the running generate. It is answered at once, beside it |
 | `exit` / `quit` | | Closes this connection; the server keeps running |
 
@@ -132,7 +160,7 @@ ComfyLive.exe --headless-test [--start] [--music] [--out=headless_test.png]
 This runs the server and a built-in client in one process. Without a ComfyUI it checks only the protocol (status, an
 unknown command). With one, or with `--start`, it also runs connect, get-params, a refused and an accepted
 set-params, and a real 768², 8-step generate. `--music` adds the ACE-Step graph: a 20-second song saved as
-`headless_test_song.mp3`. It prints `ALL CHECKS PASSED` (exit 0) or `SOME CHECKS FAILED`
+`headless_test_song.mp3`, then transposed +2 (`headless_test_song_+2st.mp3`). It prints `ALL CHECKS PASSED` (exit 0) or `SOME CHECKS FAILED`
 (exit 1).
 
 ```
@@ -153,5 +181,7 @@ add `--generate`. These modes use Qt's `offscreen` platform, with fonts from `%W
 | `src/Workflow` | the API-format graph, its parameters, the built-in graphs (image, music) |
 | `src/MainWindow`, `src/ImageView` | the window |
 | `src/AudioPlayer` | plays a song with Windows' MCI (winmm) |
+| `src/ParamHelp` | what each parameter does (hover, the ? list), English and 繁體中文 |
+| `src/SongTools` | Singer / Voice tags, key steps, Transpose (ffmpeg) |
 | `src/Translator` | the English / 繁體中文 switch: the Traditional Chinese table |
 | `src/HeadlessServer` | `--headless` and `--headless-test` |

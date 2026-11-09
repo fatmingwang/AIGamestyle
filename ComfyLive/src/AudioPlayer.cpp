@@ -47,6 +47,8 @@ AudioPlayer::AudioPlayer(QObject* parent)
 
 AudioPlayer::~AudioPlayer()
 {
+    // silent: whoever listened (the window's Play button) may already be gone when the player goes
+    blockSignals(true);
     close();
 }
 

@@ -20,6 +20,8 @@ add_executable(ComfyLive WIN32
     src/ImageView.h         src/ImageView.cpp
     src/AudioPlayer.h       src/AudioPlayer.cpp
     src/Translator.h        src/Translator.cpp
+    src/SongTools.h         src/SongTools.cpp
+    src/ParamHelp.h         src/ParamHelp.cpp
 )
 target_include_directories(ComfyLive PRIVATE src)
 if(MSVC)
@@ -27,7 +29,9 @@ if(MSVC)
 endif()
 target_link_libraries(ComfyLive PRIVATE Qt6::Widgets Qt6::Network $<$<PLATFORM_ID:Windows>:winmm>)   # winmm: AudioPlayer (MCI)
 # The local ComfyUI that "Start local ComfyUI" runs (main.py and its .venv); changeable in the window.
-target_compile_definitions(ComfyLive PRIVATE COMFYLIVE_DEFAULT_COMFY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../_comfyui/ComfyUI")
+target_compile_definitions(ComfyLive PRIVATE COMFYLIVE_DEFAULT_COMFY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../_comfyui/ComfyUI"
+    # Transpose: the TOMS copy of ffmpeg (tools/get_ffmpeg.cmd) when ComfyLive sits in TOMS/AIGamestyle; else next to the exe or PATH
+    COMFYLIVE_DEFAULT_FFMPEG="${CMAKE_CURRENT_SOURCE_DIR}/../../tools/ffmpeg/ffmpeg.exe")
 
 # Visual Studio (make_vs_solution.bat): F5 starts ComfyLive; Qt's bin on PATH so it runs even before windeployqt.
 # Command-line arguments (--start, --headless ...): Project > Properties > Debugging > Command Arguments.

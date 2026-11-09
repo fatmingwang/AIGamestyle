@@ -1,5 +1,8 @@
 #include "Workflow.h"
 
+#include <QDateTime>
+#include <QDir>
+
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -130,8 +133,58 @@ Workflow Workflow::textToMusic()
     return w;
 }
 
-bool Workflow::fromJson(const QJsonObject& graph, QString* why)
+QString Workflow::settingsPathFor(const QString& audioPath)
 {
+    const QFileInfo f(audioPath);
+    return f.dir().filePath(f.completeBaseName() + QStringLiteral(".json"));
+}
+
+bool Workflow::writeSettings(const QString& audioPath, const QJsonObject& graph, const QString& name, const QJsonObject& extra,
+                             QString* why)
+{
+    QJsonObject o = extra;
+    o[QStringLiteral("comfylive")] = QStringLiteral("settings");
+    o[QStringLiteral("version")] = 1;
+    o[QStringLiteral("name")] = name;
+    o[QStringLiteral("audio")] = QFileInfo(audioPath).fileName();
+    o[QStringLiteral("created")] = QDateTime::currentDateTime().toString(Qt::ISODate);
+    o[QStringLiteral("how")] = QStringLiteral("ComfyLive: Open graph... with this file, then Generate: the same song again "
+                                              "(New seed each run is turned off for it)");
+    o[QStringLiteral("graph")] = graph;
+    QFile f(settingsPathFor(audioPath));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        if (why)
+            *why = f.errorString();
+        return false;
+    }
+    f.write(QJsonDocument(o).toJson(QJsonDocument::Indented));
+    return true;
+}
+
+bool Workflow::copySettings(const QString& from, const QString& to, const QJsonObject& extra)
+{
+    QFile in(settingsPathFor(from));
+    if (!in.open(QIODevice::ReadOnly))
+        return false;
+    QJsonObject o = QJsonDocument::fromJson(in.readAll()).object();
+    if (o.value(QStringLiteral("comfylive")).toString() != QStringLiteral("settings"))
+        return false;
+    for (auto it = extra.begin(); it != extra.end(); ++it)
+        o[it.key()] = it.value();
+    o[QStringLiteral("audio")] = QFileInfo(to).fileName();
+    QFile out(settingsPathFor(to));
+    if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+    out.write(QJsonDocument(o).toJson(QJsonDocument::Indented));
+    return true;
+}
+
+bool Workflow::fromJson(const QJsonObject& graphIn, QString* why)
+{
+    // a song's settings file: the graph inside it
+    fromSettings_ = graphIn.value(QStringLiteral("comfylive")).toString() == QStringLiteral("settings") &&
+                    graphIn.value(QStringLiteral("graph")).isObject();
+    const QJsonObject graph = fromSettings_ ? graphIn.value(QStringLiteral("graph")).toObject() : graphIn;
     if (graph.contains(QStringLiteral("nodes")) && graph.value(QStringLiteral("nodes")).isArray()) {
         if (why)
             *why = QStringLiteral("This is a ComfyUI workflow in the editor's format. In ComfyUI use Workflow > Export (API), then open that file.");
@@ -222,10 +275,12 @@ QList<ParamDef> Workflow::params(const QJsonObject& objectInfo) const
             p.nodeId = id;
             p.input = input;
             p.group = title == cls ? cls : title + QStringLiteral("  (") + cls + QStringLiteral(")");
+            p.classType = cls;
             p.value = v;
             const QJsonArray spec = specOf(objectInfo, cls, input);
             const QString type = spec.isEmpty() || spec[0].isArray() ? QString() : spec[0].toString();
             const QJsonObject opts = spec.size() > 1 ? spec[1].toObject() : QJsonObject();
+            p.tooltip = opts.value(QStringLiteral("tooltip")).toString();
             const QStringList choices = choicesOf(spec);
             if (!choices.isEmpty()) {
                 p.kind = ParamDef::Kind::Combo;

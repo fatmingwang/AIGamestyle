@@ -2,11 +2,16 @@
 
 #include "AudioPlayer.h"
 #include "ImageView.h"
+#include "ParamHelp.h"
+#include "SongTools.h"
 #include "Translator.h"
 
 #include <QCheckBox>
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QTextBrowser>
 #include <QGuiApplication>
 #include <QMenu>
 #include <QStandardPaths>
@@ -140,13 +145,20 @@ MainWindow::MainWindow(QWidget* parent)
             return;
         }
         f.close();
-        auto* item = new QListWidgetItem(style()->standardIcon(QStyle::SP_MediaVolume), QFileInfo(file).completeBaseName().right(12));
-        item->setData(Qt::UserRole + 1, path);
-        item->setToolTip(file);
-        history_->insertItem(0, item);
-        while (history_->count() > 40)
-            delete history_->takeItem(history_->count() - 1);
+        addAudioToHistory(path, file);
         log(tr("audio: %1 (%2 KB)").arg(file).arg(bytes.size() / 1024));
+        // its settings beside it: Open graph... with them and Generate makes this song again
+        QString why;
+        const QJsonObject sent = client_.sentGraph(id);
+        if (!sent.isEmpty() && Workflow::writeSettings(path, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, &why)) {
+            log(tr("settings: %1").arg(QDir::toNativeSeparators(Workflow::settingsPathFor(path))));
+            // and beside ComfyUI's own file, when that ComfyUI is on this PC ("output/audio/x.mp3" under its folder)
+            const QString original = QDir(comfyRootEdit_->text()).filePath(file);
+            if (QFileInfo(original).isFile() && Workflow::writeSettings(original, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, nullptr))
+                log(tr("settings: %1").arg(QDir::toNativeSeparators(Workflow::settingsPathFor(original))));
+        }
+        else if (!sent.isEmpty())
+            log(tr("could not write %1").arg(Workflow::settingsPathFor(path)) + QStringLiteral(": ") + why);
         if (id == currentId_)
             showAudio(path, file, true);
     });
@@ -176,7 +188,19 @@ MainWindow::MainWindow(QWidget* parent)
     });
 }
 
-MainWindow::~MainWindow() = default;
+MainWindow::~MainWindow()
+{
+    // Nothing may reach the window while it is torn down: the child widgets go in creation order (the Play button
+    // before the player, the log before ComfyUI's last lines), and a signal into a deleted widget crashes.
+    if (player_) {
+        player_->disconnect(this);
+        player_->blockSignals(true);
+        player_->close();
+    }
+    client_.disconnect(this);
+    server_.disconnect(this);
+    liveTimer_.stop();
+}
 
 void MainWindow::buildUi()
 {
@@ -240,10 +264,15 @@ void MainWindow::buildUi()
     builtInMenu->addAction(tr("Text to image (SDXL)"), this, [this] { setWorkflow(Workflow::textToImage()); });
     builtInMenu->addAction(tr("Text to music (ACE-Step 1.5)"), this, [this] { setWorkflow(Workflow::textToMusic()); });
     builtInBtn->setMenu(builtInMenu);
+    auto* helpBtn = new QPushButton(QStringLiteral("?"), left);
+    helpBtn->setFixedWidth(28);
+    helpBtn->setToolTip(tr("What each parameter of this graph does to the result"));
+    connect(helpBtn, &QPushButton::clicked, this, &MainWindow::showParamHelp);
     wfRow->addWidget(workflowLabel_, 1);
     wfRow->addWidget(openBtn);
     wfRow->addWidget(saveBtn);
     wfRow->addWidget(builtInBtn);
+    wfRow->addWidget(helpBtn);
     lv->addLayout(wfRow);
 
     paramsArea_ = new QScrollArea(left);
@@ -310,6 +339,15 @@ void MainWindow::buildUi()
     saveAudioBtn_ = new QPushButton(tr("Save audio..."), audioRow_);
     arl->addWidget(playBtn_);
     arl->addWidget(audioLabel_, 1);
+    transposeSpin_ = new QSpinBox(audioRow_);
+    transposeSpin_->setRange(-6, 6);
+    transposeSpin_->setValue(2);
+    transposeSpin_->setSuffix(tr(" semitones"));
+    transposeSpin_->setToolTip(tr("Up (+) or down (-). Up to 3 sounds natural; more sounds thin (up) or dull (down)"));
+    transposeBtn_ = new QPushButton(tr("Transpose"), audioRow_);
+    transposeBtn_->setToolTip(tr("The same song, higher or lower: a new file next to it (ffmpeg)"));
+    arl->addWidget(transposeSpin_);
+    arl->addWidget(transposeBtn_);
     arl->addWidget(openAudioBtn_);
     arl->addWidget(saveAudioBtn_);
     audioRow_->hide();
@@ -358,6 +396,7 @@ void MainWindow::buildUi()
             QDesktopServices::openUrl(QUrl::fromLocalFile(path));
     });
     connect(saveAudioBtn_, &QPushButton::clicked, this, &MainWindow::onSaveAudio);
+    connect(transposeBtn_, &QPushButton::clicked, this, &MainWindow::onTranspose);
     connect(history_, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         const QString audio = item->data(Qt::UserRole + 1).toString();
         if (!audio.isEmpty()) {
@@ -390,6 +429,37 @@ void MainWindow::buildParams()
             v->addWidget(box);
         }
         const QString nodeId = p.nodeId, input = p.input;
+        const bool aceSong = workflow_.graph().value(nodeId).toObject().value(QStringLiteral("class_type")).toString()
+                                 .startsWith(QStringLiteral("TextEncodeAceStepAudio"));
+        if (aceSong && input == QStringLiteral("tags")) {
+            // the singer and the voice: words in the tags, put first; a choice replaces the one before
+            const QString tagsKey = nodeId + QStringLiteral("/tags"), lyricsKey = nodeId + QStringLiteral("/lyrics");
+            auto addList = [&](const QString& label, const QList<SongTools::Choice>& list, bool singer) {
+                auto* combo = new QComboBox(box);
+                for (const SongTools::Choice& c : list)
+                    combo->addItem(QCoreApplication::translate("Song", c.label), c.id);
+                combo->setCurrentIndex(qMax(0, combo->findData(SongTools::detectChoice(p.value.toString(), list))));
+                const QList<SongTools::Choice>* choices = &list;   // a static list: lives as long as the program
+                connect(combo, &QComboBox::activated, this, [this, combo, choices, singer, tagsKey, lyricsKey] {
+                    const QString id = combo->currentData().toString();
+                    const QString tags = workflow_.value(tagsKey.section(QLatin1Char('/'), 0, 0), QStringLiteral("tags")).toString();
+                    setTextField(tagsKey, SongTools::applyChoice(tags, *choices, id));
+                    if (!singer)
+                        return;
+                    const QString lyrics = workflow_.value(lyricsKey.section(QLatin1Char('/'), 0, 0), QStringLiteral("lyrics")).toString();
+                    if (id == QStringLiteral("instrumental") && lyrics.trimmed() != QStringLiteral("[Instrumental]")) {
+                        instrumentalBackup_ = lyrics;   // given back when a singer is picked again
+                        setTextField(lyricsKey, QStringLiteral("[Instrumental]"));
+                    } else if (id != QStringLiteral("instrumental") && lyrics.trimmed() == QStringLiteral("[Instrumental]") &&
+                               !instrumentalBackup_.isEmpty()) {
+                        setTextField(lyricsKey, instrumentalBackup_);
+                    }
+                });
+                form->addRow(label, combo);
+            };
+            addList(tr("Singer"), SongTools::singers(), true);
+            addList(tr("Voice"), SongTools::voices(), false);
+        }
         QWidget* editor = nullptr;
         switch (p.kind) {
         case ParamDef::Kind::Int:
@@ -439,6 +509,23 @@ void MainWindow::buildParams()
             break;
         }
         case ParamDef::Kind::Combo: {
+            if (aceSong && input == QStringLiteral("language")) {   // full names shown, the code kept in the graph
+                auto* combo = new QComboBox(box);
+                for (const QString& code : p.choices) {
+                    combo->addItem(SongTools::languageName(code), code);
+                    combo->setItemData(combo->count() - 1, code, Qt::ToolTipRole);
+                }
+                const QString now = p.value.toString();
+                if (combo->findData(now) < 0)
+                    combo->addItem(SongTools::languageName(now), now);
+                combo->setCurrentIndex(combo->findData(now));
+                connect(combo, &QComboBox::currentIndexChanged, this, [this, combo, nodeId, input] {
+                    workflow_.setValue(nodeId, input, combo->currentData().toString());
+                    onParamChanged();
+                });
+                editor = combo;
+                break;
+            }
             auto* combo = new QComboBox(box);
             combo->addItems(p.choices);
             const QString now = p.value.isString() ? p.value.toString() : QString::number(p.value.toDouble());
@@ -456,6 +543,42 @@ void MainWindow::buildParams()
         }
         }
         fields_.insert(keyOf(p), editor);
+        const QString help = ParamHelp::describe(p.classType, p.input, p.tooltip);
+        QWidget* label = nullptr;
+        if (!help.isEmpty()) {
+            auto* l = new QLabel(p.input + QStringLiteral(" \u24D8"), box);   // circled i: there is help here
+            l->setToolTip(QStringLiteral("<p style='white-space:pre-wrap'>%1</p>").arg(help.toHtmlEscaped()));
+            l->setCursor(Qt::WhatsThisCursor);
+            editor->setToolTip(l->toolTip());
+            label = l;
+        }
+        if (aceSong && input == QStringLiteral("keyscale") && p.kind == ParamDef::Kind::Combo) {   // the key, a semitone at a time
+            auto* row = new QWidget(box);
+            auto* h = new QHBoxLayout(row);
+            h->setContentsMargins(0, 0, 0, 0);
+            auto* combo = static_cast<QComboBox*>(editor);
+            const QStringList choices = p.choices;
+            auto* down = new QPushButton(QStringLiteral("\u25BC"), row);
+            auto* up = new QPushButton(QStringLiteral("\u25B2"), row);
+            down->setToolTip(tr("Key one semitone down (a new song in that key)"));
+            up->setToolTip(tr("Key one semitone up (a new song in that key)"));
+            down->setFixedWidth(32);
+            up->setFixedWidth(32);
+            for (auto [button, step] : {std::pair{down, -1}, std::pair{up, 1}})
+                connect(button, &QPushButton::clicked, combo, [combo, choices, step] {
+                    const QString next = SongTools::stepKey(combo->currentText(), step, choices);
+                    if (!next.isEmpty())
+                        combo->setCurrentText(next);
+                });
+            h->addWidget(editor, 1);
+            h->addWidget(down);
+            h->addWidget(up);
+            if (label)
+                form->addRow(label, row);
+            else
+                form->addRow(p.input, row);
+            continue;
+        }
         if (p.isSeed()) {   // a seed: a dice button beside it
             auto* row = new QWidget(box);
             auto* h = new QHBoxLayout(row);
@@ -465,7 +588,12 @@ void MainWindow::buildParams()
             connect(dice, &QPushButton::clicked, spin, [spin] { spin->setValue(double(QRandomGenerator::global()->bounded(Q_INT64_C(1) << 40))); });
             h->addWidget(editor, 1);
             h->addWidget(dice);
-            form->addRow(p.input, row);
+            if (label)
+                form->addRow(label, row);
+            else
+                form->addRow(p.input, row);
+        } else if (label) {
+            form->addRow(label, editor);
         } else {
             form->addRow(p.input, editor);
         }
@@ -567,6 +695,84 @@ void MainWindow::showAudio(const QString& path, const QString& shown, bool autoP
         player_->play();
 }
 
+void MainWindow::showParamHelp()
+{
+    QString html = QStringLiteral("<h3>%1</h3>").arg(workflow_.name().toHtmlEscaped());
+    if (!client_.isReady())
+        html += QStringLiteral("<p>%1</p>").arg(tr("Connect to see the parameters.").toHtmlEscaped());
+    QString lastGroup;
+    for (const ParamDef& p : workflow_.params(client_.objectInfo())) {
+        if (p.group != lastGroup) {
+            lastGroup = p.group;
+            const qsizetype cut = p.group.indexOf(QStringLiteral("  ("));
+            const QString title = cut < 0 ? p.group : p.group.left(cut);
+            html += QStringLiteral("<h4>%1 <span style='color:gray'>%2</span></h4>")
+                        .arg(QCoreApplication::translate("Graph", title.toUtf8().constData()).toHtmlEscaped(), p.classType.toHtmlEscaped());
+        }
+        const QString help = ParamHelp::describe(p.classType, p.input, p.tooltip);
+        html += QStringLiteral("<p><b>%1</b>: %2</p>").arg(p.input.toHtmlEscaped(),
+                                                            help.isEmpty() ? QStringLiteral("<i>-</i>") : help.toHtmlEscaped());
+    }
+    QDialog d(this);
+    d.setWindowTitle(tr("Parameters: what they change"));
+    auto* v = new QVBoxLayout(&d);
+    auto* text = new QTextBrowser(&d);
+    text->setHtml(html);
+    v->addWidget(text);
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Close, &d);
+    connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    v->addWidget(buttons);
+    d.resize(640, 720);
+    d.exec();
+}
+
+void MainWindow::setTextField(const QString& key, const QString& text)
+{
+    if (auto* edit = qobject_cast<QPlainTextEdit*>(fields_.value(key)))
+        edit->setPlainText(text);   // its textChanged puts it in the graph
+    else
+        workflow_.setValue(key.section(QLatin1Char('/'), 0, 0), key.section(QLatin1Char('/'), 1), text);
+}
+
+void MainWindow::addAudioToHistory(const QString& path, const QString& shown)
+{
+    auto* item = new QListWidgetItem(style()->standardIcon(QStyle::SP_MediaVolume), QFileInfo(path).completeBaseName().right(14));
+    item->setData(Qt::UserRole + 1, path);
+    item->setToolTip(shown);
+    history_->insertItem(0, item);
+    while (history_->count() > 40)
+        delete history_->takeItem(history_->count() - 1);
+}
+
+void MainWindow::onTranspose()
+{
+    const QString in = audioRow_->property("path").toString();
+    const int semitones = transposeSpin_->value();
+    if (in.isEmpty() || semitones == 0)
+        return;
+    COMFYLIVE_SETTINGS(s);
+    const QString ffmpeg = SongTools::findFfmpeg(s.value(QStringLiteral("ffmpeg")).toString());
+    const QString out = SongTools::transposedPath(in, semitones);
+    if (player_->path() == out)
+        player_->close();   // ffmpeg writes over it
+    transposeBtn_->setEnabled(false);
+    log(tr("transposing %1 by %2 semitones ...").arg(QFileInfo(in).fileName()).arg(semitones));
+    SongTools::transpose(ffmpeg, in, semitones, out, [this, out](bool ok, const QString& message) {
+        transposeBtn_->setEnabled(true);
+        if (!ok) {
+            log(tr("transpose failed: ") + message);
+            QMessageBox::warning(this, tr("ComfyLive"), tr("Transpose failed:\n%1").arg(message));
+            return;
+        }
+        addAudioToHistory(out, QFileInfo(out).fileName());
+        log(tr("saved ") + QDir::toNativeSeparators(out));
+        Workflow::copySettings(audioRow_->property("path").toString(), out,
+                               {{QStringLiteral("transpose"), transposeSpin_->value()},
+                                {QStringLiteral("transposedFrom"), QFileInfo(audioRow_->property("path").toString()).fileName()}});
+        showAudio(out, QFileInfo(out).fileName(), true);
+    });
+}
+
 void MainWindow::onSaveAudio()
 {
     const QString from = audioRow_->property("path").toString();
@@ -580,8 +786,11 @@ void MainWindow::onSaveAudio()
         return;
     s.setValue(QStringLiteral("lastAudioDir"), QFileInfo(path).absolutePath());
     QFile::remove(path);
-    if (QFile::copy(from, path))
+    if (QFile::copy(from, path)) {
         log(tr("saved ") + QDir::toNativeSeparators(path));
+        if (Workflow::copySettings(from, path, {}))
+            log(tr("saved ") + QDir::toNativeSeparators(Workflow::settingsPathFor(path)));
+    }
     else
         QMessageBox::warning(this, tr("ComfyLive"), tr("Could not write %1").arg(path));
 }
@@ -691,7 +900,7 @@ void MainWindow::onOpenWorkflow()
 {
     COMFYLIVE_SETTINGS(s);
     const QString path = QFileDialog::getOpenFileName(this, tr("Open a ComfyUI graph (API format)"), s.value(QStringLiteral("lastDir")).toString(),
-                                                      tr("ComfyUI API graph (*.json)"));
+                                                      tr("ComfyUI API graph or song settings (*.json)"));
     if (path.isEmpty())
         return;
     s.setValue(QStringLiteral("lastDir"), QFileInfo(path).absolutePath());
@@ -703,6 +912,11 @@ void MainWindow::onOpenWorkflow()
     }
     setWorkflow(w);
     log(tr("graph: ") + QDir::toNativeSeparators(path));
+    if (w.fromSettings()) {
+        randomSeedCheck_->setChecked(false);   // the same seed: the same song
+        saveSettings();
+        log(tr("a song's settings: the same values and seed; Generate makes that song again (New seed each run is off)"));
+    }
 }
 
 void MainWindow::onSaveWorkflow()

@@ -3,6 +3,7 @@
 
 #include <QImage>
 #include <QJsonArray>
+#include <QHash>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
@@ -21,6 +22,7 @@ class ComfyClient : public QObject
     Q_OBJECT
 public:
     explicit ComfyClient(QObject* parent = nullptr);
+    ~ComfyClient() override;
 
     // "127.0.0.1:8188". Reads /object_info, then opens the WebSocket; it reconnects by itself while wanted.
     void connectToServer(const QString& server);
@@ -33,7 +35,9 @@ public:
     void queuePrompt(const QJsonObject& graph);
     void interrupt();
     void deleteQueued(const QStringList& promptIds);
-    void ping(const std::function<void(bool)>& done);   // GET /system_stats: is a server there at all?
+    void ping(const std::function<void(bool)>& done);
+    // The graph a queued prompt was sent with, exactly (the last 50 prompts): what a song's settings file keeps.
+    QJsonObject sentGraph(const QString& promptId) const { return sent_.value(promptId); }   // GET /system_stats: is a server there at all?
 
 signals:
     void connected();                                   // object info read and the WebSocket open
@@ -67,6 +71,8 @@ private:
     QString server_;
     QString clientId_;
     QJsonObject objectInfo_;
+    QHash<QString, QJsonObject> sent_;
+    QStringList sentOrder_;
     bool wanted_ = false;
     bool ready_ = false;
 };

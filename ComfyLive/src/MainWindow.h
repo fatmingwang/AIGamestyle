@@ -59,7 +59,11 @@ private:
     void onSaveWorkflow();
     void onSaveImage();
     void onSaveAudio();
+    void showParamHelp();      // every parameter of the graph and what it changes
     void showAudio(const QString& path, const QString& shown, bool autoPlay);
+    void addAudioToHistory(const QString& path, const QString& shown);
+    void onTranspose();
+    void setTextField(const QString& key, const QString& text);   // a text field and the graph, as if typed
     void syncNumberFields();   // after a tied input changed with another (an ACE-Step song's duration and seconds)
     void stopRun();
     void setWorkflow(const Workflow& w);
@@ -98,6 +102,9 @@ private:
     QPushButton*  playBtn_ = nullptr;
     QPushButton*  openAudioBtn_ = nullptr;
     QPushButton*  saveAudioBtn_ = nullptr;
+    class QSpinBox* transposeSpin_ = nullptr;
+    QPushButton*  transposeBtn_ = nullptr;
+    QString       instrumentalBackup_;      // the lyrics before Singer = Instrumental replaced them
     AudioPlayer*  player_ = nullptr;
 
     QHash<QString, QWidget*> fields_;       // "<node id>/<input>" -> its editor (to show a new random seed)

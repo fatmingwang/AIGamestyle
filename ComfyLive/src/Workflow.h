@@ -12,6 +12,8 @@ struct ParamDef
     QString nodeId;
     QString input;
     QString group;          // "Positive (CLIPTextEncode)"
+    QString classType;      // "CLIPTextEncode"
+    QString tooltip;        // the server's own tooltip for this input, when it has one
     Kind kind = Kind::Line;
     QJsonValue value;
     QStringList choices;    // Combo
@@ -33,7 +35,17 @@ public:
 
     bool load(const QString& path, QString* why);
     bool save(const QString& path, QString* why) const;
-    bool fromJson(const QJsonObject& graph, QString* why);
+    bool fromJson(const QJsonObject& graph, QString* why);   // also a song's settings file (it holds the graph)
+    bool fromSettings() const { return fromSettings_; }    // loaded from a song's settings file: same values, same seed
+
+    // A song's settings file: <song>.json next to the song, {"comfylive": "settings", "graph": {the graph exactly as it
+    // was sent, seed and all}, "audio", "created", ...extra}. Open graph... (or load-graph) with it and Generate makes
+    // the same song again.
+    static QString settingsPathFor(const QString& audioPath);
+    static bool writeSettings(const QString& audioPath, const QJsonObject& graph, const QString& name, const QJsonObject& extra,
+                              QString* why);
+    // The settings of `from` written for `to` too (a copy, a transposed song), with `extra` added. False: `from` had none.
+    static bool copySettings(const QString& from, const QString& to, const QJsonObject& extra);
 
     const QJsonObject& graph() const { return graph_; }
     QString name() const { return name_; }
@@ -52,4 +64,5 @@ public:
 private:
     QJsonObject graph_;
     QString name_;
+    bool fromSettings_ = false;
 };

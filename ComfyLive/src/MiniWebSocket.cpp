@@ -15,6 +15,14 @@ MiniWebSocket::MiniWebSocket(QObject* parent)
     });
 }
 
+MiniWebSocket::~MiniWebSocket()
+{
+    // The QTcpSocket member is destroyed after this and says "disconnected" as it goes: unhook it first, so no
+    // closed() reaches an owner that is half destroyed (ComfyClient's reconnect timer is already gone by then).
+    QObject::disconnect(&socket_, nullptr, this, nullptr);
+    socket_.abort();
+}
+
 void MiniWebSocket::open(const QString& host, quint16 port, const QString& pathAndQuery)
 {
     close();
