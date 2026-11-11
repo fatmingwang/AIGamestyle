@@ -199,6 +199,12 @@ are not restyled, not even when it has its own `pages` entry. The tool does not 
 
 The two 10085 plans are complete, working examples of every field.
 
+**Added 2026-11-11, all optional:** a static item may also set `denoise` and `control` (its own
+strength), `crop: true` (restyle only the visible area of a big, mostly transparent picture such as a 3000 × 1280
+frame), `long_side: 2048` (work at a higher resolution, for full backgrounds), and `keep_glyph: true` (on a static
+item or a kind: put the original coloured glyph back on a tile after a strong restyle). Why each exists:
+[README.md](../README.md), "Change log of the tools".
+
 ## 7. Reskinning another game, step by step
 
 1. **Set up the PC** ([Reskin_Setup_New_PC.md](Reskin_Setup_New_PC.md)) and start ComfyUI. `check_reskin_setup.py`

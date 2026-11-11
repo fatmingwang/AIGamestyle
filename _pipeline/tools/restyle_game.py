@@ -73,12 +73,57 @@ def prompt_for(plan, kind, subject):
 
 
 def restyle_picture(plan, src_img, kind, subject, seed, reference=None, denoise=None, upload_name="x.png", control=None,
-                    ref_weight=0.55):
+                    ref_weight=0.55, crop=False, long_side=1024):
+    """crop: restyle only the visible part (alpha bounding box + a margin) and put it back -- a 3000 x 1280 frame whose
+    pixels fill only the middle 900 px is then made at full detail instead of shrunk 3x. long_side: the working size
+    (1024 = SDXL's own; up to ~2048 for wide backgrounds, slower)."""
+    if crop:
+        bbox = src_img.getchannel("A").getbbox()
+        if bbox:
+            m = 16
+            box = (max(0, bbox[0] - m), max(0, bbox[1] - m), min(src_img.width, bbox[2] + m), min(src_img.height, bbox[3] + m))
+            if box != (0, 0) + src_img.size:
+                sub = restyle_picture(plan, src_img.crop(box), kind, subject, seed, reference, denoise, upload_name,
+                                      control, ref_weight, False, long_side)
+                full = src_img.copy()
+                full.paste(sub, box[:2])
+                return full
     k = plan["kinds"][kind]
-    name = rp.upload(rp.prepare(src_img), upload_name)
+    name = rp.upload(rp.prepare(src_img, long_side=long_side), upload_name)
     gen = rp.run(rp.workflow(name, prompt_for(plan, kind, subject), plan["negative"], denoise or k["denoise"], seed,
                              control or k["control"], reference=reference, ref_weight=ref_weight))
     return rp.finish(gen, src_img)
+
+
+def keep_glyph(styled: Image.Image, src: Image.Image, inset=(0.08, 0.04, 0.03, 0.12), min_sat=0.35,
+               gold_hue=(18, 70)) -> Image.Image:
+    """The original's coloured glyph back on a restyled tile (a static item's "keep_glyph": true).
+
+    A strong restyle turns a tile's body to stone but also recolours its glyph (a green character comes out black), and the
+    glyph's colour is how a player tells symbols apart. The glyph is the saturated pixels inside the tile's face (the
+    sides -- a mahjong tile's green back -- are left out by `inset`, fractions of left, top, right, bottom), except
+    gold / yellow ones (a golden tile's body). Grown by a pixel and feathered, so the restyled glyph's edge is covered."""
+    import numpy as np
+    from PIL import ImageFilter
+    s = np.asarray(src.convert("RGBA"), dtype=np.float32)
+    o = np.asarray(styled.convert("RGBA"), dtype=np.float32)
+    rgb = s[..., :3] / 255.0
+    r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
+    mx, mn = rgb.max(-1), rgb.min(-1)
+    d = mx - mn + 1e-6
+    hue = np.where(mx == r, ((g - b) / d) % 6, np.where(mx == g, (b - r) / d + 2, (r - g) / d + 4)) * 60
+    sat = d / (mx + 1e-6)
+    m = (sat >= min_sat) & ~((hue >= gold_hue[0]) & (hue <= gold_hue[1])) & (s[..., 3] > 200)
+    h, w = m.shape
+    face = np.zeros_like(m)
+    face[int(h * inset[1]):int(h * (1 - inset[3])), int(w * inset[0]):int(w * (1 - inset[2]))] = True
+    m &= face
+    mask = np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(3))
+                      .filter(ImageFilter.GaussianBlur(0.8)), dtype=np.float32)[..., None] / 255.0
+    res = o.copy()
+    res[..., :3] = o[..., :3] * (1 - mask) + s[..., :3] * mask
+    res[..., 3] = s[..., 3]
+    return Image.fromarray(np.clip(res, 0, 255).astype(np.uint8), "RGBA")
 
 
 def save(img: Image.Image, path: Path):
@@ -131,7 +176,11 @@ def main():
         pma = rp.is_premultiplied(img)   # premultiplied pictures: restyled in plain colours, written premultiplied
         if pma:
             img = rp.unpremultiply(img)
-        styled = restyle_picture(plan, img, it["kind"], it.get("subject", ""), a.seed, upload_name="s_" + f.replace("/", "_"))
+        styled = restyle_picture(plan, img, it["kind"], it.get("subject", ""), a.seed, upload_name="s_" + f.replace("/", "_"),
+                                 denoise=it.get("denoise"), control=it.get("control"),
+                                 crop=it.get("crop", False), long_side=it.get("long_side", 1024))
+        if it.get("keep_glyph", plan["kinds"][it["kind"]].get("keep_glyph")):
+            styled = keep_glyph(styled, img)
         save(rp.premultiply(styled) if pma else styled, out / f)
         report["static"][f] = {"kind": it["kind"], "seconds": round(time.time() - t, 1)}
         report_path.write_text(json.dumps(report, indent=1), encoding="utf-8")
@@ -182,6 +231,8 @@ def main():
                                          upload_name=f"p_{Path(pg['atlas']).stem}_{r['name']}.png".replace("/", "_"))
                 if po.get("keep_skin"):   # a part of skin and clothes: the original's skin back (rp.keep_skin)
                     styled = rp.keep_skin(styled, upright)
+                if po.get("keep_glyph", pg.get("keep_glyph")) and kind == "object":   # a tile part: its coloured glyph back
+                    styled = keep_glyph(styled, upright)
                 if pma:
                     styled = rp.premultiply(styled)
                 after.paste(styled.transpose(Image.ROTATE_90) if r["rotated"] else styled, box[:2])

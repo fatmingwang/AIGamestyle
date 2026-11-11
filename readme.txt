@@ -1,3 +1,5 @@
+See README.md: how to reskin a game, limits, plan fields, and the change log of the tools.
+
 Reskin a game's art with AI (restyle_game.py) and set up a new PC: Doc/Reskin_Game_Art.md, Doc/Reskin_Setup_New_PC.md
 
 1.  _pipeline/tools/create_venv.bat(not necessary)

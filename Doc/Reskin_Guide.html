@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIGamestyle Reskin Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column (guide) beside a sticky decision panel on wide screens; stacked on phones. Ink-on-slate palette. */
+:root {
+  --bg: #f3f5f7; --surface: #ffffff; --fg: #18202b; --muted: #5a6676; --line: #d8dee6;
+  --accent: #2d5b8a; --gold: #9a6b10; --jade: #23775a; --warn: #a3401f; --code-bg: #eaeef3;
+  --display: "Noto Serif TC", "Songti TC", Georgia, serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1520; --surface: #161e2b; --fg: #e3e8ef; --muted: #98a4b4; --line: #2a3546;
+  --accent: #8db8e4; --gold: #e2b450; --jade: #5fc79c; --warn: #f08a66; --code-bg: #1d2736; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1520; --surface: #161e2b; --fg: #e3e8ef; --muted: #98a4b4; --line: #2a3546;
+  --accent: #8db8e4; --gold: #e2b450; --jade: #5fc79c; --warn: #f08a66; --code-bg: #1d2736; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 32px 64px }
+.wrap { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 40px; align-items: start }
+@media (max-width: 980px) { .wrap { grid-template-columns: minmax(0, 1fr) } }
+main { min-width: 0 }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.25 }
+h1 { font-size: 2rem; margin: 0 0 6px }
+h2 { font-size: 1.35rem; margin: 44px 0 10px; padding-top: 18px; border-top: 1px solid var(--line) }
+h3 { font-size: 1.05rem; margin: 26px 0 6px }
+p, li { max-width: 68ch }
+.lede { color: var(--muted); font-size: 1.05rem; margin: 0 0 8px }
+.meta { font-size: .82rem; color: var(--muted); letter-spacing: .02em }
+code, .mono { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px }
+pre { font-family: var(--mono); font-size: .82rem; background: var(--code-bg); padding: 12px 14px; border-radius: 6px; overflow-x: auto; line-height: 1.5 }
+.tbl { overflow-x: auto; margin: 10px 0 }
+table { border-collapse: collapse; width: 100%; font-size: .9rem }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted) }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap }
+.flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 12px 0; font-size: .86rem }
+.flow span { background: var(--surface); border: 1px solid var(--line); padding: 5px 10px; border-radius: 4px }
+.flow i { color: var(--muted); font-style: normal }
+.limit { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 4px 16px; padding: 10px 0; border-bottom: 1px solid var(--line) }
+.limit b { color: var(--warn); font-weight: 600 }
+@media (max-width: 560px) { .limit { grid-template-columns: minmax(0, 1fr) } }
+.tag { display: inline-block; font-size: .72rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; padding: 1px 7px; border-radius: 3px; border: 1px solid currentColor }
+.t-keep { color: var(--muted) } .t-text { color: var(--gold) } .t-obj { color: var(--jade) }
+
+/* decision panel */
+aside { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 18px; max-height: calc(100vh - 32px); overflow-y: auto }
+@media (max-width: 980px) { aside { position: static; max-height: none } }
+aside h2 { margin: 0 0 4px; padding: 0; border: 0; font-size: 1.15rem }
+aside p.hint { font-size: .84rem; color: var(--muted); margin: 0 0 14px }
+fieldset { border: 0; padding: 0; margin: 0 0 16px }
+legend { font-weight: 600; font-size: .86rem; margin-bottom: 6px; padding: 0 }
+.opt { display: flex; gap: 8px; align-items: flex-start; font-size: .86rem; margin: 3px 0; cursor: pointer }
+.opt input { margin-top: 4px; accent-color: var(--accent) }
+.opt small { display: block; color: var(--muted); font-size: .78rem }
+select, input[type=text], input[type=number], textarea { width: 100%; font: inherit; font-size: .86rem; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px }
+textarea { min-height: 64px; resize: vertical }
+.range { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr) 2.6rem; gap: 8px; align-items: center; font-size: .84rem; margin: 4px 0 }
+.range output { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right }
+input[type=range] { width: 100%; accent-color: var(--accent) }
+button { font: inherit; font-weight: 600; font-size: .88rem; background: var(--accent); color: var(--bg); border: 0; border-radius: 5px; padding: 8px 14px; cursor: pointer }
+button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent) }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+#out { max-height: 260px; margin: 10px 0 8px; white-space: pre-wrap; word-break: break-word }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center }
+#copied { font-size: .82rem; color: var(--jade) }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<main>
+  <p class="meta">AIGamestyle · restyle_game.py + ComfyUI · Spine 3.8 / Cocos Creator · 2026-11-11</p>
+  <h1>Reskinning Spine and textures with AIGamestyle</h1>
+  <p class="lede">How the pipeline gives a finished slot game a new art style without touching its layouts or animations, what it cannot do, and the choices you make for each reskin. The decision panel turns your choices into plan settings for the next pass.</p>
+
+  <h2>What a reskin keeps</h2>
+  <p>Every new picture drops into the game as is. The pipeline keeps four things fixed:</p>
+  <ul>
+    <li><b>File name, folder and pixel size.</b> Prefabs, auto-atlases and layouts still find the files.</li>
+    <li><b>The alpha channel.</b> The original transparency is copied back, so outlines, masks and hit areas line up.</li>
+    <li><b>Spine data.</b> The <code>.atlas</code> and skeleton <code>.json</code> are never edited. Only pixels inside each part's rectangle change.</li>
+    <li><b>Letters, numbers and glyphs.</b> They are restyled gently, or their original pixels are put back.</li>
+  </ul>
+  <p>So a reskin changes <b>materials, colours and patterns inside each shape</b>. A shape itself never changes.</p>
+
+  <h2>How a texture is restyled</h2>
+  <div class="flow">
+    <span>Picture on grey, long side 1024</span><i>→</i>
+    <span>SDXL img2img (Juggernaut XL)</span><i>+</i>
+    <span>ControlNet canny holds outlines</span><i>+</i>
+    <span>IP-Adapter reference (optional)</span><i>→</i>
+    <span>Back to exact size</span><i>→</i>
+    <span>Original alpha + edge repair</span>
+  </div>
+  <p>Each picture gets a <b>kind</b>. A kind sets two numbers. <b>Strength</b> (denoise) is how far the picture may move toward the prompt. <b>Outline hold</b> (ControlNet) is how hard the original edges are kept.</p>
+  <div class="tbl"><table>
+    <tr><th>Kind</th><th>Strength</th><th>Outline</th><th>Use for</th></tr>
+    <tr><td>object</td><td class="num">0.75</td><td class="num">0.60</td><td>Things that can change freely: dragons, trees, clouds, ingots</td></tr>
+    <tr><td>tile</td><td class="num">0.75</td><td class="num">0.85</td><td>Mahjong tiles. Body restyled, original coloured glyph put back (<code>keep_glyph</code>)</td></tr>
+    <tr><td>badge</td><td class="num">0.55</td><td class="num">0.85</td><td>A symbol whose character or word must survive (a scatter character, WILD)</td></tr>
+    <tr><td>frame</td><td class="num">0.70</td><td class="num">0.70</td><td>Reel frames, panels, bars</td></tr>
+    <tr><td>scene</td><td class="num">0.62</td><td class="num">0.50</td><td>Full backgrounds</td></tr>
+    <tr><td>text</td><td class="num">0.45–0.60</td><td class="num">0.85</td><td>Buttons with icons, words such as BIG WIN</td></tr>
+    <tr><td>keep</td><td>—</td><td>—</td><td>Unchanged: rules pages, black layers, effect sheets</td></tr>
+  </table></div>
+  <h3>Per-picture options</h3>
+  <div class="tbl"><table>
+    <tr><th>Field</th><th>What it does</th></tr>
+    <tr><td><code>subject</code></td><td>One line describing the <i>same</i> object in the new style. Example: "a carved slate stone mahjong tile, the green character inlaid in jade".</td></tr>
+    <tr><td><code>denoise</code>, <code>control</code></td><td>Override the kind's strength and outline hold for one picture.</td></tr>
+    <tr><td><code>crop</code></td><td>Restyle only the visible area. A 3000 × 1280 frame with 900 px of content keeps full detail instead of shrinking 3×.</td></tr>
+    <tr><td><code>long_side</code></td><td>Working resolution. 2048 for wide backgrounds is sharper, at about twice the time.</td></tr>
+    <tr><td><code>keep_glyph</code></td><td>After the restyle, put back the original's saturated non-gold pixels inside the tile face. Glyph colours stay exact.</td></tr>
+  </table></div>
+
+  <h2>How a Spine page is restyled</h2>
+  <p>A Spine page packs many parts into one PNG. Restyled as one picture, neighbours would bleed into each other and the animation would show seams. So <code>restyle_game.py</code> reads the <code>.atlas</code> and restyles each part on its own:</p>
+  <ol>
+    <li>Cut the part out at its rectangle. Rotated parts are turned upright first.</li>
+    <li>Sort it by name into one of three groups:
+      <span class="tag t-keep">keep</span> effects, glows, flipbook frames and parts under 40 px;
+      <span class="tag t-text">text</span> letters;
+      <span class="tag t-obj">object</span> everything else.</li>
+    <li>Restyle it with the page's <code>subject</code>. The restyled static symbol is used as an IP-Adapter reference (weight 0.35), so the parts match the symbol.</li>
+    <li>Paste it back into exactly the same footprint. Premultiplied-alpha pages are read and written premultiplied, so no glow fringes appear in Cocos.</li>
+  </ol>
+  <p>Mesh attachments stay correct because their UVs point at the same rectangle. Nothing needs re-exporting from Spine.</p>
+  <h3>Sorting rules in the plan</h3>
+  <div class="tbl"><table>
+    <tr><th>Field</th><th>Example from this game</th></tr>
+    <tr><td><code>keep_words</code></td><td><code>glow, light, shine, spark, fire, smoke, blur, trail …</code> — any part whose name contains one is left as is</td></tr>
+    <tr><td><code>sequence_pattern</code></td><td><code>(?&lt;!&lt;prefix&gt;)_\d{2,5}$</code> — numbered flipbook frames are kept, so they don't flicker. Pictures whose names only end in a number (distinct tiles, for example) get a look-behind for their prefix so they are restyled</td></tr>
+    <tr><td><code>text_names</code>, <code>text_prefixes</code></td><td>Parts that are words or single letters: win-banner words, the letters of an animated title</td></tr>
+    <tr><td><code>keep_parts</code></td><td>Single parts to leave alone, such as a ring effect or a character's face</td></tr>
+    <tr><td><code>parts</code></td><td>One part's own subject, strength, or <code>"reference": false</code>. Used for golden tile frames, glyph parts and creatures</td></tr>
+  </table></div>
+
+  <h2>Limits</h2>
+  <div class="limit"><b>Shapes are fixed</b><span>Alpha is the original's, so a rectangular tile cannot become an arched stone tablet, and a character cannot become a sword. A new icon set needs new art drawn to new outlines, and for animated symbols new Spine parts.</span></div>
+  <div class="limit"><b>Text barely moves</b><span>Keeping letters exact means low strength. Buttons, prompts and win-banner words keep most of their old colours. A stronger change means checking every letter by eye.</span></div>
+  <div class="limit"><b>Effects keep colours</b><span>Glows, sparks, fire bursts and additive layers are not repainted, because a repaint breaks additive blending. A non-AI hue shift is possible if the old orange or gold effects clash.</span></div>
+  <div class="limit"><b>Flipbooks are kept</b><span>Frames restyled one by one would flicker. Rotating coins, spins and sweep frames keep the original look.</span></div>
+  <div class="limit"><b>Large pictures soften</b><span>SDXL works at about 1024 px. Backgrounds made at 2048 and scaled to 3000 are a little softer than the source. A tiled upscale pass is the next step if this shows on desktop.</span></div>
+  <div class="limit"><b>Seed variance</b><span>Each result depends on the seed (1225 by default). A weak picture is redone with <code>--only &lt;name&gt; --force</code>, a new subject or another <code>--seed</code>.</span></div>
+  <div class="limit"><b>Not covered</b><span>Bitmap fonts, particle colours set in prefabs, sounds, and hands or faces (skin repaints badly, so they are kept). Body-shape changes need a Spine artist.</span></div>
+  <div class="limit"><b>Style drift</b><span>The model adds its own detail inside the shape: leaf carvings on bamboo tiles, a medallion on a panel. Review every sheet and tighten the subject ("no emblem in the middle") where the extra detail is unwanted.</span></div>
+
+  <h2>Running it</h2>
+<pre>cd AIGamestyle\_pipeline\tools
+# ComfyUI must be running on 127.0.0.1:8188
+python restyle_game.py ..\style_profiles\&lt;plan&gt;.json --dry-run              # how every file / part sorts
+python restyle_game.py ..\style_profiles\&lt;plan&gt;.json --only &lt;path part&gt;   # pilot one picture
+python restyle_game.py ..\style_profiles\&lt;plan&gt;.json                        # everything not done yet
+python restyle_game.py ..\style_profiles\&lt;plan&gt;.json --only &lt;name&gt; --force   # redo one
+python check_restyle.py &lt;source&gt; &lt;output&gt;                                       # drop-in check</pre>
+  <p>Output goes to <code>AIGamestyle\output\&lt;name&gt;</code>. Before / after sheets are in its <code>_previews</code> folder. The tool never writes to the original game folder. To apply: back up the originals outside the engine's asset folder, copy only the changed pictures over them, and keep <code>.meta</code>, <code>.atlas</code> and <code>.json</code> as they are.</p>
+
+  <h2 id="result">What a full run looks like</h2>
+  <p>Numbers from the first game run with this version of the tools (RTX 4070):</p>
+  <div class="tbl"><table>
+    <tr><th>Step</th><th>Result</th><th>Time</th></tr>
+    <tr><td>Static pictures</td><td>39 restyled</td><td class="num">~10 min</td></tr>
+    <tr><td>Spine pages</td><td>12 pages: 147 parts restyled, 202 kept</td><td class="num">~26 min</td></tr>
+    <tr><td>Fix-ups after review</td><td>Banner tiles at tile strength, buttons stronger, one frame redone</td><td class="num">~15 min</td></tr>
+    <tr><td>Drop-in check</td><td>Same sizes and alpha; every other file byte-identical</td><td class="num">seconds</td></tr>
+  </table></div>
+  <h3>What review usually finds</h3>
+  <ul>
+    <li><b>A part restyled weaker than its static symbol.</b> Banner tiles left at 0.55 stayed white while the reel tiles turned to stone. Give matching parts the same strength and options as the symbol.</li>
+    <li><b>Glyph colours drifting</b> at the strength needed to change the body. Use <code>keep_glyph</code>.</li>
+    <li><b>The model inventing an emblem</b> in an empty panel, even with "no emblem" in the prompt. If a sibling picture has the same shape and came out right, derive this one from it (same colours, hue-shifted) instead of fighting the prompt.</li>
+    <li><b>Two moons, extra figures.</b> Name the single object in the subject and the unwanted one in <code>negative</code>.</li>
+  </ul>
+</main>
+
+<aside aria-labelledby="dp">
+  <h2 id="dp">Your decisions</h2>
+  <p class="hint">Pick what the next pass should do. The box at the bottom turns your choices into plan settings. Copy it and paste it back to Claude, or into the plan file yourself.</p>
+
+  <fieldset><legend>Overall look</legend>
+    <select id="look">
+      <option value="keep">Keep the current style</option>
+      <option value="darker">Darker: slate grey stone, deep navy</option>
+      <option value="jade">Jade palace: green jade, white marble, gold</option>
+      <option value="crimson">Crimson temple: red lacquer, black wood, gold</option>
+      <option value="custom">Custom (describe below)</option>
+    </select>
+    <textarea id="lookText" placeholder="Custom style words, e.g. 'snowy mountain sect, white jade, silver, pale blue'" style="margin-top:6px" hidden></textarea>
+  </fieldset>
+
+  <fieldset><legend>Normal tiles</legend>
+    <label class="opt"><input type="radio" name="tile" value="icy" checked> Icy blue carved stone (current)</label>
+    <label class="opt"><input type="radio" name="tile" value="slate"> Dark slate grey stone</label>
+    <label class="opt"><input type="radio" name="tile" value="whitejade"> White jade, closest to the original</label>
+  </fieldset>
+
+  <fieldset><legend>Tile glyphs (characters, dots, bamboo)</legend>
+    <label class="opt"><input type="radio" name="glyph" value="keep" checked> Original colours put back <small>Exact, readable; flatter than the carved body</small></label>
+    <label class="opt"><input type="radio" name="glyph" value="restyle"> Restyled with the tile <small>More carved; colours drift (a green character can turn black)</small></label>
+  </fieldset>
+
+  <fieldset><legend>Middle-reel golden tiles</legend>
+    <label class="opt"><input type="radio" name="gold" value="gold" checked> Burnished gold (current)</label>
+    <label class="opt"><input type="radio" name="gold" value="silver"> Moon silver</label>
+    <label class="opt"><input type="radio" name="gold" value="jade"> Glowing jade</label>
+  </fieldset>
+
+  <fieldset><legend>Strength per kind</legend>
+    <div class="range"><label for="r-object">Objects</label><input type="range" id="r-object" min="0.4" max="0.9" step="0.05" value="0.75"><output for="r-object">0.75</output></div>
+    <div class="range"><label for="r-tile">Tiles</label><input type="range" id="r-tile" min="0.4" max="0.9" step="0.05" value="0.75"><output for="r-tile">0.75</output></div>
+    <div class="range"><label for="r-frame">Frames</label><input type="range" id="r-frame" min="0.4" max="0.9" step="0.05" value="0.7"><output for="r-frame">0.70</output></div>
+    <div class="range"><label for="r-scene">Backgrounds</label><input type="range" id="r-scene" min="0.4" max="0.9" step="0.05" value="0.62"><output for="r-scene">0.62</output></div>
+    <div class="range"><label for="r-text">Text / buttons</label><input type="range" id="r-text" min="0.3" max="0.7" step="0.05" value="0.45"><output for="r-text">0.45</output></div>
+  </fieldset>
+
+  <fieldset><legend>What else to change</legend>
+    <label class="opt"><input type="checkbox" id="c-hue"> Hue-shift orange / gold effects to blue <small>Fire bursts, sparks, multiplier fire frames. No AI, fast</small></label>
+    <label class="opt"><input type="checkbox" id="c-flip"> Restyle flipbook frames too <small>Coins, ingot spin. Risk of flicker</small></label>
+    <label class="opt"><input type="checkbox" id="c-fonts"> Bitmap fonts in the new palette <small>Win amounts, multiplier numbers (not done by the tool today)</small></label>
+    <label class="opt"><input type="checkbox" id="c-hand"> Restyle hands and faces <small>Skin repaints poorly</small></label>
+    <label class="opt"><input type="checkbox" id="c-upscale"> Tiled upscale pass on backgrounds</label>
+  </fieldset>
+
+  <fieldset><legend>Free game palette</legend>
+    <select id="fg">
+      <option value="dusk">Golden dusk (current)</option>
+      <option value="storm">Violet lightning storm</option>
+      <option value="same">Same as the main game</option>
+    </select>
+  </fieldset>
+
+  <fieldset><legend>Redo specific files</legend>
+    <input type="text" id="redo" placeholder="file or page names, comma separated">
+  </fieldset>
+
+  <fieldset><legend>Apply to the Cocos project</legend>
+    <label class="opt"><input type="radio" name="apply" value="backup" checked> Copy into the game, originals backed up</label>
+    <label class="opt"><input type="radio" name="apply" value="no"> Leave in the output folder for now</label>
+  </fieldset>
+
+  <fieldset><legend>Notes</legend>
+    <textarea id="notes" placeholder="Anything else for the next pass"></textarea>
+  </fieldset>
+
+  <pre id="out" aria-live="polite"></pre>
+  <div class="row"><button type="button" id="copy">Copy settings</button><button type="button" class="ghost" id="reset">Reset</button><span id="copied"></span></div>
+</aside>
+</div>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const val = (name) => (document.querySelector('input[name="' + name + '"]:checked') || {}).value;
+  const KEY = 'aigs-reskin-decisions';
+  const looks = {
+    keep: null,
+    darker: 'chinese cultivation fantasy, deep navy night, dark slate grey carved stone, silver-blue ornaments, burnished gold accents, glowing jade',
+    jade: 'chinese immortal jade palace, glowing green jade, white marble, gold filigree, soft mist',
+    crimson: 'chinese temple, red lacquer, black lacquered wood, gold leaf ornaments, warm lantern light'
+  };
+  const tiles = {
+    icy: 'a carved icy blue-grey stone mahjong tile',
+    slate: 'a dark slate grey carved stone mahjong tile, rough matte stone',
+    whitejade: 'a polished white jade mahjong tile with a silver rim'
+  };
+  const golds = { gold: 'a burnished gold carved mahjong tile', silver: 'a moon silver carved mahjong tile', jade: 'a glowing green jade carved mahjong tile' };
+  const ranges = ['object', 'tile', 'frame', 'scene', 'text'];
+
+  function build() {
+    const look = $('look').value;
+    $('lookText').hidden = look !== 'custom';
+    const d = {};
+    if (look === 'custom' && $('lookText').value.trim()) d.style = $('lookText').value.trim();
+    else if (looks[look]) d.style = looks[look];
+    d.tile_body = tiles[val('tile')];
+    d.gold_tile_body = golds[val('gold')];
+    d.kinds = {};
+    ranges.forEach((k) => { d.kinds[k] = { denoise: Number($('r-' + k).value) }; });
+    d.kinds.tile.keep_glyph = val('glyph') === 'keep';
+    d.extras = ['hue', 'flip', 'fonts', 'hand', 'upscale'].filter((k) => $('c-' + k).checked);
+    d.free_game = $('fg').value;
+    const redo = $('redo').value.trim();
+    if (redo) d.redo = redo.split(',').map((s) => s.trim()).filter(Boolean);
+    d.apply_to_project = val('apply') === 'backup';
+    if ($('notes').value.trim()) d.notes = $('notes').value.trim();
+    $('out').textContent = JSON.stringify(d, null, 2);
+    try { localStorage.setItem(KEY, JSON.stringify(snapshot())); } catch (e) {}
+  }
+  function snapshot() {
+    const s = {};
+    document.querySelectorAll('aside input, aside select, aside textarea').forEach((el) => {
+      if (!el.id && !el.name) return;
+      if (el.type === 'radio') { if (el.checked) s['r:' + el.name] = el.value; }
+      else if (el.type === 'checkbox') s[el.id] = el.checked;
+      else s[el.id] = el.value;
+    });
+    return s;
+  }
+  function restore() {
+    let s; try { s = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { s = null; }
+    if (!s) return;
+    Object.entries(s).forEach(([k, v]) => {
+      if (k.startsWith('r:')) { const el = document.querySelector('input[name="' + k.slice(2) + '"][value="' + v + '"]'); if (el) el.checked = true; }
+      else { const el = $(k); if (!el) return; if (el.type === 'checkbox') el.checked = v; else el.value = v; }
+    });
+  }
+  function syncOutputs() { ranges.forEach((k) => { $('r-' + k).nextElementSibling.textContent = Number($('r-' + k).value).toFixed(2); }); }
+
+  restore(); syncOutputs(); build();
+  document.querySelector('aside').addEventListener('input', () => { syncOutputs(); build(); });
+  document.querySelector('aside').addEventListener('change', () => { syncOutputs(); build(); });
+  $('copy').addEventListener('click', () => {
+    const text = $('out').textContent;
+    const done = () => { $('copied').textContent = 'Copied'; setTimeout(() => { $('copied').textContent = ''; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, () => { selectOut(); $('copied').textContent = 'Selected, press Ctrl+C'; });
+    } else { selectOut(); $('copied').textContent = 'Selected, press Ctrl+C'; }
+  });
+  function selectOut() { const r = document.createRange(); r.selectNodeContents($('out')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+  $('reset').addEventListener('click', () => {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    document.querySelectorAll('aside input[type=checkbox]').forEach((el) => { el.checked = false; });
+    document.querySelectorAll('aside input[type=text], aside textarea').forEach((el) => { el.value = ''; });
+    ['tile', 'glyph', 'gold', 'apply'].forEach((n) => { document.querySelector('input[name="' + n + '"]').checked = true; });
+    $('look').value = 'keep'; $('fg').value = 'dusk';
+    const def = { object: 0.75, tile: 0.75, frame: 0.7, scene: 0.62, text: 0.45 };
+    ranges.forEach((k) => { $('r-' + k).value = def[k]; });
+    syncOutputs(); build();
+  });
+})();
+</script>
+</body>
+</html>
