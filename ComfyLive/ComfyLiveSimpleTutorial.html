@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ComfyLive Song Tutorial</title>
+<style>
+  :root {
+    --bg: #f7f6f3; --surface: #ffffff; --text: #1f2328; --muted: #5d636b; --border: #e1ddd5;
+    --accent: #7a4bd1; --accent-soft: #efe8fb; --code-bg: #f1efea; --ok: #1f7a46; --warn-bg: #fff6e0; --warn: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #16171a; --surface: #1f2125; --text: #e7e7ea; --muted: #a2a6ad; --border: #33363c;
+      --accent: #b394f0; --accent-soft: #2b2438; --code-bg: #26282d; --ok: #5cc48a; --warn-bg: #2d2617; --warn: #e3b55c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #16171a; --surface: #1f2125; --text: #e7e7ea; --muted: #a2a6ad; --border: #33363c;
+    --accent: #b394f0; --accent-soft: #2b2438; --code-bg: #26282d; --ok: #5cc48a; --warn-bg: #2d2617; --warn: #e3b55c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.6 "Segoe UI", system-ui, -apple-system, "Microsoft JhengHei", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 1.9rem; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  nav.toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 28px; }
+  nav.toc ol { margin: 6px 0 0; padding-left: 22px; }
+  nav.toc a { color: var(--accent); text-decoration: none; }
+  section.step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin: 0 0 18px; }
+  section.step h2 { display: flex; align-items: center; gap: 12px; font-size: 1.25rem; margin: 0 0 10px; }
+  .num { flex: none; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: #fff;
+         display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; font-weight: 600; }
+  h3 { font-size: 1.02rem; margin: 18px 0 6px; }
+  p, li { max-width: 72ch; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 0.92em; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+  .code { position: relative; margin: 10px 0; }
+  .code pre { margin: 0; background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+              overflow-x: auto; font: 0.88rem/1.5 Consolas, "Cascadia Mono", monospace; white-space: pre; }
+  .code button { position: absolute; top: 6px; right: 6px; font: inherit; font-size: 0.78rem; padding: 3px 10px; cursor: pointer;
+                 border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); }
+  .code button:hover { color: var(--accent); border-color: var(--accent); }
+  .label { font-size: 0.8rem; color: var(--muted); margin: 12px 0 -4px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  .table-wrap { overflow-x: auto; }
+  .note { background: var(--accent-soft); border-radius: 8px; padding: 10px 14px; margin: 12px 0; }
+  .warn { background: var(--warn-bg); color: var(--text); border-left: 4px solid var(--warn); border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+  .ok { color: var(--ok); font-weight: 600; }
+  footer { color: var(--muted); font-size: 0.85rem; margin-top: 30px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ComfyLive: make a song from a JSON file</h1>
+  <p class="lede">One command, one JSON file, one MP3. ComfyLive checks whether ComfyUI is running and starts it if it is not.</p>
+
+  <nav class="toc">
+    <strong>Steps</strong>
+    <ol>
+      <li><a href="#s1">Check what you need</a></li>
+      <li><a href="#s2">Build ComfyLive (once)</a></li>
+      <li><a href="#s3">Write a song file</a></li>
+      <li><a href="#s4">Generate the song</a></li>
+      <li><a href="#s5">Find the result</a></li>
+      <li><a href="#s6">Make the same song again, or a new take</a></li>
+      <li><a href="#s7">Change the style, voice and lyrics</a></li>
+      <li><a href="#s8">Stop ComfyUI when you are done</a></li>
+      <li><a href="#s9">If something goes wrong</a></li>
+    </ol>
+  </nav>
+
+  <section class="step" id="s1">
+    <h2><span class="num">1</span>Check what you need</h2>
+    <div class="table-wrap"><table>
+      <tr><th>What</th><th>Where</th></tr>
+      <tr><td>ComfyUI (local copy)</td><td><code>D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\_comfyui\ComfyUI</code></td></tr>
+      <tr><td>The ACE-Step 1.5 model (10 GB)</td><td><code>D:\Work\AI\models\checkpoints\ace_step_1.5_turbo_aio.safetensors</code></td></tr>
+      <tr><td>ComfyLive program</td><td><code>D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\ComfyLive\build\Release\ComfyLive.exe</code></td></tr>
+      <tr><td>Example song file</td><td><code>D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\ComfyLive\examples\quiet_flame_song.json</code></td></tr>
+    </table></div>
+    <p>If the model is missing, download it from
+      <code>https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/checkpoints/ace_step_1.5_turbo_aio.safetensors</code>
+      into the <code>checkpoints</code> folder.</p>
+  </section>
+
+  <section class="step" id="s2">
+    <h2><span class="num">2</span>Build ComfyLive (once)</h2>
+    <p>You only need this if <code>ComfyLive.exe</code> is missing or the source has changed. It needs Visual Studio with C++ and Qt 6 (msvc2022_64) under <code>%USERPROFILE%\Qt</code>.</p>
+    <div class="code"><pre>cd /d D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\ComfyLive
+build.cmd</pre></div>
+    <p>It ends with <code>[ComfyLive] done: ...\build\Release\ComfyLive.exe</code>.</p>
+  </section>
+
+  <section class="step" id="s3">
+    <h2><span class="num">3</span>Write a song file</h2>
+    <p>Copy the example and edit it, or create a new <code>.json</code> file anywhere. A song file looks like this:</p>
+    <p class="label">my_song.json</p>
+    <div class="code"><pre>{
+    "name": "My Song",
+    "tags": [
+        "1990s R&amp;B pop ballad",
+        "powerful female soprano lead",
+        "melismatic vocal runs",
+        "lush strings",
+        "Rhodes electric piano",
+        "slow romantic groove"
+    ],
+    "lyrics": [
+        "[Verse 1]",
+        "Every evening when the lights turn low",
+        "There's a corner booth that only we know",
+        "",
+        "[Chorus]",
+        "Oh, you and me, this quiet flame",
+        "We never say each other's name"
+    ],
+    "duration": 289,
+    "bpm": 64,
+    "keyscale": "Eb major",
+    "language": "en"
+}</pre></div>
+    <div class="table-wrap"><table>
+      <tr><th>Key</th><th>What it does</th></tr>
+      <tr><td><code>name</code></td><td>A name for the song (optional).</td></tr>
+      <tr><td><code>tags</code></td><td>Style, instruments and voice. An array, or one string separated by commas.</td></tr>
+      <tr><td><code>lyrics</code></td><td>One line per entry. Section tags such as <code>[Verse 1]</code>, <code>[Chorus]</code>, <code>[Bridge]</code> and <code>[Outro]</code> go on their own lines. Use <code>""</code> for an empty line.</td></tr>
+      <tr><td><code>duration</code></td><td>Length in seconds. 289 = 4:49.</td></tr>
+      <tr><td><code>bpm</code></td><td>Tempo. 60–75 for a slow ballad, 100–130 for dance.</td></tr>
+      <tr><td><code>keyscale</code></td><td>Key, e.g. <code>"Bb major"</code>, <code>"D minor"</code>.</td></tr>
+      <tr><td><code>language</code></td><td><code>"en"</code>, <code>"zh"</code>, <code>"ja"</code>, <code>"ko"</code>, ...</td></tr>
+      <tr><td><code>seed</code></td><td>Optional. A fixed number gives the same song every time. Without it, every run is a new take.</td></tr>
+      <tr><td><code>_comment</code></td><td>Any key that starts with <code>_</code> is a note for you and is ignored.</td></tr>
+    </table></div>
+    <p>Any other input of the ACE-Step graph also works, for example <code>cfg_scale</code>, <code>temperature</code> or <code>steps</code>.</p>
+    <div class="warn">Describe a voice; don't name a real singer in the tags. Use lyrics you wrote or have the rights to.</div>
+  </section>
+
+  <section class="step" id="s4">
+    <h2><span class="num">4</span>Generate the song</h2>
+    <p>Open <strong>Command Prompt</strong> (cmd) and run:</p>
+    <div class="code"><pre>cd /d D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\ComfyLive\build\Release
+ComfyLive.exe --song=D:\Songs\my_song.json --out=D:\Songs\my_song_take1.mp3 --keep-comfy</pre></div>
+    <p>In <strong>PowerShell</strong>, put <code>.\</code> in front of the program:</p>
+    <div class="code"><pre>cd D:\Work\MagicTowerOfSoercer\TOMS\AIGamestyle\ComfyLive\build\Release
+.\ComfyLive.exe --song=D:\Songs\my_song.json --out=D:\Songs\my_song_take1.mp3 --keep-comfy</pre></div>
+    <p>What you will see:</p>
+    <div class="code"><pre>no ComfyUI at 127.0.0.1:8188: starting the local one     (only if it was not running)
+  ComfyUI is up after 18 s
+  WebSocket open
+progress 0 %
+...
+progress 100 %
+song: D:\Songs\my_song_take1.mp3
+settings: D:\Songs\my_song_take1.json
+made in 124.2 s
+DONE</pre></div>
+    <p><span class="ok">DONE</span> (exit code 0) means the song was written. The first run takes longer because ComfyUI has to start and load the model. Later runs take about 40–60 s for a 4–5 minute song.</p>
+    <h3>Options</h3>
+    <div class="table-wrap"><table>
+      <tr><th>Option</th><th>What it does</th></tr>
+      <tr><td><code>--song=file.json</code></td><td>Required. A song file (step 3), or the settings file saved with an earlier song (step 6).</td></tr>
+      <tr><td><code>--out=file.mp3</code></td><td>Where to write the song. Without it, the song goes next to the JSON file as <code>&lt;name&gt;_&lt;date-time&gt;.mp3</code>.</td></tr>
+      <tr><td><code>--keep-comfy</code></td><td>Keep ComfyUI running afterwards, so the next song starts at once. Without it, a ComfyUI that ComfyLive started is closed at the end. A ComfyUI that was already running is never closed.</td></tr>
+      <tr><td><code>--random-seed</code></td><td>A new take, even from a settings file or a song file with a seed.</td></tr>
+      <tr><td><code>--server=host:port</code></td><td>Another ComfyUI address (default <code>127.0.0.1:8188</code>).</td></tr>
+    </table></div>
+  </section>
+
+  <section class="step" id="s5">
+    <h2><span class="num">5</span>Find the result</h2>
+    <p>Each run writes two files side by side:</p>
+    <div class="table-wrap"><table>
+      <tr><th>File</th><th>What it is</th></tr>
+      <tr><td><code>my_song_take1.mp3</code></td><td>The song.</td></tr>
+      <tr><td><code>my_song_take1.json</code></td><td>Its <strong>settings file</strong>: the exact graph, values and seed that made this take. Keep it if you like the take.</td></tr>
+    </table></div>
+    <div class="note">ComfyLive refuses an <code>--out</code> whose settings file would overwrite your song file (e.g. <code>--song=my_song.json --out=my_song.mp3</code>). Pick another name, such as <code>my_song_take1.mp3</code>.</div>
+  </section>
+
+  <section class="step" id="s6">
+    <h2><span class="num">6</span>Make the same song again, or a new take</h2>
+    <p class="label">The exact same take (from its settings file)</p>
+    <div class="code"><pre>ComfyLive.exe --song=D:\Songs\my_song_take1.json --out=D:\Songs\my_song_copy.mp3</pre></div>
+    <p class="label">A new take with the same settings</p>
+    <div class="code"><pre>ComfyLive.exe --song=D:\Songs\my_song_take1.json --out=D:\Songs\my_song_take2.mp3 --random-seed</pre></div>
+    <p class="label">A new take from the song file (no seed in it: every run differs)</p>
+    <div class="code"><pre>ComfyLive.exe --song=D:\Songs\my_song.json --out=D:\Songs\my_song_take3.mp3</pre></div>
+    <p>Generate a few takes and keep the best one: the model doesn't always follow the voice words.</p>
+  </section>
+
+  <section class="step" id="s7">
+    <h2><span class="num">7</span>Change the style, voice and lyrics</h2>
+    <p>Edit only <code>tags</code> to give the same lyrics another sound. Two styles we have used:</p>
+    <div class="table-wrap"><table>
+      <tr><th>Sound</th><th>tags</th></tr>
+      <tr><td>1970s soul, male baritone</td><td><code>1970s Philadelphia soul ballad, deep raspy baritone male lead, gospel-tinged pleading vocal, lush string section, Rhodes electric piano, vibraphone, soft horns, brushed drums, warm bass, slow romantic groove</code></td></tr>
+      <tr><td>1990s R&amp;B, female soprano</td><td><code>1990s R&amp;B pop ballad, powerful female soprano lead, wide vocal range, whistle register high notes, melismatic vocal runs, gospel-tinged belting, lush strings, Rhodes electric piano, soft drums, warm bass, emotional key-change build</code></td></tr>
+    </table></div>
+    <p>Useful voice words: <code>male vocals</code>, <code>female vocals</code>, <code>breathy voice</code>, <code>raspy</code>, <code>soprano</code>, <code>baritone</code>, <code>falsetto</code>, <code>choir backing vocals</code>.</p>
+    <p>For a higher or lower key without generating again, use the headless <code>transpose</code> command or the window's Transpose (see <code>ComfyLive\README.md</code>).</p>
+  </section>
+
+  <section class="step" id="s8">
+    <h2><span class="num">8</span>Stop ComfyUI when you are done</h2>
+    <p>With <code>--keep-comfy</code>, ComfyUI keeps running in the background and holds GPU memory. To stop it, find the process on port 8188 and end it:</p>
+    <div class="code"><pre>netstat -ano | findstr :8188
+taskkill /PID &lt;the number at the end of the LISTENING line&gt; /F</pre></div>
+    <p>Or end the <code>python.exe</code> process from ComfyUI's <code>.venv</code> in Task Manager.</p>
+  </section>
+
+  <section class="step" id="s9">
+    <h2><span class="num">9</span>If something goes wrong</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Exit code</th><th>Meaning</th><th>What to do</th></tr>
+      <tr><td>0</td><td>The song was written</td><td>—</td></tr>
+      <tr><td>1</td><td>ComfyUI could not start</td><td>Read <code>AIGamestyle\_comfyui\comfylive_server.log</code>.</td></tr>
+      <tr><td>2</td><td>Bad file or option</td><td>Check the path, the JSON syntax, and the input names in the message.</td></tr>
+      <tr><td>4</td><td>No ComfyUI</td><td>Check <code>--server</code>, or let ComfyLive start the local one.</td></tr>
+      <tr><td>5</td><td>ComfyUI refused the graph</td><td>Usually a missing model: see step 1.</td></tr>
+      <tr><td>6</td><td>No audio came back</td><td>Try again. Check the ComfyUI log.</td></tr>
+      <tr><td>7</td><td>ComfyUI failed while running</td><td>Often out of GPU memory: close other GPU programs, or use a shorter <code>duration</code>.</td></tr>
+      <tr><td>8</td><td>Stopped</td><td>—</td></tr>
+    </table></div>
+    <p>To check that everything works without making a long song:</p>
+    <div class="code"><pre>ComfyLive.exe --headless-test --start --music</pre></div>
+    <p>It ends with <code>ALL CHECKS PASSED</code>.</p>
+  </section>
+
+  <footer>More detail: <code>AIGamestyle\ComfyLive\README.md</code>, sections "Headless mode" and "A song from a JSON file".</footer>
+</main>
+<script>
+  document.querySelectorAll('.code').forEach(function (box) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', function () {
+      var text = box.querySelector('pre').innerText;
+      var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1200); };
+      if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {});
+    });
+    box.appendChild(btn);
+  });
+</script>
+</body>
+</html>

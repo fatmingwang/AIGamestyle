@@ -30,6 +30,7 @@ public:
         QString comfyRoot;                            // for comfyui-launch
         QString graphPath;                            // a graph to start with (else the built-in one)
         bool startComfy = false;                      // start the local ComfyUI now if nothing answers
+        bool keepComfy = false;                       // a ComfyUI it starts stays running after it exits
     };
 
     explicit HeadlessServer(const Options& options, QObject* parent = nullptr);
@@ -55,6 +56,10 @@ private:
     void result(const QJsonObject& fields);
     void end(int code, const QString& message);
     void whenConnected(const std::function<void()>& then);   // connect first if needed, else end with code 4
+    void whenComfy(const std::function<void()>& then);       // ... and start the local ComfyUI first if nothing answers
+    bool generating() const;                                  // the running command makes a picture or a song
+    void startGenerate(const QJsonObject& args);              // queue the graph: generate's args (out, preview-dir, random-seed)
+    void runSong(const QJsonObject& args);
     QJsonArray paramsJson() const;
     bool setParams(const QJsonObject& values, QStringList* changed, QString* why);
 
@@ -67,6 +72,7 @@ private:
     Job job_;                                          // the running one (command empty: none)
     bool busy_ = false;
     std::function<void()> afterConnect_;
+    std::function<void()> afterLaunch_;                // whenComfy: once the ComfyUI it started is up
     // generate
     QString promptId_;
     QString outPath_;
@@ -80,3 +86,8 @@ private:
 // Protocol checks always; with ComfyUI reachable (or --start), a real generation too. Exit 0 = all passed.
 // music: also the built-in ACE-Step 1.5 song graph (a 20 s song saved next to outPath as .mp3).
 int runHeadlessTest(const HeadlessServer::Options& options, const QString& outPath, bool music = false);
+
+// `ComfyLive --song=song.json [--out=song.mp3] [--random-seed] [--keep-comfy]`: one song from a JSON file, then exit.
+// The server and a client in one process, sending the `song` command: ComfyUI is used if it answers, else the local one
+// is started (and stopped again at the end, unless --keep-comfy). Exit = the command's code (0: the song was written).
+int runSongFile(const HeadlessServer::Options& options, const QString& songJson, const QString& outPath, bool randomSeed);

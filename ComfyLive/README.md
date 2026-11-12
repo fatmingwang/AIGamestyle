@@ -128,6 +128,7 @@ Commands run one after another. The graph and its values stay for the next comma
 | `load-graph` | `path`, or `graph` (API-format object) + `name`? | Replaces the graph |
 | `save-graph` | `path` | Saves the graph with its current values |
 | `reset-graph` | `graph`? `"image"` (default) or `"music"` | A built-in graph: SDXL text to image, or ACE-Step 1.5 text to music |
+| `song` | `path`, `out`?, `random-seed`? | One song from a JSON file in one command (see "A song from a JSON file" below). Starts the local ComfyUI first when nothing answers. Events as for `generate` |
 | `generate` | `params`?, `random-seed`?, `out`?, `preview-dir`? | Runs the graph. Events: `queued {promptId}`, `progress {value,max}`, `preview {index,width,height,path?}`, `image {file,width,height,path?}` or `audio {file,format,bytes,path?}`, then result `{seconds, previews, output}`. For audio, `out` takes the real format's extension (`song.wav` from an MP3 graph is written as `song.mp3`) |
 | `transpose` | `path`, `semitones` (−12…12), `out`? | Transposes an audio file with ffmpeg (same melody, same length). result `{path}`; default out `<name>_+Nst.<ext>` |
 | `stop` | | Stops the running generate. It is answered at once, beside it |
@@ -151,6 +152,43 @@ Codes:
 
 The headless server only stops a ComfyUI that it started itself, and only when it exits.
 
+## A song from a JSON file
+
+```
+ComfyLive.exe --song=song.json [--out=song.mp3] [--random-seed] [--keep-comfy] [--server=127.0.0.1:8188]
+```
+
+This writes one song and exits: 0 when the song was written, otherwise the codes above. If a ComfyUI already answers at
+`--server`, ComfyLive uses it. If nothing answers, it starts the local one hidden and stops it again at the end. With
+`--keep-comfy` that ComfyUI keeps running, so the next `--song` starts without waiting for it. The `song` command of
+`--headless` does the same thing. Without `--out`, the song goes next to the JSON file as `<name>_<date-time>.mp3`, with
+its settings file `<name>_<date-time>.json` beside it. An `out` whose settings file would overwrite the input file is
+refused (code 2).
+
+The file can be one of two kinds:
+
+- **A song's settings file:** the `.json` written next to every song. You get the same graph, the same values and the
+  same seed, so the same song again. Add `--random-seed` for a new take.
+- **A song file:** a short description that runs on the built-in ACE-Step 1.5 graph.
+  [examples/quiet_flame_song.json](examples/quiet_flame_song.json) is an example:
+
+  ```json
+  {
+      "name": "Quiet Flame",
+      "tags": ["1970s Philadelphia soul ballad", "deep raspy baritone male lead", "lush string section"],
+      "lyrics": ["[Verse 1]", "Every evening when the lights turn low", "..."],
+      "duration": 289, "bpm": 64, "keyscale": "Bb major", "language": "en"
+  }
+  ```
+
+  Rules for a song file:
+  - Any input name of the graph works (`get-params` lists them, e.g. `cfg_scale`, `temperature`, `steps`). A `"params": {}`
+    object holds more of them.
+  - `lyrics` and `tags` can be a string or an array: lyrics lines are joined with new lines, and tags with ", ".
+  - Without `"seed"`, each run is a new take. With one, the same file gives the same song.
+  - Keys starting with `_` are notes and are ignored. `out` and `random-seed` in the file are defaults that the command
+    line overrides.
+
 ## Checks (nothing appears on the screen)
 
 ```
@@ -160,7 +198,8 @@ ComfyLive.exe --headless-test [--start] [--music] [--out=headless_test.png]
 This runs the server and a built-in client in one process. Without a ComfyUI it checks only the protocol (status, an
 unknown command). With one, or with `--start`, it also runs connect, get-params, a refused and an accepted
 set-params, and a real 768², 8-step generate. `--music` adds the ACE-Step graph: a 20-second song saved as
-`headless_test_song.mp3`, then transposed +2 (`headless_test_song_+2st.mp3`). It prints `ALL CHECKS PASSED` (exit 0) or `SOME CHECKS FAILED`
+`headless_test_song.mp3`, then transposed +2 (`headless_test_song_+2st.mp3`). It also runs `song` with a 15-second song
+file and then with that song's settings file, and checks that both runs give the same song. It prints `ALL CHECKS PASSED` (exit 0) or `SOME CHECKS FAILED`
 (exit 1).
 
 ```
@@ -184,4 +223,5 @@ add `--generate`. These modes use Qt's `offscreen` platform, with fonts from `%W
 | `src/ParamHelp` | what each parameter does (hover, the ? list), English and 繁體中文 |
 | `src/SongTools` | Singer / Voice tags, key steps, Transpose (ffmpeg) |
 | `src/Translator` | the English / 繁體中文 switch: the Traditional Chinese table |
-| `src/HeadlessServer` | `--headless` and `--headless-test` |
+| `src/HeadlessServer` | `--headless`, `--headless-test` and `--song` |
+| `examples/` | a song file for `--song` |

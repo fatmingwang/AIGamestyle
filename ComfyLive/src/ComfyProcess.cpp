@@ -59,14 +59,26 @@ void ComfyProcess::start(const QString& root, quint16 port, bool customNodes)
     port_ = port;
     logPath_ = QDir(dir.filePath(QStringLiteral(".."))).absoluteFilePath(QStringLiteral("comfylive_server.log"));
     process_.setWorkingDirectory(dir.absolutePath());
-    process_.setProcessChannelMode(QProcess::MergedChannels);
     process_.setStandardOutputFile(logPath_);
-    process_.start(python, args);
-    if (!process_.waitForStarted(10000)) {
-        emit failed(QStringLiteral("Could not start %1: %2").arg(python, process_.errorString()));
-        return;
+    if (keepRunning_) {   // detached: not a child that goes with this program (startDetached has no merged channels)
+        process_.setStandardErrorFile(logPath_, QIODevice::Append);
+        process_.setProgram(python);
+        process_.setArguments(args);
+        if (!process_.startDetached()) {
+            emit failed(QStringLiteral("Could not start %1: %2").arg(python, process_.errorString()));
+            return;
+        }
+    } else {
+        process_.setProcessChannelMode(QProcess::MergedChannels);
+        process_.start(python, args);
+        if (!process_.waitForStarted(10000)) {
+            emit failed(QStringLiteral("Could not start %1: %2").arg(python, process_.errorString()));
+            return;
+        }
     }
-    emit logLine(QStringLiteral("starting ComfyUI (hidden, log: %1) ...").arg(QDir::toNativeSeparators(logPath_)));
+    emit logLine(QStringLiteral("starting ComfyUI (hidden%1, log: %2) ...")
+                     .arg(keepRunning_ ? QStringLiteral(", kept running after ComfyLive exits") : QString(),
+                          QDir::toNativeSeparators(logPath_)));
     waitedMs_ = 0;
     poll_.start();
 }

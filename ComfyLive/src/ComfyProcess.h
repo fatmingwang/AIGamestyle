@@ -19,6 +19,9 @@ public:
     void start(const QString& root, quint16 port, bool customNodes);
     void stop();
     bool isRunning() const { return process_.state() != QProcess::NotRunning; }
+    // keep: the next start() runs ComfyUI detached, so it stays up after this program exits (stop() leaves it alone);
+    // the next `--song` or window finds it running and starts at once.
+    void setKeepRunning(bool keep) { keepRunning_ = keep; }
     QString logPath() const { return logPath_; }
 
 signals:
@@ -34,5 +37,6 @@ private:
     QTimer poll_;
     quint16 port_ = 8188;
     int waitedMs_ = 0;
+    bool keepRunning_ = false;
     QString logPath_;
 };

@@ -13,6 +13,9 @@
 // Headless (no window; README.md "Headless mode", the same protocol as GameStyleAI's --headless):
 //   ComfyLive.exe --headless [--port=8766] [--host=127.0.0.1] [--server=127.0.0.1:8188] [--graph=g.json] [--start]
 //       a TCP server: one JSON command per line in, NDJSON events out
+//   ComfyLive.exe --song=song.json [--out=song.mp3] [--random-seed] [--keep-comfy] [--server=...] [--comfy-root=...]
+//       one song from a JSON file (a song file or a song's settings file), then exit; starts the local ComfyUI when
+//       nothing answers (and stops it at the end, unless --keep-comfy); exit 0 = the song was written
 //   ComfyLive.exe --headless-test [--start] [--music] [--out=headless_test.png]
 //   ComfyLive.exe --song-test     the song helpers' rules (Singer / Voice tags, key steps); no ComfyUI
 //       the server and a built-in client in one process; exit 0 = ALL CHECKS PASSED
@@ -180,6 +183,7 @@ HeadlessServer::Options headlessOptions(const QStringList& args)
     o.comfyRoot = optionValue(args, QStringLiteral("--comfy-root"), QStringLiteral(COMFYLIVE_DEFAULT_COMFY_ROOT));
     o.graphPath = optionValue(args, QStringLiteral("--graph"));
     o.startComfy = args.contains(QStringLiteral("--start"));
+    o.keepComfy = args.contains(QStringLiteral("--keep-comfy"));
     return o;
 }
 
@@ -271,7 +275,8 @@ int main(int argc, char* argv[])
     const bool headless = args.contains(QStringLiteral("--headless"));
     const bool headlessTest = args.contains(QStringLiteral("--headless-test"));
     const bool songTest = args.contains(QStringLiteral("--song-test"));
-    if (selfTest || screenshot || headless || headlessTest || songTest) {
+    const QString songFile = optionValue(args, QStringLiteral("--song"));
+    if (selfTest || screenshot || headless || headlessTest || songTest || !songFile.isEmpty()) {
         qputenv("QT_QPA_PLATFORM", "offscreen");   // nothing on the screen
 #ifdef Q_OS_WIN
         if (qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR"))   // the offscreen platform finds no fonts by itself
@@ -296,6 +301,9 @@ int main(int argc, char* argv[])
         return runScreenshot(args);
     if (songTest)
         return runSongTest();
+    if (!songFile.isEmpty())
+        return runSongFile(headlessOptions(args), songFile, optionValue(args, QStringLiteral("--out")),
+                           args.contains(QStringLiteral("--random-seed")));
     if (headlessTest)
         return runHeadlessTest(headlessOptions(args), optionValue(args, QStringLiteral("--out"), QStringLiteral("headless_test.png")),
                                args.contains(QStringLiteral("--music")));

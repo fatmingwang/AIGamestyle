@@ -1,0 +1,512 @@
+{
+  "about": "Xianxia / cultivation restyle of MahJong Ways (s10075, Cocos Creator + Spine 3.8): moonlit misty mountains and temples, carved slate blue-grey stone tiles with silver ornaments, burnished gold tiles on the middle reel, jade and plum blossoms, navy and steel blue with gold accents (reference: the owner's mock-up, 2026-11-11). Mahjong glyphs and all letters kept exact, effects and flipbook frames unchanged. Read by _pipeline/tools/restyle_game.py; Doc/Reskin_Game_Art.md.",
+  "source": "D:/Work/MahJong/docs/MahJongWays/MahJongWaysCocos/assets/resources",
+  "output": "output/mahjongways_xianxia",
+  "style": "chinese xianxia cultivation fantasy slot game art, moonlit night, misty dark blue mountains, carved slate blue-grey stone with silver-blue ornaments and cloud scroll carvings, burnished gold, glowing green jade, navy and steel blue palette with gold accents, glossy detailed mobile game art, clean edges",
+  "negative": "two moons, blurry, low quality, deformed, extra objects, misspelled text, warped letters, warped characters, watermark, photo, muddy colours, cropped, orange sunset, bright green cloth, pink, purple background, modern, western",
+  "kinds": {
+    "object": {
+      "denoise": 0.75,
+      "control": 0.6
+    },
+    "text": {
+      "denoise": 0.45,
+      "control": 0.85,
+      "prompt_extra": "keep the exact same letters and numbers, crisp readable lettering"
+    },
+    "tile": {
+      "denoise": 0.75,
+      "control": 0.85,
+      "keep_glyph": true,
+      "prompt_extra": "keep the exact same mahjong character and pattern on the face, crisp and readable"
+    },
+    "badge": {
+      "denoise": 0.55,
+      "control": 0.85,
+      "prompt_extra": "keep the exact same character and letters, crisp and readable"
+    },
+    "frame": {
+      "denoise": 0.7,
+      "control": 0.7
+    },
+    "scene": {
+      "denoise": 0.62,
+      "control": 0.5
+    },
+    "keep": {}
+  },
+  "static": [
+    {
+      "file": "art/H1.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, the green character 發 inlaid in glowing jade on the stone face"
+    },
+    {
+      "file": "art/H2.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, the red character 中 inlaid in red lacquer on the stone face"
+    },
+    {
+      "file": "art/H3.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, an engraved rectangular silver frame on the stone face"
+    },
+    {
+      "file": "art/H4.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, the characters 八萬 inlaid in blue and red on the stone face"
+    },
+    {
+      "file": "art/L1.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, five round flower dots inlaid in jade, sapphire and red on the stone face"
+    },
+    {
+      "file": "art/L2.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, five green jade bamboo sticks inlaid on the stone face"
+    },
+    {
+      "file": "art/L3.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, two round flower dots inlaid in sapphire and jade on the stone face"
+    },
+    {
+      "file": "art/L4.png",
+      "kind": "tile",
+      "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, two green jade bamboo sticks inlaid on the stone face"
+    },
+    {
+      "file": "art/H1_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, the green character 發 inlaid in jade"
+    },
+    {
+      "file": "art/H2_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, the red character 中 inlaid in red lacquer"
+    },
+    {
+      "file": "art/H3_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, an engraved rectangular frame in the middle"
+    },
+    {
+      "file": "art/H4_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, the characters 八萬 inlaid in blue and red"
+    },
+    {
+      "file": "art/L1_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, five round flower dots inlaid in jade, sapphire and red"
+    },
+    {
+      "file": "art/L2_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, five green jade bamboo sticks"
+    },
+    {
+      "file": "art/L3_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, two round flower dots inlaid in sapphire and jade"
+    },
+    {
+      "file": "art/L4_g.png",
+      "kind": "tile",
+      "subject": "a burnished gold carved mahjong tile with engraved cloud scroll patterns, two green jade bamboo sticks"
+    },
+    {
+      "file": "art/S1.png",
+      "kind": "badge",
+      "subject": "the glowing red and gold calligraphy character 胡 on a round dark bronze talisman coin, crackling violet lightning energy, mystical seal"
+    },
+    {
+      "file": "art/W1.png",
+      "kind": "badge",
+      "subject": "a gleaming gold ingot with small glowing jade gems, the gold word WILD above it with a silver-blue outline"
+    },
+    {
+      "file": "art/mgbg.png",
+      "kind": "scene",
+      "long_side": 2048,
+      "subject": "a moonlit night over misty dark blue mountains, an ancient stone wall winding over the ridges with glowing lanterns, chinese temples and pagodas on the cliffs, one single full moon in the sky, soft blue mist, cool moonlight"
+    },
+    {
+      "file": "art/fgbg.png",
+      "kind": "scene",
+      "long_side": 2048,
+      "subject": "a mystical night over misty indigo mountains, an ancient stone wall with glowing golden lanterns, chinese temples, faint violet lightning in the clouds, golden spirit lights, cool moonlight"
+    },
+    {
+      "file": "art/bg_reel_frame_mg.png",
+      "kind": "frame",
+      "crop": true,
+      "denoise": 0.78,
+      "subject": "an ornate game reel frame, a dark navy blue inner panel with faint silver cloud and dragon patterns, carved slate stone pillars with silver-blue cloud scroll ornaments on both sides and a carved stone base"
+    },
+    {
+      "file": "art/bg_reel_frame_fg.png",
+      "kind": "frame",
+      "crop": true,
+      "denoise": 0.85,
+      "subject": "an ornate game reel frame, a plain smooth deep indigo blue inner panel with a very faint subtle cloud texture, no emblem and no figure in the middle, carved slate stone pillars with gold cloud scroll ornaments on both sides and a carved stone base",
+      "control": 0.3
+    },
+    {
+      "file": "art/bg_reel_frame_mg_up.png",
+      "kind": "frame",
+      "crop": true,
+      "subject": "a carved slate stone top bar with silver-blue cloud scroll ornaments, a dark navy recessed panel in the middle, small stone pillar caps"
+    },
+    {
+      "file": "art/bg_reel_frame_fg_up_0.png",
+      "kind": "frame",
+      "crop": true,
+      "denoise": 0.9,
+      "subject": "a carved slate stone top bar with gold cloud scroll ornaments on a dark indigo blue background, no red",
+      "control": 0.4
+    },
+    {
+      "file": "art/bg_reel_frame_fg_up_1.png",
+      "kind": "frame",
+      "crop": true,
+      "subject": "a thin carved slate stone and silver trim bar"
+    },
+    {
+      "file": "art/bg_reel_frame_fg_up_2.png",
+      "kind": "frame",
+      "crop": true,
+      "subject": "carved slate stone pillar caps and a top trim with gold cloud scroll ornaments"
+    },
+    {
+      "file": "art/bg_reel_frame_mgfg_UP_front.png",
+      "kind": "frame",
+      "crop": true,
+      "subject": "a thin carved slate stone ledge with silver-blue trim and small pillar caps"
+    },
+    {
+      "file": "art/img_win_bg.png",
+      "kind": "frame",
+      "subject": "a dark navy blue banner panel with a carved silver-blue stone rim and a small silver cloud ornament on top, soft blue glow in the middle"
+    },
+    {
+      "file": "art/bet_bg.png",
+      "kind": "frame",
+      "subject": "a dark navy blue control panel bar with carved silver-blue stone edges"
+    },
+    {
+      "file": "art/CLICK_TO_CONTINUE_txt.png",
+      "kind": "text",
+      "subject": "the words CLICK TO CONTINUE in gold and silver carved letters with a dark outline"
+    },
+    {
+      "glob": "art/btn_*.png",
+      "kind": "text",
+      "denoise": 0.6,
+      "subject": "a game control button, carved slate blue-grey stone with a silver-blue rim and a dark navy face, keep its icon in gold, no yellow plastic"
+    }
+  ],
+  "spine": {
+    "keep_words": [
+      "fx",
+      "light",
+      "glow",
+      "flash",
+      "flare",
+      "shine",
+      "sun",
+      "star",
+      "spark",
+      "particle",
+      "lens",
+      "shock",
+      "sweep",
+      "gradient",
+      "smoke",
+      "bubble",
+      "black",
+      "dot",
+      "water",
+      "liquid",
+      "expl",
+      "shadow",
+      "line",
+      "drop",
+      "gl (",
+      "gl-(",
+      "lizi",
+      "ring_",
+      "inkpaint",
+      "blur",
+      "highlight",
+      "trail",
+      "glass",
+      "fog",
+      "energy",
+      "aphla",
+      "spec",
+      "bg_add",
+      "fire",
+      "explosion"
+    ],
+    "sequence_pattern": "(?<!trans)(?<!_mj)_\\d{2,5}$",
+    "min_size": 40,
+    "text_names": [
+      "bigwin_en",
+      "superwin_en",
+      "megawin_en"
+    ],
+    "text_prefixes": [
+      "75_w1_w_",
+      "en_0",
+      "image/1",
+      "image/2_",
+      "image/3_",
+      "image/4_",
+      "image/5_",
+      "image/6_",
+      "image/7_",
+      "image/8_",
+      "image/9_"
+    ],
+    "reference_weight": 0.35,
+    "pages": [
+      {
+        "atlas": "spine/anim_sym.atlas",
+        "reference": "art/H1.png",
+        "subject": "part of a carved slate blue-grey stone mahjong tile with a silver-blue beveled rim",
+        "denoise": 0.6,
+        "control": 0.85,
+        "parts": {
+          "image/flip_g_1": {
+            "subject": "a burnished gold carved mahjong tile seen from the front, engraved cloud scroll patterns, blank face",
+            "reference": false
+          },
+          "image/flip_g_2": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_3": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_4": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_5": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_6": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_7": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/flip_g_8": {
+            "subject": "a burnished gold carved mahjong tile turning, engraved cloud scroll patterns",
+            "reference": false
+          },
+          "image/h1": {
+            "subject": "the green character 發 in glowing jade, crisp calligraphy",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/h2": {
+            "subject": "the red character 中 in red lacquer, crisp calligraphy",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/h3": {
+            "subject": "an engraved rectangular silver frame",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/h4": {
+            "subject": "the characters 八萬 in blue and red, crisp calligraphy",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/l1": {
+            "subject": "five round flower dots in jade, sapphire and red",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/l2": {
+            "subject": "five green jade bamboo sticks",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/l3": {
+            "subject": "two round flower dots in sapphire and jade",
+            "reference": false,
+            "denoise": 0.4
+          },
+          "image/l4": {
+            "subject": "two green jade bamboo sticks",
+            "reference": false,
+            "denoise": 0.4
+          }
+        }
+      },
+      {
+        "atlas": "spine/anim_sym_w1.atlas",
+        "reference": "art/W1.png",
+        "subject": "part of a gleaming gold ingot with small glowing jade gems",
+        "keep_parts": [
+          "w1_ingot_rot/w1_ingot_rot_00s",
+          "circle_glow"
+        ]
+      },
+      {
+        "atlas": "spine/anim_sym_s1.atlas",
+        "reference": "art/S1.png",
+        "subject": "part of a round dark bronze talisman coin with the red and gold calligraphy character 胡, violet lightning energy",
+        "denoise": 0.5,
+        "control": 0.85
+      },
+      {
+        "atlas": "spine/anim_cloud.atlas",
+        "reference": "art/mgbg.png",
+        "subject": "a swirling stylised chinese auspicious cloud, silver blue and pale moonlight white, soft mist"
+      },
+      {
+        "atlas": "spine/anim_main_bg.atlas",
+        "reference": "art/mgbg.png",
+        "subject": "a gnarled dark pine branch with white plum blossoms, moonlit blue night, soft mist"
+      },
+      {
+        "atlas": "spine/anim_free_bg.atlas",
+        "reference": "art/fgbg.png",
+        "subject": "a gnarled dark pine branch with white plum blossoms and golden spirit lights, moonlit indigo night"
+      },
+      {
+        "atlas": "spine/anim_fg_dragon.atlas",
+        "reference": "art/fgbg.png",
+        "subject": "a swirling stylised chinese auspicious cloud, silver blue and pale gold, soft mist",
+        "parts": {
+          "dragon": {
+            "subject": "a long chinese dragon with pale silver and steel blue scales and gold whiskers, flying, not red",
+            "reference": false,
+            "denoise": 0.65
+          },
+          "dragon_g": {
+            "subject": "a long chinese dragon, burnished gold scales, flying",
+            "reference": false,
+            "denoise": 0.65
+          }
+        }
+      },
+      {
+        "atlas": "spine/anim_main_multiplier.atlas",
+        "subject": "part of a round multiplier orb frame, carved silver-blue stone and burnished gold ring with cloud scroll engravings",
+        "denoise": 0.6,
+        "parts": {
+          "orb_dragon": {
+            "subject": "a coiled chinese dragon emblem in glowing green jade",
+            "reference": false,
+            "denoise": 0.55
+          }
+        }
+      },
+      {
+        "atlas": "spine/anim_btn_spin.atlas",
+        "subject": "part of a round spin button, carved slate blue-grey stone and silver rim with a glowing jade centre"
+      },
+      {
+        "atlas": "spine/anim_all_win.atlas",
+        "reference": "art/H1.png",
+        "subject": "part of a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue rim",
+        "denoise": 0.75,
+        "control": 0.85,
+        "keep_glyph": true,
+        "parts": {
+          "dragon": {
+            "subject": "a chinese dragon head, silver-blue scales and gold horns",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          },
+          "dragon2-2": {
+            "subject": "a long chinese dragon body, silver-blue scales and gold fins",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          },
+          "mahjon/mega_mj_01_g": {
+            "subject": "a burnished gold carved mahjong tile",
+            "reference": false
+          },
+          "mahjon/mega_mj_02_g": {
+            "subject": "a burnished gold carved mahjong tile",
+            "reference": false
+          },
+          "mahjon/super_mj_01_g": {
+            "subject": "a burnished gold carved mahjong tile",
+            "reference": false
+          },
+          "mahjon/super_mj_02_g": {
+            "subject": "a burnished gold carved mahjong tile",
+            "reference": false
+          }
+        }
+      },
+      {
+        "atlas": "spine/anim_total.atlas",
+        "reference": "art/H1.png",
+        "subject": "part of a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue rim",
+        "denoise": 0.75,
+        "control": 0.85,
+        "keep_glyph": true,
+        "keep_parts": [
+          "ring"
+        ],
+        "parts": {
+          "flag": {
+            "subject": "a hanging dark navy blue silk banner with silver cloud embroidery and a gold border",
+            "reference": false,
+            "denoise": 0.7,
+            "control": 0.6,
+            "keep_glyph": false
+          },
+          "pole": {
+            "subject": "an ornate horizontal pole of dark lacquered wood with silver-blue caps",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          },
+          "pole_02": {
+            "subject": "an ornate vertical pole of dark lacquered wood with silver-blue bands",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          },
+          "pole_head": {
+            "subject": "an ornate silver-blue and gold finial of a banner pole",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          },
+          "dragon": {
+            "subject": "a chinese dragon, silver-blue scales and gold horns",
+            "reference": false,
+            "denoise": 0.6,
+            "keep_glyph": false
+          }
+        }
+      },
+      {
+        "atlas": "spine/anim_transition.atlas",
+        "reference": "art/H1.png",
+        "subject": "a dark slate blue-grey carved stone mahjong tile, rough grey stone texture, a silver-blue beveled rim, keep its character",
+        "denoise": 0.75,
+        "control": 0.85,
+        "keep_glyph": true
+      }
+    ]
+  }
+}

@@ -2,6 +2,7 @@
 #include "SongTools.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -47,17 +48,26 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
     connect(&tcp_, &QTcpServer::newConnection, this, &HeadlessServer::onNewConnection);
     connect(&client_, &ComfyClient::logLine, this, &HeadlessServer::log);
     connect(&process_, &ComfyProcess::logLine, this, &HeadlessServer::log);
+    process_.setKeepRunning(options_.keepComfy);
 
     // ComfyUI's answers, for the command that is running
     connect(&process_, &ComfyProcess::up, this, [this] {
         if (busy_ && job_.command == QStringLiteral("comfyui-launch")) {
             result({{QStringLiteral("started"), true}});
             end(0, QStringLiteral("ComfyUI is up"));
+        } else if (afterLaunch_) {   // whenComfy started it: connect, then go on
+            afterConnect_ = std::move(afterLaunch_);
+            afterLaunch_ = nullptr;
+            client_.connectToServer(client_.server());
         }
     });
     connect(&process_, &ComfyProcess::failed, this, [this](const QString& why) {
         if (busy_ && job_.command == QStringLiteral("comfyui-launch"))
             end(1, why);
+        else if (afterLaunch_) {
+            afterLaunch_ = nullptr;
+            end(1, QStringLiteral("could not start ComfyUI: ") + why);
+        }
     });
     connect(&client_, &ComfyClient::connected, this, [this] {
         for (const QString& line : workflow_.fixMissingChoices(client_.objectInfo()))
@@ -75,13 +85,13 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
         }
     });
     connect(&client_, &ComfyClient::queued, this, [this](const QString& id, int number) {
-        if (job_.command != QStringLiteral("generate"))
+        if (!generating())
             return;
         promptId_ = id;
         send({{QStringLiteral("type"), QStringLiteral("queued")}, {QStringLiteral("promptId"), id}, {QStringLiteral("number"), number}});
     });
     connect(&client_, &ComfyClient::promptRejected, this, [this](const QString& why) {
-        if (busy_ && job_.command == QStringLiteral("generate"))
+        if (busy_ && generating())
             end(5, QStringLiteral("ComfyUI refused the graph: ") + why);
     });
     connect(&client_, &ComfyClient::progress, this, [this](const QString& id, int value, int max) {
@@ -89,7 +99,7 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             send({{QStringLiteral("type"), QStringLiteral("progress")}, {QStringLiteral("value"), value}, {QStringLiteral("max"), max}});
     });
     connect(&client_, &ComfyClient::preview, this, [this](const QImage& image) {
-        if (promptId_.isEmpty() || !busy_ || job_.command != QStringLiteral("generate"))
+        if (promptId_.isEmpty() || !busy_ || !generating())
             return;
         ++previews_;
         QJsonObject e{{QStringLiteral("type"), QStringLiteral("preview")}, {QStringLiteral("index"), previews_},
@@ -146,7 +156,7 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
         const double seconds = clock_.elapsed() / 1000.0;
         // the image's download may still be on its way: end once it is in, or after a moment
         auto finishJob = [this, seconds] {
-            if (!busy_ || job_.command != QStringLiteral("generate"))
+            if (!busy_ || !generating())
                 return;
             result({{QStringLiteral("seconds"), seconds}, {QStringLiteral("previews"), previews_}, {QStringLiteral("output"), gotImage_}});
             end(gotImage_ ? 0 : 6, gotImage_ ? QStringLiteral("done")
@@ -159,7 +169,7 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             end(7, QStringLiteral("ComfyUI failed: ") + why);
     });
     connect(&client_, &ComfyClient::interrupted, this, [this](const QString& id) {
-        if (id == promptId_ && busy_ && job_.command == QStringLiteral("generate"))
+        if (id == promptId_ && busy_ && generating())
             end(8, QStringLiteral("stopped"));
     });
 }
@@ -287,6 +297,137 @@ void HeadlessServer::whenConnected(const std::function<void()>& then)
         }
         afterConnect_ = then;
         client_.connectToServer(client_.server());
+    });
+}
+
+void HeadlessServer::whenComfy(const std::function<void()>& then)
+{
+    if (client_.isReady()) {
+        then();
+        return;
+    }
+    client_.ping([this, then](bool up) {
+        if (up) {   // a ComfyUI is running (any one at that address): use it
+            afterConnect_ = then;
+            client_.connectToServer(client_.server());
+            return;
+        }
+        send({{QStringLiteral("type"), QStringLiteral("log")},
+              {QStringLiteral("text"), QStringLiteral("no ComfyUI at %1: starting the local one").arg(client_.server())}});
+        afterLaunch_ = then;
+        process_.start(options_.comfyRoot, quint16(QUrl(QStringLiteral("http://") + client_.server()).port(8188)), true);
+    });
+}
+
+bool HeadlessServer::generating() const
+{
+    return job_.command == QStringLiteral("generate") || job_.command == QStringLiteral("song");
+}
+
+void HeadlessServer::startGenerate(const QJsonObject& a)
+{
+    if (a.value(QStringLiteral("random-seed")).toBool())
+        for (const ParamDef& p : workflow_.params(client_.objectInfo()))
+            if (p.isSeed())
+                workflow_.setValue(p.nodeId, p.input, qint64(QRandomGenerator::global()->bounded(Q_INT64_C(1) << 40)));
+    outPath_ = a.value(QStringLiteral("out")).toString();
+    previewDir_ = a.value(QStringLiteral("preview-dir")).toString();
+    if (!previewDir_.isEmpty())
+        QDir().mkpath(previewDir_);
+    if (!outPath_.isEmpty())
+        QDir().mkpath(QFileInfo(outPath_).absolutePath());
+    previews_ = 0;
+    gotImage_ = false;
+    promptId_.clear();
+    clock_.start();
+    client_.queuePrompt(workflow_.graph());
+}
+
+// song {path, out?, random-seed?}: one song from a JSON file, starting the local ComfyUI first when nothing answers.
+// The file is either
+//   - a song's settings file (written next to every song) or an API-format graph: that graph, its values and its seed;
+//   - a song file: {"tags", "lyrics", "duration", "bpm", "keyscale", "language", "seed"?, ...} on the built-in ACE-Step
+//     graph. Any input name of that graph works (get-params lists them), "params" {} holds more, and "lyrics" / "tags"
+//     may be arrays (lines joined with newlines / tags with ", "). No "seed": a new one each time. "out" and
+//     "random-seed" in the file are the defaults for the command's own.
+// out defaults to <the file's folder>/<its name>_<date-time>.mp3, so the input file is never overwritten.
+void HeadlessServer::runSong(const QJsonObject& a)
+{
+    const QString path = a.value(QStringLiteral("path")).toString();
+    QFile f(path);
+    if (path.isEmpty() || !f.open(QIODevice::ReadOnly)) {
+        end(2, QStringLiteral("song needs \"path\": a song .json (%1)").arg(path.isEmpty() ? QStringLiteral("none given") : f.errorString()));
+        return;
+    }
+    QJsonParseError err;
+    const QJsonObject o = QJsonDocument::fromJson(f.readAll(), &err).object();
+    if (err.error != QJsonParseError::NoError || o.isEmpty()) {
+        end(2, QStringLiteral("%1 is not a JSON object: %2").arg(path, err.errorString()));
+        return;
+    }
+    bool isGraph = o.value(QStringLiteral("comfylive")).toString() == QStringLiteral("settings");
+    if (!isGraph) {   // an API graph: every entry a node
+        isGraph = true;
+        for (auto it = o.begin(); it != o.end() && isGraph; ++it)
+            isGraph = it.value().toObject().contains(QStringLiteral("class_type"));
+    }
+    QJsonObject params, genArgs;
+    genArgs[QStringLiteral("out")] = a.value(QStringLiteral("out")).toString(o.value(QStringLiteral("out")).toString());
+    genArgs[QStringLiteral("random-seed")] = a.value(QStringLiteral("random-seed")).toBool(o.value(QStringLiteral("random-seed")).toBool());
+    genArgs[QStringLiteral("preview-dir")] = a.value(QStringLiteral("preview-dir"));
+    if (isGraph) {
+        Workflow w;
+        QString why;
+        if (!w.load(path, &why)) {
+            end(2, why);
+            return;
+        }
+        workflow_ = w;
+    } else {
+        static const QStringList reserved{QStringLiteral("out"), QStringLiteral("random-seed"), QStringLiteral("params"), QStringLiteral("name")};
+        for (auto it = o.begin(); it != o.end(); ++it) {
+            if (reserved.contains(it.key()) || it.key().startsWith(QLatin1Char('_')))   // "_comment": notes for people
+                continue;
+            QJsonValue v = it.value();
+            if (v.isArray()) {
+                QStringList parts;
+                for (const QJsonValue& line : v.toArray())
+                    parts << line.toString();
+                v = parts.join(it.key() == QStringLiteral("tags") ? QStringLiteral(", ") : QStringLiteral("\n"));
+            }
+            params[it.key()] = v;
+        }
+        const QJsonObject more = o.value(QStringLiteral("params")).toObject();
+        for (auto it = more.begin(); it != more.end(); ++it)
+            params[it.key()] = it.value();
+        if (!params.contains(QStringLiteral("seed")))
+            genArgs[QStringLiteral("random-seed")] = true;
+        workflow_ = Workflow::textToMusic();
+        workflow_.setName(o.value(QStringLiteral("name")).toString(QFileInfo(path).completeBaseName()));
+    }
+    QString out = genArgs.value(QStringLiteral("out")).toString();
+    if (out.isEmpty())
+        out = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QLatin1Char('_') +
+              QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")) + QStringLiteral(".mp3");
+    else if (QFileInfo(out).isRelative())   // next to the song file, not wherever the server was started
+        out = QFileInfo(path).absoluteDir().filePath(out);
+    if (QFileInfo(Workflow::settingsPathFor(out)).absoluteFilePath().compare(QFileInfo(path).absoluteFilePath(), Qt::CaseInsensitive) == 0) {
+        end(2, QStringLiteral("out %1 would write its settings over the song file itself: pick another name").arg(out));
+        return;
+    }
+    genArgs[QStringLiteral("out")] = out;
+    whenComfy([this, params, genArgs] {
+        for (const QString& line : workflow_.fixMissingChoices(client_.objectInfo()))
+            send({{QStringLiteral("type"), QStringLiteral("log")}, {QStringLiteral("text"), line}});
+        QStringList changed;
+        QString why;
+        if (!params.isEmpty() && !setParams(params, &changed, &why)) {
+            end(2, why);
+            return;
+        }
+        result({{QStringLiteral("graph"), workflow_.name()}, {QStringLiteral("changed"), QJsonArray::fromStringList(changed)},
+                {QStringLiteral("out"), QDir::toNativeSeparators(genArgs.value(QStringLiteral("out")).toString())}});
+        startGenerate(genArgs);
     });
 }
 
@@ -435,22 +576,10 @@ void HeadlessServer::run(const Job& job)
                 end(2, why);
                 return;
             }
-            if (a.value(QStringLiteral("random-seed")).toBool())
-                for (const ParamDef& p : workflow_.params(client_.objectInfo()))
-                    if (p.isSeed())
-                        workflow_.setValue(p.nodeId, p.input, qint64(QRandomGenerator::global()->bounded(Q_INT64_C(1) << 40)));
-            outPath_ = a.value(QStringLiteral("out")).toString();
-            previewDir_ = a.value(QStringLiteral("preview-dir")).toString();
-            if (!previewDir_.isEmpty())
-                QDir().mkpath(previewDir_);
-            if (!outPath_.isEmpty())
-                QDir().mkpath(QFileInfo(outPath_).absolutePath());
-            previews_ = 0;
-            gotImage_ = false;
-            promptId_.clear();
-            clock_.start();
-            client_.queuePrompt(workflow_.graph());
+            startGenerate(a);
         });
+    } else if (cmd == QStringLiteral("song")) {
+        runSong(a);
     } else if (cmd == QStringLiteral("transpose")) {
         const QString in = a.value(QStringLiteral("path")).toString();
         const int semitones = a.value(QStringLiteral("semitones")).toInt();
@@ -474,7 +603,7 @@ void HeadlessServer::run(const Job& job)
         end(0, QStringLiteral("nothing is running"));
     } else {
         end(2, QStringLiteral("unknown command \"%1\": comfyui-status, comfyui-launch, connect, get-params, set-params, load-graph, "
-                              "save-graph, reset-graph, generate, transpose, stop, exit").arg(cmd));
+                              "save-graph, reset-graph, generate, song, transpose, stop, exit").arg(cmd));
     }
 }
 
@@ -592,11 +721,91 @@ int runHeadlessTest(const HeadlessServer::Options& options, const QString& outPa
               << step(QStringLiteral("transpose"), {{QStringLiteral("path"), songPath}, {QStringLiteral("semitones"), 2}}, true)
               << step(QStringLiteral("load-graph"), {{QStringLiteral("path"), Workflow::settingsPathFor(songPath)}}, true)
               << step(QStringLiteral("generate"), {{QStringLiteral("out"), againPath}}, true)
-              << step(QStringLiteral("_same-file"), {{QStringLiteral("a"), songPath}, {QStringLiteral("b"), againPath}}, true)
+              << step(QStringLiteral("_same-file"), {{QStringLiteral("a"), songPath}, {QStringLiteral("b"), againPath}}, true);
+        // song: a song file (lyrics as lines) in one command, and its settings file in one command (the same song again)
+        const QString base = QFileInfo(outPath).path() + QLatin1Char('/') + QFileInfo(outPath).completeBaseName();
+        const QString specPath = base + QStringLiteral("_spec.json");
+        QFile spec(specPath);
+        if (spec.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            spec.write(QJsonDocument(QJsonObject{
+                {QStringLiteral("tags"), QJsonArray{QStringLiteral("acoustic folk"), QStringLiteral("male vocals")}},
+                {QStringLiteral("lyrics"), QJsonArray{QStringLiteral("[Verse]"), QStringLiteral("A small test song, la la la")}},
+                {QStringLiteral("duration"), 15}, {QStringLiteral("seed"), 7}}).toJson());
+        spec.close();
+        const QString fromSpec = base + QStringLiteral("_from_spec.mp3");
+        const QString fromSettings = base + QStringLiteral("_from_settings.mp3");
+        steps << step(QStringLiteral("song"), {{QStringLiteral("path"), base + QStringLiteral("_no_such.json")}}, true, true)   // refused
+              // refused: its settings (<out>.json) would overwrite the song file itself
+              << step(QStringLiteral("song"), {{QStringLiteral("path"), specPath}, {QStringLiteral("out"), base + QStringLiteral("_spec.mp3")}}, true, true)
+              << step(QStringLiteral("song"), {{QStringLiteral("path"), specPath}, {QStringLiteral("out"), fromSpec}}, true)
+              << step(QStringLiteral("song"), {{QStringLiteral("path"), Workflow::settingsPathFor(fromSpec)}, {QStringLiteral("out"), fromSettings}}, true)
+              << step(QStringLiteral("_same-file"), {{QStringLiteral("a"), fromSpec}, {QStringLiteral("b"), fromSettings}}, true)
               << step(QStringLiteral("reset-graph"), {{QStringLiteral("graph"), QStringLiteral("image")}}, true);
     }
     QObject::connect(&socket, &QTcpSocket::connected, [&] { sendNext(); });
     QTimer::singleShot(600000, [&say] { say(QStringLiteral("timed out")); QCoreApplication::exit(3); });
     socket.connectToHost(QStringLiteral("127.0.0.1"), server.port());
     return QCoreApplication::exec();
+}
+
+// ---- --song=song.json ----
+
+int runSongFile(const HeadlessServer::Options& options, const QString& songJson, const QString& outPath, bool randomSeed)
+{
+    auto say = [](const QString& t) {
+        std::fprintf(stdout, "%s\n", t.toUtf8().constData());
+        std::fflush(stdout);
+    };
+    HeadlessServer::Options serverOptions = options;
+    serverOptions.startComfy = false;   // the song command starts it when nothing answers
+    serverOptions.port = 0;             // any free port: beside a --headless server on 8766
+    HeadlessServer server(serverOptions);
+    QObject::connect(&server, &HeadlessServer::log, [&say](const QString& t) { say(QStringLiteral("  ") + t); });
+    QString why;
+    if (!server.listen(&why)) {
+        say(QStringLiteral("cannot listen: ") + why);
+        return 2;
+    }
+    QJsonObject args{{QStringLiteral("path"), QFileInfo(songJson).absoluteFilePath()}};
+    if (!outPath.isEmpty())
+        args[QStringLiteral("out")] = QFileInfo(outPath).absoluteFilePath();   // --out is from where it was started
+    if (randomSeed)
+        args[QStringLiteral("random-seed")] = true;
+    QTcpSocket socket;
+    int lastPercent = -10;
+    QObject::connect(&socket, &QTcpSocket::readyRead, [&] {
+        while (socket.canReadLine()) {
+            const QJsonObject e = QJsonDocument::fromJson(socket.readLine()).object();
+            const QString type = e.value(QStringLiteral("type")).toString();
+            if (type == QStringLiteral("progress")) {   // every 10 %
+                const int max = qMax(1, e.value(QStringLiteral("max")).toInt());
+                const int percent = e.value(QStringLiteral("value")).toInt() * 100 / max;
+                if (percent >= lastPercent + 10 || percent == 100) {
+                    lastPercent = percent;
+                    say(QStringLiteral("progress %1 %").arg(percent));
+                }
+            } else if (type == QStringLiteral("log")) {
+                say(e.value(QStringLiteral("text")).toString());
+            } else if (type == QStringLiteral("audio") || type == QStringLiteral("image")) {
+                if (e.contains(QStringLiteral("error")))
+                    say(QStringLiteral("ERROR ") + e.value(QStringLiteral("error")).toString());
+                else
+                    say(QStringLiteral("song: %1\nsettings: %2").arg(e.value(QStringLiteral("path")).toString(),
+                                                                       e.value(QStringLiteral("settings")).toString()));
+            } else if (type == QStringLiteral("result") && e.contains(QStringLiteral("seconds"))) {
+                say(QStringLiteral("made in %1 s").arg(e.value(QStringLiteral("seconds")).toDouble(), 0, 'f', 1));
+            } else if (type == QStringLiteral("job_end")) {
+                const int code = e.value(QStringLiteral("code")).toInt();
+                say(code == 0 ? QStringLiteral("DONE") : QStringLiteral("FAILED (code %1): %2").arg(code).arg(e.value(QStringLiteral("message")).toString()));
+                QCoreApplication::exit(code);
+            }
+        }
+    });
+    QObject::connect(&socket, &QTcpSocket::connected, [&] {
+        socket.write(QJsonDocument(QJsonObject{{QStringLiteral("command"), QStringLiteral("song")}, {QStringLiteral("args"), args}})
+                         .toJson(QJsonDocument::Compact) + "\n");
+    });
+    QTimer::singleShot(30 * 60 * 1000, [&say] { say(QStringLiteral("FAILED: timed out after 30 minutes")); QCoreApplication::exit(3); });
+    socket.connectToHost(QStringLiteral("127.0.0.1"), server.port());
+    return QCoreApplication::exec();   // the server's destructor stops a ComfyUI it started (unless --keep-comfy)
 }
