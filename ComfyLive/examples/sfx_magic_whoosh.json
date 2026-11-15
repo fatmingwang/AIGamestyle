@@ -1,0 +1,6 @@
+{
+    "_comment": "Magic: a spell cast.  ComfyLive.exe --make=sfx_magic_whoosh.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a magic spell being cast, airy whoosh rising into a sparkling shimmer, fantasy game sound effect",
+    "seconds": 2
+}

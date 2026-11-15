@@ -1,0 +1,6 @@
+{
+    "_comment": "Metal: a heavy iron door closing.  ComfyLive.exe --make=sfx_iron_door.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a heavy iron door slamming shut in a stone hall, deep metal impact with reverb",
+    "seconds": 3
+}

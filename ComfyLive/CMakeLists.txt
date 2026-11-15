@@ -27,7 +27,7 @@ target_include_directories(ComfyLive PRIVATE src)
 if(MSVC)
     target_compile_options(ComfyLive PRIVATE /utf-8)   # the Traditional Chinese text in Translator.cpp
 endif()
-target_link_libraries(ComfyLive PRIVATE Qt6::Widgets Qt6::Network $<$<PLATFORM_ID:Windows>:winmm>)   # winmm: AudioPlayer (MCI)
+target_link_libraries(ComfyLive PRIVATE Qt6::Widgets Qt6::Network "$<$<PLATFORM_ID:Windows>:winmm;iphlpapi;ws2_32>")   # winmm: AudioPlayer (MCI); iphlpapi: ComfyProcess::stopLocal
 # The local ComfyUI that "Start local ComfyUI" runs (main.py and its .venv); changeable in the window.
 target_compile_definitions(ComfyLive PRIVATE COMFYLIVE_DEFAULT_COMFY_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../_comfyui/ComfyUI"
     # Transpose: the TOMS copy of ffmpeg (tools/get_ffmpeg.cmd) when ComfyLive sits in TOMS/AIGamestyle; else next to the exe or PATH

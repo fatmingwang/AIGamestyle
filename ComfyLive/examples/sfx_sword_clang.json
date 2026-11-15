@@ -1,0 +1,7 @@
+{
+    "_comment": "Metal collision: sword on shield, one hit.  ComfyLive.exe --make=sfx_sword_clang.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a steel sword striking a metal shield, sharp metallic clang with a short ring, single hit, close, sound effect",
+    "seconds": 1.5,
+    "seed": 11
+}

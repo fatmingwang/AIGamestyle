@@ -1,0 +1,6 @@
+{
+    "_comment": "Metal collision: two blades clashing twice.  ComfyLive.exe --make=sfx_swords_clash.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "two steel swords clashing twice, metallic scrape and ring, sword fight, close, sound effect",
+    "seconds": 2
+}

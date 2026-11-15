@@ -1,0 +1,6 @@
+{
+    "_comment": "Creature: a growl for a monster's attack.  ComfyLive.exe --make=sfx_monster_growl.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a large monster growling, low and threatening, close, creature sound effect",
+    "seconds": 2.5
+}

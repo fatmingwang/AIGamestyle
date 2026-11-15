@@ -57,6 +57,21 @@ void ComfyClient::ping(const std::function<void(bool)>& done)
     });
 }
 
+void ComfyClient::freeMemory(const QString& server, const std::function<void()>& done)
+{
+    // POST /free on another ComfyUI (nothing there: nothing to free). Its models leave the GPU before ours load.
+    QNetworkRequest request(QUrl(QStringLiteral("http://") + server.trimmed() + QStringLiteral("/free")));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setTransferTimeout(3000);
+    QNetworkReply* reply = net_.post(request, QByteArrayLiteral("{\"unload_models\": true, \"free_memory\": true}"));
+    connect(reply, &QNetworkReply::finished, this, [this, reply, server, done] {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError)
+            emit logLine(QStringLiteral("asked %1 to free its GPU memory").arg(server));
+        done();
+    });
+}
+
 void ComfyClient::connectToServer(const QString& server)
 {
     disconnectFromServer();

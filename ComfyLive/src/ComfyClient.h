@@ -36,6 +36,9 @@ public:
     void interrupt();
     void deleteQueued(const QStringList& promptIds);
     void ping(const std::function<void(bool)>& done);
+    // Another ComfyUI (the speech one, or the main one) unloads its models: the GPU has 12 GB, not room for both. done
+    // is called either way (nothing at that address is fine).
+    void freeMemory(const QString& server, const std::function<void()>& done);
     // The graph a queued prompt was sent with, exactly (the last 50 prompts): what a song's settings file keeps.
     QJsonObject sentGraph(const QString& promptId) const { return sent_.value(promptId); }   // GET /system_stats: is a server there at all?
 

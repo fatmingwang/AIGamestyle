@@ -1,0 +1,6 @@
+{
+    "_comment": "UI / reward: coins.  ComfyLive.exe --make=sfx_coins.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a handful of gold coins dropping onto a wooden table, bright metallic jingle, close",
+    "seconds": 2
+}

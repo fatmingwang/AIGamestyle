@@ -1,0 +1,10 @@
+{
+    "_comment": "VoiceDesign in Chinese: a small fairy companion.  ComfyLive.exe --make=voice_zh_fairy_girl.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "voice",
+    "text": [
+        "嘿！你終於醒啦！",
+        "別怕，我是小精靈露露，我會陪你一起爬到塔頂的！"
+    ],
+    "language": "Chinese",
+    "voice": "A tiny fairy girl, high bright voice, playful and excited, speaking quickly."
+}

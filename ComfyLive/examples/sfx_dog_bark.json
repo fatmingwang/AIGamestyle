@@ -1,0 +1,7 @@
+{
+    "_comment": "Animal: two barks, 3 s.  ComfyLive.exe --make=sfx_dog_bark.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a medium-sized dog barking twice, loud and close, outdoors, clean field recording, sound effect",
+    "seconds": 3,
+    "seed": 1
+}

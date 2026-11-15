@@ -1,0 +1,6 @@
+{
+    "_comment": "Animal / ambience: birdsong, 10 s, loops well under a town or forest scene.  ComfyLive.exe --make=sfx_birds_morning.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "small songbirds chirping and singing in a quiet morning forest, gentle, no wind, field recording",
+    "seconds": 10
+}

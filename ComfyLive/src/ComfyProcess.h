@@ -22,6 +22,18 @@ public:
     // keep: the next start() runs ComfyUI detached, so it stays up after this program exits (stop() leaves it alone);
     // the next `--song` or window finds it running and starts at once.
     void setKeepRunning(bool keep) { keepRunning_ = keep; }
+    // Which ComfyUI this is: its venv under the ComfyUI folder (".venv"; the speech one ".venv-speech"), the only custom
+    // nodes it loads (empty: all of them, or none without customNodes), its log file beside the ComfyUI folder.
+    void setLaunch(const QString& venv, const QStringList& onlyCustomNodes, const QString& logName)
+    {
+        venv_ = venv;
+        onlyCustomNodes_ = onlyCustomNodes;
+        logName_ = logName;
+    }
+    // Stops the ComfyUI that listens on 127.0.0.1:port, whoever started it (an earlier ComfyLive run that kept it, or a
+    // hand-started one): only a python process is ended, with the venv's python.exe launcher above it. True when one was
+    // stopped; message says what happened either way.
+    static bool stopLocal(quint16 port, QString* message);
     QString logPath() const { return logPath_; }
 
 signals:
@@ -39,4 +51,8 @@ private:
     int waitedMs_ = 0;
     bool keepRunning_ = false;
     QString logPath_;
+    QString venv_ = QStringLiteral(".venv");
+    QStringList onlyCustomNodes_;
+    QString logName_ = QStringLiteral("comfylive_server.log");
+    qint64 detachedPid_ = 0;   // a kept (detached) ComfyUI while it starts: watched for an early exit
 };

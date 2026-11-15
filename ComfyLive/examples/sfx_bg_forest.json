@@ -1,0 +1,7 @@
+{
+    "_comment": "Background: forest ambience for a stage, 20 s.  ComfyLive.exe --make=sfx_bg_forest.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "forest ambience, light wind in the leaves, distant birds, a small stream, calm, stereo field recording",
+    "seconds": 20,
+    "avoid": "music, speech, dog, sudden loud noise, low quality"
+}

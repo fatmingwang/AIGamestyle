@@ -1,0 +1,7 @@
+{
+    "_comment": "Background: a tower floor or dungeon, 20 s.  ComfyLive.exe --make=sfx_bg_dungeon.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "dark stone dungeon ambience, slow water drips, faint low wind, distant chains, echo, eerie",
+    "seconds": 20,
+    "avoid": "music, speech, sudden loud noise, low quality"
+}

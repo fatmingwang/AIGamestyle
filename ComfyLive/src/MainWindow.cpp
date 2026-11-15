@@ -66,30 +66,39 @@ MainWindow::MainWindow(QWidget* parent)
     connect(&liveTimer_, &QTimer::timeout, this, &MainWindow::generate);
 
     connect(&client_, &ComfyClient::logLine, this, &MainWindow::log);
-    connect(&server_, &ComfyProcess::logLine, this, &MainWindow::log);
-    connect(&server_, &ComfyProcess::up, this, [this] {
-        startedServer_ = true;
-        client_.connectToServer(serverEdit_->text());
-    });
-    connect(&server_, &ComfyProcess::failed, this, [this](const QString& why) {
-        setStatus(tr("ComfyUI did not start"));
-        log(why);
-        startServerBtn_->setEnabled(true);
-        QMessageBox::warning(this, tr("ComfyLive"), why);
-    });
+    speechServer_.setLaunch(QStringLiteral(".venv-speech"), {QStringLiteral("ComfyUI-Qwen-TTS")},
+                            QStringLiteral("comfylive_speech_server.log"));
+    for (ComfyProcess* p : {&server_, &speechServer_}) {
+        connect(p, &ComfyProcess::logLine, this, &MainWindow::log);
+        connect(p, &ComfyProcess::up, this, [this] {
+            startedServer_ = true;
+            client_.connectToServer(targetServer());
+        });
+        connect(p, &ComfyProcess::failed, this, [this](const QString& why) {
+            setStatus(tr("ComfyUI did not start"));
+            log(why);
+            startServerBtn_->setEnabled(true);
+            QMessageBox::warning(this, tr("ComfyLive"), why);
+        });
+    }
     connect(&client_, &ComfyClient::connected, this, [this] {
         setStatus(tr("Connected to %1").arg(client_.server()));
         connectBtn_->setText(tr("Reconnect"));
-        startServerBtn_->setEnabled(!server_.isRunning());
+        startServerBtn_->setEnabled(true);
         for (const QString& line : workflow_.fixMissingChoices(client_.objectInfo()))
             log(line);
         buildParams();
         generateBtn_->setEnabled(true);
         emit ready();
+        if (generateWhenConnected_) {   // Generate asked for while switching to the graph's ComfyUI
+            generateWhenConnected_ = false;
+            generate();
+        }
     });
     connect(&client_, &ComfyClient::connectionFailed, this, [this](const QString& why) {
-        setStatus(tr("Not connected"));
-        log(tr("cannot reach %1: %2").arg(serverEdit_->text(), why));
+        generateWhenConnected_ = false;
+        setStatus(tr("No ComfyUI at %1: press Start local ComfyUI, or start it yourself").arg(client_.server()));
+        log(tr("cannot reach %1: %2").arg(client_.server(), why));
         startServerBtn_->setEnabled(true);
     });
     connect(&client_, &ComfyClient::disconnected, this, [this] { setStatus(tr("Connection lost: retrying ...")); });
@@ -199,6 +208,7 @@ MainWindow::~MainWindow()
     }
     client_.disconnect(this);
     server_.disconnect(this);
+    speechServer_.disconnect(this);
     liveTimer_.stop();
 }
 
@@ -238,14 +248,24 @@ void MainWindow::buildUi()
     customNodesCheck_ = new QCheckBox(tr("Load custom nodes (slower start; needed by graphs that use them)"), serverBox);
     customNodesCheck_->setChecked(true);
     stopServerCheck_ = new QCheckBox(tr("Stop the ComfyUI I started when closing"), serverBox);
-    stopServerCheck_->setChecked(true);
+    stopServerCheck_->setToolTip(tr("Off (the default): ComfyUI keeps running after ComfyLive closes, so the next start is "
+                                    "instant. Stop it with Stop ComfyUI, or ComfyLive.exe --comfy-stop"));
+    stopServerCheck_->setChecked(false);
     auto* buttons = new QHBoxLayout;
     connectBtn_ = new QPushButton(tr("Connect"), serverBox);
     startServerBtn_ = new QPushButton(tr("Start local ComfyUI"), serverBox);
+    auto* stopComfyBtn = new QPushButton(tr("Stop ComfyUI"), serverBox);
+    stopComfyBtn->setToolTip(tr("Stop the ComfyUIs on this PC (Server and Speech server), whoever started them"));
     buttons->addWidget(connectBtn_);
     buttons->addWidget(startServerBtn_);
+    buttons->addWidget(stopComfyBtn);
+    connect(stopComfyBtn, &QPushButton::clicked, this, &MainWindow::onStopServerClicked);
     statusLabel_ = new QLabel(tr("Not connected"), serverBox);
+    speechServerEdit_ = new QLineEdit(QStringLiteral("127.0.0.1:8189"), serverBox);
+    speechServerEdit_->setToolTip(tr("The speech ComfyUI (its own .venv-speech, Qwen3-TTS only): speech graphs run here, "
+                                     "every other graph on Server"));
     sf->addRow(tr("Server"), serverEdit_);
+    sf->addRow(tr("Speech server"), speechServerEdit_);
     sf->addRow(tr("ComfyUI folder"), comfyRootEdit_);
     sf->addRow(customNodesCheck_);
     sf->addRow(stopServerCheck_);
@@ -259,10 +279,13 @@ void MainWindow::buildUi()
     openBtn->setToolTip(tr("A ComfyUI graph saved with Workflow > Export (API)"));
     auto* saveBtn = new QPushButton(tr("Save graph..."), left);
     auto* builtInBtn = new QPushButton(tr("Built-in"), left);
-    builtInBtn->setToolTip(tr("A built-in graph: SDXL text to image, or ACE-Step 1.5 text to music"));
+    builtInBtn->setToolTip(tr("A built-in graph: SDXL text to image, ACE-Step 1.5 text to music, Stable Audio Open text to sound effect, or Qwen3-TTS text to speech"));
     auto* builtInMenu = new QMenu(builtInBtn);
     builtInMenu->addAction(tr("Text to image (SDXL)"), this, [this] { setWorkflow(Workflow::textToImage()); });
     builtInMenu->addAction(tr("Text to music (ACE-Step 1.5)"), this, [this] { setWorkflow(Workflow::textToMusic()); });
+    builtInMenu->addAction(tr("Text to sound effect (Stable Audio Open)"), this, [this] { setWorkflow(Workflow::textToSoundEffect()); });
+    builtInMenu->addAction(tr("Text to speech, preset voice (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeech()); });
+    builtInMenu->addAction(tr("Text to speech, voice from a description (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeechDesigned()); });
     builtInBtn->setMenu(builtInMenu);
     auto* helpBtn = new QPushButton(QStringLiteral("?"), left);
     helpBtn->setFixedWidth(28);
@@ -335,7 +358,7 @@ void MainWindow::buildUi()
     playBtn_ = new QPushButton(style()->standardIcon(QStyle::SP_MediaPlay), tr("Play"), audioRow_);
     audioLabel_ = new QLabel(audioRow_);
     openAudioBtn_ = new QPushButton(tr("Open in player"), audioRow_);
-    openAudioBtn_->setToolTip(tr("Open the song in Windows' own player (for a format ComfyLive cannot play)"));
+    openAudioBtn_->setToolTip(tr("Open the audio in Windows' own player (for a format ComfyLive cannot play)"));
     saveAudioBtn_ = new QPushButton(tr("Save audio..."), audioRow_);
     arl->addWidget(playBtn_);
     arl->addWidget(audioLabel_, 1);
@@ -780,7 +803,7 @@ void MainWindow::onSaveAudio()
         return;
     COMFYLIVE_SETTINGS(s);
     const QString suffix = QFileInfo(from).suffix();
-    const QString path = QFileDialog::getSaveFileName(this, tr("Save the song"), QDir(s.value(QStringLiteral("lastAudioDir")).toString()).filePath(QFileInfo(from).fileName()),
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save the audio"),QDir(s.value(QStringLiteral("lastAudioDir")).toString()).filePath(QFileInfo(from).fileName()),
                                                       tr("Audio (*.%1)").arg(suffix));
     if (path.isEmpty())
         return;
@@ -809,10 +832,18 @@ void MainWindow::randomizeSeeds()
     }
 }
 
+QString MainWindow::targetServer() const
+{
+    return (workflow_.needsSpeechServer() ? speechServerEdit_ : serverEdit_)->text().trimmed();
+}
+
 void MainWindow::generate()
 {
-    if (!client_.isReady()) {
-        log(tr("not connected"));
+    if (!client_.isReady() || client_.server() != targetServer()) {
+        // the graph's own ComfyUI (the speech one, or the main one): connect, then generate
+        generateWhenConnected_ = true;
+        setStatus(tr("Connecting to %1 ...").arg(targetServer()));
+        client_.connectToServer(targetServer());
         return;
     }
     if (randomSeedCheck_->isChecked())
@@ -824,7 +855,10 @@ void MainWindow::generate()
     }
     currentId_.clear();
     saveSettings();
-    client_.queuePrompt(workflow_.graph());
+    // the other ComfyUI lets go of the GPU first (12 GB: not room for a picture or song model and the speech model)
+    const QString other = (client_.server() == speechServerEdit_->text().trimmed() ? serverEdit_ : speechServerEdit_)->text().trimmed();
+    const QJsonObject graph = workflow_.graph();
+    client_.freeMemory(other, [this, graph] { client_.queuePrompt(graph); });
 }
 
 void MainWindow::setSteps(int steps)
@@ -848,15 +882,15 @@ void MainWindow::stopRun()
 
 void MainWindow::startUp(bool startServer)
 {
-    setStatus(tr("Looking for ComfyUI at %1 ...").arg(serverEdit_->text()));
-    client_.setServer(serverEdit_->text());
+    setStatus(tr("Looking for ComfyUI at %1 ...").arg(targetServer()));
+    client_.setServer(targetServer());
     client_.ping([this, startServer](bool up) {
         if (up) {
-            client_.connectToServer(serverEdit_->text());
+            client_.connectToServer(targetServer());
         } else if (startServer) {
             onStartServerClicked();
         } else {
-            setStatus(tr("No ComfyUI at %1: press Start local ComfyUI, or start it yourself").arg(serverEdit_->text()));
+            setStatus(tr("No ComfyUI at %1: press Start local ComfyUI, or start it yourself").arg(targetServer()));
             startServerBtn_->setEnabled(true);
         }
     });
@@ -866,27 +900,60 @@ void MainWindow::onConnectClicked()
 {
     saveSettings();
     setStatus(tr("Connecting ..."));
-    client_.connectToServer(serverEdit_->text());
+    client_.connectToServer(targetServer());
 }
 
 void MainWindow::onStartServerClicked()
 {
     saveSettings();
-    const QUrl u(QStringLiteral("http://") + serverEdit_->text().trimmed());
+    const QUrl u(QStringLiteral("http://") + targetServer());   // the ComfyUI this graph runs on
     if (u.host() != QStringLiteral("127.0.0.1") && u.host() != QStringLiteral("localhost")) {
         QMessageBox::information(this, tr("ComfyLive"), tr("Start only works for a ComfyUI on this PC (127.0.0.1)."));
         return;
     }
+    ComfyProcess& process = workflow_.needsSpeechServer() ? speechServer_ : server_;
     startServerBtn_->setEnabled(false);
+    process.setKeepRunning(!stopServerCheck_->isChecked());   // kept: started detached, it outlives this window
     setStatus(tr("Starting ComfyUI: the first start can take a minute ..."));
-    server_.start(comfyRootEdit_->text(), quint16(u.port(8188)), customNodesCheck_->isChecked());
+    process.start(comfyRootEdit_->text(), quint16(u.port(8188)), customNodesCheck_->isChecked());
+}
+
+void MainWindow::onStopServerClicked()
+{
+    stopRun();
+    client_.disconnectFromServer();
+    stopLocalServers();
+    startedServer_ = false;
+    setStatus(tr("Not connected"));
+    connectBtn_->setText(tr("Connect"));
+    generateBtn_->setEnabled(false);
+    startServerBtn_->setEnabled(true);
+}
+
+void MainWindow::stopLocalServers()
+{
+    // both: the main ComfyUI and the speech one (each only when it is on this PC)
+    server_.stop();
+    speechServer_.stop();
+    for (QLineEdit* edit : {serverEdit_, speechServerEdit_}) {
+        const QUrl u(QStringLiteral("http://") + edit->text().trimmed());
+        if (u.host() != QStringLiteral("127.0.0.1") && u.host() != QStringLiteral("localhost"))
+            continue;
+        QString message;
+        ComfyProcess::stopLocal(quint16(u.port(8188)), &message);
+        log(message);
+    }
 }
 
 void MainWindow::setWorkflow(const Workflow& w)
 {
     stopRun();
     workflow_ = w;
-    if (client_.isReady()) {
+    if (!client_.server().isEmpty() && client_.server() != targetServer()) {   // the graph runs on the other ComfyUI
+        log(tr("this graph runs on %1").arg(targetServer()));
+        workflowLabel_->setText(tr("Graph: <b>%1</b>").arg(workflow_.name().toHtmlEscaped()));
+        client_.connectToServer(targetServer());   // its node list builds the form once connected
+    } else if (client_.isReady()) {
         for (const QString& line : workflow_.fixMissingChoices(client_.objectInfo()))
             log(line);
         buildParams();
@@ -900,7 +967,7 @@ void MainWindow::onOpenWorkflow()
 {
     COMFYLIVE_SETTINGS(s);
     const QString path = QFileDialog::getOpenFileName(this, tr("Open a ComfyUI graph (API format)"), s.value(QStringLiteral("lastDir")).toString(),
-                                                      tr("ComfyUI API graph or song settings (*.json)"));
+                                                      tr("ComfyUI API graph, or a song's or sound's settings (*.json)"));
     if (path.isEmpty())
         return;
     s.setValue(QStringLiteral("lastDir"), QFileInfo(path).absolutePath());
@@ -912,10 +979,16 @@ void MainWindow::onOpenWorkflow()
     }
     setWorkflow(w);
     log(tr("graph: ") + QDir::toNativeSeparators(path));
+    if (w.loadedFromRecipe()) {
+        if (!w.recipeRandomSeed())
+            randomSeedCheck_->setChecked(false);   // the recipe's own seed
+        saveSettings();
+        log(tr("a recipe for the built-in graph: its values are in the form; Generate makes it"));
+    }
     if (w.fromSettings()) {
         randomSeedCheck_->setChecked(false);   // the same seed: the same song
         saveSettings();
-        log(tr("a song's settings: the same values and seed; Generate makes that song again (New seed each run is off)"));
+        log(tr("saved settings: the same values and seed; Generate makes that song or sound again (New seed each run is off)"));
     }
 }
 
@@ -965,9 +1038,10 @@ void MainWindow::loadSettings()
 {
     COMFYLIVE_SETTINGS(s);
     serverEdit_->setText(s.value(QStringLiteral("server"), serverEdit_->text()).toString());
+    speechServerEdit_->setText(s.value(QStringLiteral("speechServer"), speechServerEdit_->text()).toString());
     comfyRootEdit_->setText(s.value(QStringLiteral("comfyRoot"), comfyRootEdit_->text()).toString());
     customNodesCheck_->setChecked(s.value(QStringLiteral("customNodes"), true).toBool());
-    stopServerCheck_->setChecked(s.value(QStringLiteral("stopServer"), true).toBool());
+    stopServerCheck_->setChecked(s.value(QStringLiteral("stopServerOnClose"), false).toBool());
     liveDelaySpin_->setValue(s.value(QStringLiteral("liveDelayMs"), 600).toInt());
     randomSeedCheck_->setChecked(s.value(QStringLiteral("randomSeed"), false).toBool());
     const QByteArray graph = s.value(QStringLiteral("graph")).toByteArray();
@@ -986,9 +1060,10 @@ void MainWindow::saveSettings() const
 {
     COMFYLIVE_SETTINGS(s);
     s.setValue(QStringLiteral("server"), serverEdit_->text());
+    s.setValue(QStringLiteral("speechServer"), speechServerEdit_->text());
     s.setValue(QStringLiteral("comfyRoot"), comfyRootEdit_->text());
     s.setValue(QStringLiteral("customNodes"), customNodesCheck_->isChecked());
-    s.setValue(QStringLiteral("stopServer"), stopServerCheck_->isChecked());
+    s.setValue(QStringLiteral("stopServerOnClose"), stopServerCheck_->isChecked());
     s.setValue(QStringLiteral("liveDelayMs"), liveDelaySpin_->value());
     s.setValue(QStringLiteral("randomSeed"), randomSeedCheck_->isChecked());
     s.setValue(QStringLiteral("graph"), QJsonDocument(workflow_.graph()).toJson(QJsonDocument::Compact));
@@ -1000,7 +1075,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     saveSettings();
     COMFYLIVE_SETTINGS(s);
     s.setValue(QStringLiteral("geometry"), saveGeometry());
-    if (server_.isRunning() && stopServerCheck_->isChecked())
-        server_.stop();
+    if (stopServerCheck_->isChecked() && (server_.isRunning() || speechServer_.isRunning() || startedServer_))
+        stopLocalServers();
     event->accept();
 }

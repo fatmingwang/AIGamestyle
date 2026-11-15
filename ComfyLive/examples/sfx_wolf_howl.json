@@ -1,0 +1,6 @@
+{
+    "_comment": "Animal: a long howl at night, 6 s.  ComfyLive.exe --make=sfx_wolf_howl.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a lone wolf howling at night, distant, slight echo across a valley, sound effect",
+    "seconds": 6
+}

@@ -1,0 +1,6 @@
+{
+    "_comment": "Background: rain on a roof, 15 s.  ComfyLive.exe --make=sfx_bg_rain.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "steady rain falling on a wooden roof, soft distant thunder, cozy, field recording",
+    "seconds": 15
+}

@@ -1,0 +1,8 @@
+{
+    "_comment": "One sentence, Traditional Chinese text, preset voice Vivian (a Chinese woman).  ComfyLive.exe --make=speech_zh_welcome.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": "歡迎來到魔塔，勇者。每一層樓都藏著你失去的記憶。",
+    "language": "Chinese",
+    "speaker": "Vivian",
+    "seed": 102
+}

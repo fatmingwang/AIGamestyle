@@ -5,11 +5,13 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace {
 
@@ -133,6 +135,217 @@ Workflow Workflow::textToMusic()
     return w;
 }
 
+Workflow Workflow::textToSoundEffect()
+{
+    // ComfyUI's Stable Audio Open 1.0 graph (its "stable audio" example), with the timing conditioning and saving MP3
+    // (Windows plays it without extra codecs). The models: stable-audio-open-1.0.safetensors in checkpoints/ and
+    // t5-base.safetensors in text_encoders/ (README.md). The default: a dog barking.
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("CheckpointLoaderSimple"), QStringLiteral("Model"),
+                                  {{QStringLiteral("ckpt_name"), QStringLiteral("stable-audio-open-1.0.safetensors")}});
+    g[QStringLiteral("2")] = node(QStringLiteral("CLIPLoader"), QStringLiteral("Text encoder"),
+                                  {{QStringLiteral("clip_name"), QStringLiteral("t5-base.safetensors")},
+                                   {QStringLiteral("type"), QStringLiteral("stable_audio")}});
+    g[QStringLiteral("3")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Sound"),
+                                  {{QStringLiteral("text"), QStringLiteral("a medium-sized dog barking twice, loud and close, outdoors, "
+                                                                           "clean field recording, sound effect")},
+                                   {QStringLiteral("clip"), link("2", 0)}});
+    g[QStringLiteral("4")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Avoid"),
+                                  {{QStringLiteral("text"), QStringLiteral("music, speech, human voice, background noise, hum, low quality, distorted")},
+                                   {QStringLiteral("clip"), link("2", 0)}});
+    g[QStringLiteral("5")] = node(QStringLiteral("ConditioningStableAudio"), QStringLiteral("Timing"),
+                                  {{QStringLiteral("seconds_start"), 0.0}, {QStringLiteral("seconds_total"), 3.0},
+                                   {QStringLiteral("positive"), link("3", 0)}, {QStringLiteral("negative"), link("4", 0)}});
+    g[QStringLiteral("6")] = node(QStringLiteral("EmptyLatentAudio"), QStringLiteral("Length"),
+                                  {{QStringLiteral("seconds"), 3.0}, {QStringLiteral("batch_size"), 1}});
+    g[QStringLiteral("7")] = node(QStringLiteral("KSampler"), QStringLiteral("Sampler"),
+                                  {{QStringLiteral("seed"), 1}, {QStringLiteral("steps"), 50}, {QStringLiteral("cfg"), 5.0},
+                                   {QStringLiteral("sampler_name"), QStringLiteral("dpmpp_3m_sde_gpu")},
+                                   {QStringLiteral("scheduler"), QStringLiteral("exponential")}, {QStringLiteral("denoise"), 1.0},
+                                   {QStringLiteral("model"), link("1", 0)}, {QStringLiteral("positive"), link("5", 0)},
+                                   {QStringLiteral("negative"), link("5", 1)}, {QStringLiteral("latent_image"), link("6", 0)}});
+    g[QStringLiteral("8")] = node(QStringLiteral("VAEDecodeAudio"), QStringLiteral("Decode"),
+                                  {{QStringLiteral("samples"), link("7", 0)}, {QStringLiteral("vae"), link("1", 2)}});
+    g[QStringLiteral("9")] = node(QStringLiteral("SaveAudioMP3"), QStringLiteral("Save"),
+                                  {{QStringLiteral("filename_prefix"), QStringLiteral("audio/ComfyLive_sfx")}, {QStringLiteral("quality"), QStringLiteral("V0")},
+                                   {QStringLiteral("audio"), link("8", 0)}});
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to sound effect, Stable Audio Open (built-in)");
+    return w;
+}
+
+namespace {
+
+// The Qwen3-TTS node's sampling inputs, the same on both speech nodes (ComfyUI-Qwen-TTS's own defaults).
+QJsonObject qwenSampling(QJsonObject in)
+{
+    in[QStringLiteral("model_choice")] = QStringLiteral("1.7B");
+    in[QStringLiteral("device")] = QStringLiteral("auto");
+    in[QStringLiteral("precision")] = QStringLiteral("bf16");
+    in[QStringLiteral("seed")] = 1;
+    in[QStringLiteral("max_new_tokens")] = 2048;
+    in[QStringLiteral("top_p")] = 1.0;
+    in[QStringLiteral("top_k")] = 50;
+    in[QStringLiteral("temperature")] = 0.9;
+    in[QStringLiteral("repetition_penalty")] = 1.05;
+    in[QStringLiteral("attention")] = QStringLiteral("auto");
+    // on: the speech model leaves the GPU after each run (ComfyUI's /free cannot reach it), so the main ComfyUI's
+    // picture and music models have the 12 GB again
+    in[QStringLiteral("unload_model_after_generate")] = true;
+    return in;
+}
+
+QJsonObject saveMp3(const char* prefix, const char* from)
+{
+    return node(QStringLiteral("SaveAudioMP3"), QStringLiteral("Save"),
+                {{QStringLiteral("filename_prefix"), QString::fromLatin1(prefix)}, {QStringLiteral("quality"), QStringLiteral("V0")},
+                 {QStringLiteral("audio"), link(from, 0)}});
+}
+
+}  // namespace
+
+Workflow Workflow::textToSpeech()
+{
+    // ComfyUI-Qwen-TTS's CustomVoice node (custom_nodes/ComfyUI-Qwen-TTS; models in models/qwen-tts, README.md): one of
+    // 9 preset speakers says the text in the chosen language; "instruct" adds a tone ("angry", "whispering").
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("FB_Qwen3TTSCustomVoice"), QStringLiteral("Speech"),
+                                  qwenSampling({{QStringLiteral("text"), QStringLiteral("The gate of the tower is open. Climb, young hero, "
+                                                                                        "and do not look back.")},
+                                                {QStringLiteral("speaker"), QStringLiteral("Ryan")},
+                                                {QStringLiteral("language"), QStringLiteral("English")},
+                                                {QStringLiteral("instruct"), QString()}}));
+    g[QStringLiteral("2")] = saveMp3("audio/ComfyLive_speech", "1");
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to speech, Qwen3-TTS preset voice (built-in)");
+    return w;
+}
+
+Workflow Workflow::textToSpeechDesigned()
+{
+    // ComfyUI-Qwen-TTS's VoiceDesign node: the voice described in words ("instruct") instead of a preset speaker.
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("FB_Qwen3TTSVoiceDesign"), QStringLiteral("Speech"),
+                                  qwenSampling({{QStringLiteral("text"), QStringLiteral("So, another climber. Many have come before you, "
+                                                                                        "and the tower remembers every one of them.")},
+                                                {QStringLiteral("instruct"), QStringLiteral("An old male wizard, deep and slightly raspy voice, "
+                                                                                            "speaking slowly, calm and a little mysterious.")},
+                                                {QStringLiteral("language"), QStringLiteral("English")}}));
+    g[QStringLiteral("2")] = saveMp3("audio/ComfyLive_voice", "1");
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to speech, Qwen3-TTS voice from a description (built-in)");
+    return w;
+}
+
+QStringList Workflow::builtInIds()
+{
+    return {QStringLiteral("image"), QStringLiteral("music"), QStringLiteral("sfx"), QStringLiteral("speech"), QStringLiteral("voice")};
+}
+
+bool Workflow::builtIn(const QString& id, Workflow* out)
+{
+    if (id == QStringLiteral("image"))
+        *out = textToImage();
+    else if (id == QStringLiteral("music"))
+        *out = textToMusic();
+    else if (id == QStringLiteral("sfx"))
+        *out = textToSoundEffect();
+    else if (id == QStringLiteral("speech"))
+        *out = textToSpeech();
+    else if (id == QStringLiteral("voice"))
+        *out = textToSpeechDesigned();
+    else
+        return false;
+    return true;
+}
+
+bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
+{
+    const QString id = o.value(QStringLiteral("graph")).toString(QStringLiteral("music"));   // an old song file has none
+    Workflow w;
+    if (!builtIn(id, &w)) {
+        if (why)
+            *why = QStringLiteral("\"graph\": \"%1\" is not a built-in graph (%2)").arg(id, builtInIds().join(QStringLiteral(", ")));
+        return false;
+    }
+    // friendly names for inputs whose plain name is on two nodes (the sound graph's two prompts)
+    QHash<QString, QString> alias;
+    if (id == QStringLiteral("sfx")) {
+        alias.insert(QStringLiteral("prompt"), QStringLiteral("3/text"));
+        alias.insert(QStringLiteral("avoid"), QStringLiteral("4/text"));
+    } else if (id == QStringLiteral("image")) {
+        alias.insert(QStringLiteral("prompt"), QStringLiteral("6/text"));
+        alias.insert(QStringLiteral("avoid"), QStringLiteral("7/text"));
+    } else if (id == QStringLiteral("voice")) {
+        alias.insert(QStringLiteral("voice"), QStringLiteral("1/instruct"));
+    } else if (id == QStringLiteral("speech")) {
+        alias.insert(QStringLiteral("style"), QStringLiteral("1/instruct"));
+    }
+    QJsonObject values;
+    static const QStringList reserved{QStringLiteral("out"), QStringLiteral("random-seed"), QStringLiteral("params"),
+                                      QStringLiteral("name"), QStringLiteral("graph"), QStringLiteral("comfylive")};
+    for (auto it = o.begin(); it != o.end(); ++it) {
+        if (reserved.contains(it.key()) || it.key().startsWith(QLatin1Char('_')))   // "_comment": notes for people
+            continue;
+        values[it.key()] = it.value();
+    }
+    const QJsonObject more = o.value(QStringLiteral("params")).toObject();
+    for (auto it = more.begin(); it != more.end(); ++it)
+        values[it.key()] = it.value();
+    bool hasSeed = false;
+    for (auto it = values.begin(); it != values.end(); ++it) {
+        const QString key = alias.value(it.key(), it.key());
+        QJsonValue v = it.value();
+        if (v.isArray()) {   // lines: tags with ", ", the sentences of a speech with a space, else one per line
+            QStringList parts;
+            for (const QJsonValue& line : v.toArray())
+                parts << line.toString();
+            const QString input = key.section(QLatin1Char('/'), -1);
+            const bool speechText = (id == QStringLiteral("speech") || id == QStringLiteral("voice")) && input == QStringLiteral("text");
+            v = parts.join(input == QStringLiteral("tags") ? QStringLiteral(", ") : speechText ? QStringLiteral(" ") : QStringLiteral("\n"));
+        }
+        bool found = false;
+        for (auto n = w.graph_.begin(); n != w.graph_.end(); ++n) {
+            const QString nodeId = n.key();
+            const QJsonObject inputs = n.value().toObject().value(QStringLiteral("inputs")).toObject();
+            const QString input = key.contains(QLatin1Char('/')) ? key.section(QLatin1Char('/'), 1) : key;
+            if ((key.contains(QLatin1Char('/')) && key.section(QLatin1Char('/'), 0, 0) != nodeId) || !inputs.contains(input) ||
+                isLink(inputs.value(input)))
+                continue;
+            w.setValue(nodeId, input, v);
+            found = true;
+            hasSeed = hasSeed || input == QStringLiteral("seed") || input == QStringLiteral("noise_seed");
+        }
+        if (!found) {
+            if (why)
+                *why = QStringLiteral("no input \"%1\" in the built-in \"%2\" graph").arg(it.key(), id);
+            return false;
+        }
+    }
+    *this = w;
+    fromRecipe_ = true;
+    recipeRandomSeed_ = o.value(QStringLiteral("random-seed")).toBool(!hasSeed);
+    recipeOut_ = o.value(QStringLiteral("out")).toString();
+    if (o.contains(QStringLiteral("name")))
+        name_ = o.value(QStringLiteral("name")).toString();
+    return true;
+}
+
+bool Workflow::isRecipe(const QJsonObject& o)
+{
+    if (o.value(QStringLiteral("graph")).isString() || o.value(QStringLiteral("comfylive")).toString() == QStringLiteral("recipe"))
+        return true;
+    if (o.value(QStringLiteral("comfylive")).toString() == QStringLiteral("settings"))
+        return false;
+    for (auto it = o.begin(); it != o.end(); ++it)   // an API graph: every entry a node
+        if (!it.key().startsWith(QLatin1Char('_')) && !it.value().toObject().contains(QStringLiteral("class_type")))
+            return !o.contains(QStringLiteral("nodes"));   // the editor's format is not a recipe either
+    return false;
+}
+
 QString Workflow::settingsPathFor(const QString& audioPath)
 {
     const QFileInfo f(audioPath);
@@ -148,8 +361,8 @@ bool Workflow::writeSettings(const QString& audioPath, const QJsonObject& graph,
     o[QStringLiteral("name")] = name;
     o[QStringLiteral("audio")] = QFileInfo(audioPath).fileName();
     o[QStringLiteral("created")] = QDateTime::currentDateTime().toString(Qt::ISODate);
-    o[QStringLiteral("how")] = QStringLiteral("ComfyLive: Open graph... with this file, then Generate: the same song again "
-                                              "(New seed each run is turned off for it)");
+    o[QStringLiteral("how")] = QStringLiteral("ComfyLive: Open graph... with this file, then Generate: the same song or sound "
+                                              "again (New seed each run is turned off for it)");
     o[QStringLiteral("graph")] = graph;
     QFile f(settingsPathFor(audioPath));
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
@@ -184,6 +397,7 @@ bool Workflow::fromJson(const QJsonObject& graphIn, QString* why)
     // a song's settings file: the graph inside it
     fromSettings_ = graphIn.value(QStringLiteral("comfylive")).toString() == QStringLiteral("settings") &&
                     graphIn.value(QStringLiteral("graph")).isObject();
+    fromRecipe_ = false;
     const QJsonObject graph = fromSettings_ ? graphIn.value(QStringLiteral("graph")).toObject() : graphIn;
     if (graph.contains(QStringLiteral("nodes")) && graph.value(QStringLiteral("nodes")).isArray()) {
         if (why)
@@ -220,6 +434,13 @@ bool Workflow::load(const QString& path, QString* why)
         if (why)
             *why = err.errorString();
         return false;
+    }
+    if (isRecipe(doc.object())) {
+        if (!fromRecipe(doc.object(), why))
+            return false;
+        if (!doc.object().contains(QStringLiteral("name")))
+            name_ = QFileInfo(path).completeBaseName();
+        return true;
     }
     if (!fromJson(doc.object(), why))
         return false;
@@ -334,15 +555,27 @@ void setInput(QJsonObject& graph, const QString& nodeId, const QString& input, c
 void Workflow::setValue(const QString& nodeId, const QString& input, const QJsonValue& v)
 {
     setInput(graph_, nodeId, input, v);
-    // One song length: the ACE-Step encoder's duration <-> the empty ACE-Step latent's seconds. Only a plain number
-    // follows; an input that is a link is the user's own wiring and stays.
+    // One length, two inputs: an ACE-Step encoder's duration <-> the empty ACE-Step latent's seconds, and Stable Audio's
+    // timing seconds_total <-> the empty audio latent's seconds. Only a plain number follows; an input that is a link is
+    // the user's own wiring and stays.
+    struct Tie { const char* classA; const char* inputA; const char* classB; const char* inputB; };
+    static const Tie ties[] = {
+        {"TextEncodeAceStepAudio", "duration", "EmptyAceStep", "seconds"},
+        {"ConditioningStableAudio", "seconds_total", "EmptyLatentAudio", "seconds"},
+    };
     const QString cls = graph_.value(nodeId).toObject().value(QStringLiteral("class_type")).toString();
-    const bool isEncoder = cls.startsWith(QStringLiteral("TextEncodeAceStepAudio")) && input == QStringLiteral("duration");
-    const bool isLatent = cls.startsWith(QStringLiteral("EmptyAceStep")) && input == QStringLiteral("seconds");
-    if (!isEncoder && !isLatent)
+    QString other, otherClass;
+    for (const Tie& t : ties) {
+        if (cls.startsWith(QLatin1String(t.classA)) && input == QLatin1String(t.inputA)) {
+            other = QLatin1String(t.inputB);
+            otherClass = QLatin1String(t.classB);
+        } else if (cls.startsWith(QLatin1String(t.classB)) && input == QLatin1String(t.inputB)) {
+            other = QLatin1String(t.inputA);
+            otherClass = QLatin1String(t.classA);
+        }
+    }
+    if (other.isEmpty())
         return;
-    const QString other = isEncoder ? QStringLiteral("seconds") : QStringLiteral("duration");
-    const QString otherClass = isEncoder ? QStringLiteral("EmptyAceStep") : QStringLiteral("TextEncodeAceStepAudio");
     QStringList ids;
     for (auto it = graph_.begin(); it != graph_.end(); ++it) {
         const QJsonObject n = it.value().toObject();
@@ -352,6 +585,14 @@ void Workflow::setValue(const QString& nodeId, const QString& input, const QJson
     }
     for (const QString& id : ids)
         setInput(graph_, id, other, v.toDouble());
+}
+
+bool Workflow::needsSpeechServer() const
+{
+    for (auto it = graph_.begin(); it != graph_.end(); ++it)
+        if (it.value().toObject().value(QStringLiteral("class_type")).toString().startsWith(QStringLiteral("FB_Qwen3TTS")))
+            return true;
+    return false;
 }
 
 QJsonValue Workflow::value(const QString& nodeId, const QString& input) const
@@ -365,15 +606,33 @@ QStringList Workflow::fixMissingChoices(const QJsonObject& objectInfo)
     for (const ParamDef& p : params(objectInfo)) {
         if (p.kind != ParamDef::Kind::Combo || p.choices.isEmpty() || p.choices.contains(p.value.toString()))
             continue;
-        // the same family as the missing one: an ACE-Step model for an ACE-Step graph, else an SDXL picture model
-        const bool ace = p.value.toString().contains(QStringLiteral("ace"), Qt::CaseInsensitive);
-        QString pick = p.choices.first();
-        for (const QString& c : p.choices)
-            if (ace ? c.contains(QStringLiteral("ace"), Qt::CaseInsensitive)
-                    : (c.contains(QStringLiteral("Juggernaut"), Qt::CaseInsensitive) || c.contains(QStringLiteral("sd_xl"), Qt::CaseInsensitive))) {
-                pick = c;
-                break;
-            }
+        if (p.classType.startsWith(QStringLiteral("FB_Qwen3TTS")))
+            continue;   // the speech node's lists are its own (speakers, languages, sizes), never a model file
+        // the same family as the missing one: an ACE-Step model for an ACE-Step graph, a Stable Audio model or a T5
+        // encoder for a sound graph, else an SDXL picture model. A sound model with nothing of its family on the server
+        // stays as it is (ComfyUI then names the missing file): another family's model would only fail later.
+        const QString was = p.value.toString();
+        auto has = [](const QString& s, const char* word) { return s.contains(QLatin1String(word), Qt::CaseInsensitive); };
+        auto isStableAudio = [&](const QString& s) { return has(s, "stable") && has(s, "audio"); };
+        QStringList family;
+        bool keepWhenNone = true;
+        if (has(was, "ace"))
+            family = p.choices.filter(QStringLiteral("ace"), Qt::CaseInsensitive);
+        else if (isStableAudio(was))
+            std::copy_if(p.choices.begin(), p.choices.end(), std::back_inserter(family), isStableAudio);
+        else if (has(was, "t5"))
+            family = p.choices.filter(QStringLiteral("t5"), Qt::CaseInsensitive);
+        else {
+            keepWhenNone = false;
+            for (const QString& c : p.choices)
+                if (has(c, "Juggernaut") || has(c, "sd_xl"))
+                    family << c;
+        }
+        if (family.isEmpty() && keepWhenNone) {
+            changed << QStringLiteral("%1.%2: \"%3\" is not on the server: download it (README.md)").arg(p.group, p.input, was);
+            continue;
+        }
+        const QString pick = family.isEmpty() ? p.choices.first() : family.first();
         setValue(p.nodeId, p.input, pick);
         changed << QStringLiteral("%1.%2: \"%3\" is not on the server, using \"%4\"").arg(p.group, p.input, p.value.toString(), pick);
     }

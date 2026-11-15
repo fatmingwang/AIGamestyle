@@ -1,0 +1,8 @@
+{
+    "_comment": "A tone with a preset voice: style says how to say it.  ComfyLive.exe --make=speech_en_shopkeeper.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": "Potions, scrolls, a sword or two. Gold first, questions later.",
+    "language": "English",
+    "speaker": "Aiden",
+    "style": "a cheerful, slightly greedy merchant, speaking fast"
+}

@@ -55,6 +55,9 @@ private:
     void onParamChanged();
     void onConnectClicked();
     void onStartServerClicked();
+    void onStopServerClicked();   // the local ComfyUIs, whoever started them (they are never stopped by themselves)
+    void stopLocalServers();
+    QString targetServer() const;   // the speech server for a Qwen3-TTS graph, else the main one
     void onOpenWorkflow();
     void onSaveWorkflow();
     void onSaveImage();
@@ -75,10 +78,12 @@ private:
 
     ComfyClient   client_;
     ComfyProcess  server_;
+    ComfyProcess  speechServer_;            // the speech ComfyUI (.venv-speech, Qwen3-TTS only), port 8189
     Workflow      workflow_;
 
     class QComboBox* languageCombo_ = nullptr;
     QLineEdit*    serverEdit_ = nullptr;
+    QLineEdit*    speechServerEdit_ = nullptr;
     QLineEdit*    comfyRootEdit_ = nullptr;
     QCheckBox*    customNodesCheck_ = nullptr;
     QCheckBox*    stopServerCheck_ = nullptr;
@@ -115,4 +120,5 @@ private:
     int           previews_ = 0;
     bool          startedServer_ = false;
     bool          connectWanted_ = false;
+    bool          generateWhenConnected_ = false;
 };

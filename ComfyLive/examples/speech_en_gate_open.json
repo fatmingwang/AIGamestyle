@@ -1,0 +1,8 @@
+{
+    "_comment": "One sentence, English, preset voice Ryan.  ComfyLive.exe --make=speech_en_gate_open.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": "The gate of the tower is open. Climb, young hero, and do not look back.",
+    "language": "English",
+    "speaker": "Ryan",
+    "seed": 101
+}

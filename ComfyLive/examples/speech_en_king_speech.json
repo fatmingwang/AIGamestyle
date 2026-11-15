@@ -1,0 +1,15 @@
+{
+    "_comment": "A speech: the sentences are joined into one reading (natural pauses at full stops).  ComfyLive.exe --make=speech_en_king_speech.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": [
+        "People of the valley, hear me.",
+        "For seven years the tower has stood silent above our homes.",
+        "Tonight its lights have woken, and the monsters walk the roads again.",
+        "I ask no one to be brave alone. I ask every one of you to stand together.",
+        "Close your doors, light your lamps, and wait for the dawn. The hero is already climbing."
+    ],
+    "language": "English",
+    "speaker": "Ryan",
+    "style": "a proud old king, slow and solemn, speaking to a crowd",
+    "seed": 201
+}

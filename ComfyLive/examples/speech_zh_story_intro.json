@@ -1,0 +1,13 @@
+{
+    "_comment": "A speech in Chinese: a story narration, older male voice Uncle_fu.  ComfyLive.exe --make=speech_zh_story_intro.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": [
+        "很久很久以前，山谷裡有一座沒有人敢靠近的塔。",
+        "傳說塔頂住著一位魔法師，他偷走了所有人的名字。",
+        "有一天，一個什麼都不記得的少年，在塔底醒了過來。",
+        "他只知道一件事：答案就在最上面那一層。"
+    ],
+    "language": "Chinese",
+    "speaker": "Uncle_fu",
+    "style": "a storyteller, warm and slow"
+}

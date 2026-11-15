@@ -1,0 +1,9 @@
+{
+    "_comment": "One short line with a tone (style): Japanese, Ono_anna, shouting.  ComfyLive.exe --make=speech_ja_battle_cry.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "speech",
+    "text": "行くぞ！負けるもんか！",
+    "language": "Japanese",
+    "speaker": "Ono_anna",
+    "style": "determined, shouting a battle cry",
+    "seed": 103
+}

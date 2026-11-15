@@ -1,0 +1,6 @@
+{
+    "_comment": "Metal: a knight in armor walking.  ComfyLive.exe --make=sfx_armor_footsteps.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "footsteps of a knight in heavy metal armor walking on stone, clanking plates, close",
+    "seconds": 4
+}

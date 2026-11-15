@@ -13,9 +13,12 @@
 // Headless (no window; README.md "Headless mode", the same protocol as GameStyleAI's --headless):
 //   ComfyLive.exe --headless [--port=8766] [--host=127.0.0.1] [--server=127.0.0.1:8188] [--graph=g.json] [--start]
 //       a TCP server: one JSON command per line in, NDJSON events out
-//   ComfyLive.exe --song=song.json [--out=song.mp3] [--random-seed] [--keep-comfy] [--server=...] [--comfy-root=...]
-//       one song from a JSON file (a song file or a song's settings file), then exit; starts the local ComfyUI when
-//       nothing answers (and stops it at the end, unless --keep-comfy); exit 0 = the song was written
+//   ComfyLive.exe --make=recipe.json [--out=x.mp3] [--random-seed] [--stop-comfy-on-exit] [--server=...] [--comfy-root=...]
+//       one song, sound or speech from a JSON file (a recipe, a settings file or an API graph; --song= is the same), then
+//       exit; starts the local ComfyUI when nothing answers and leaves it running (--stop-comfy-on-exit: stops it);
+//       exit 0 = the file was written
+//   ComfyLive.exe --comfy-stop[=main|speech|all]    stops the local ComfyUIs (8188 main, 8189 speech; all by default).
+//       ComfyLive never stops one by itself. --speech-server=127.0.0.1:8189 moves the speech one
 //   ComfyLive.exe --headless-test [--start] [--music] [--out=headless_test.png]
 //   ComfyLive.exe --song-test     the song helpers' rules (Singer / Voice tags, key steps); no ComfyUI
 //       the server and a built-in client in one process; exit 0 = ALL CHECKS PASSED
@@ -180,10 +183,11 @@ HeadlessServer::Options headlessOptions(const QStringList& args)
     o.host = optionValue(args, QStringLiteral("--host"), o.host);
     o.port = quint16(optionValue(args, QStringLiteral("--port"), QString::number(o.port)).toUInt());
     o.comfyServer = optionValue(args, QStringLiteral("--server"), o.comfyServer);
+    o.speechServer = optionValue(args, QStringLiteral("--speech-server"), o.speechServer);
     o.comfyRoot = optionValue(args, QStringLiteral("--comfy-root"), QStringLiteral(COMFYLIVE_DEFAULT_COMFY_ROOT));
     o.graphPath = optionValue(args, QStringLiteral("--graph"));
     o.startComfy = args.contains(QStringLiteral("--start"));
-    o.keepComfy = args.contains(QStringLiteral("--keep-comfy"));
+    o.keepComfy = !args.contains(QStringLiteral("--stop-comfy-on-exit"));   // --keep-comfy: the default now
     return o;
 }
 
@@ -275,8 +279,9 @@ int main(int argc, char* argv[])
     const bool headless = args.contains(QStringLiteral("--headless"));
     const bool headlessTest = args.contains(QStringLiteral("--headless-test"));
     const bool songTest = args.contains(QStringLiteral("--song-test"));
-    const QString songFile = optionValue(args, QStringLiteral("--song"));
-    if (selfTest || screenshot || headless || headlessTest || songTest || !songFile.isEmpty()) {
+    const QString songFile = optionValue(args, QStringLiteral("--make"), optionValue(args, QStringLiteral("--song")));
+    const bool comfyStop = args.contains(QStringLiteral("--comfy-stop")) || !optionValue(args, QStringLiteral("--comfy-stop")).isEmpty();
+    if (selfTest || screenshot || headless || headlessTest || songTest || comfyStop || !songFile.isEmpty()) {
         qputenv("QT_QPA_PLATFORM", "offscreen");   // nothing on the screen
 #ifdef Q_OS_WIN
         if (qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR"))   // the offscreen platform finds no fonts by itself
@@ -301,6 +306,19 @@ int main(int argc, char* argv[])
         return runScreenshot(args);
     if (songTest)
         return runSongTest();
+    if (comfyStop) {   // --comfy-stop[=main|speech|all]: end the local ComfyUIs, then exit (0: at least one was stopped)
+        const HeadlessServer::Options o = headlessOptions(args);
+        const QString which = optionValue(args, QStringLiteral("--comfy-stop"), QStringLiteral("all"));
+        bool any = false;
+        for (const QString& server : {o.comfyServer, o.speechServer}) {
+            if ((which == QStringLiteral("main") && server != o.comfyServer) || (which == QStringLiteral("speech") && server != o.speechServer))
+                continue;
+            QString message;
+            any = ComfyProcess::stopLocal(quint16(QUrl(QStringLiteral("http://") + server).port(8188)), &message) || any;
+            say(message);
+        }
+        return any ? 0 : 1;
+    }
     if (!songFile.isEmpty())
         return runSongFile(headlessOptions(args), songFile, optionValue(args, QStringLiteral("--out")),
                            args.contains(QStringLiteral("--random-seed")));

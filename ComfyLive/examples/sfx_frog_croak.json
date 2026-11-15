@@ -1,0 +1,6 @@
+{
+    "_comment": "Animal: short croaks (the toad boss).  ComfyLive.exe --make=sfx_frog_croak.json  (or Open graph... in the window). docs: README.md \"Recipes\".",
+    "graph": "sfx",
+    "prompt": "a big toad croaking three times, deep and wet, close, swamp, sound effect",
+    "seconds": 3
+}
