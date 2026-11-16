@@ -5,6 +5,7 @@
 #include "ParamHelp.h"
 #include "SongTools.h"
 #include "Translator.h"
+#include "VideoTools.h"
 
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -64,6 +65,10 @@ MainWindow::MainWindow(QWidget* parent)
     loadSettings();
     liveTimer_.setSingleShot(true);
     connect(&liveTimer_, &QTimer::timeout, this, &MainWindow::generate);
+    connect(&frameTimer_, &QTimer::timeout, this, [this] {
+        if (!frames_.isEmpty())
+            showFrame((frameIndex_ + 1) % int(frames_.size()));
+    });
 
     connect(&client_, &ComfyClient::logLine, this, &MainWindow::log);
     speechServer_.setLaunch(QStringLiteral(".venv-speech"), {QStringLiteral("ComfyUI-Qwen-TTS")},
@@ -105,6 +110,9 @@ MainWindow::MainWindow(QWidget* parent)
     connect(&client_, &ComfyClient::queued, this, [this](const QString& id, int) {
         currentId_ = id;
         pending_ << id;
+        if (nextIsVideo_)
+            videoIds_.insert(id, nextFps_);
+        frameTimer_.stop();   // the view is the new run's now (its previews)
         previews_ = 0;
         runClock_.start();
         progress_->setValue(0);
@@ -129,19 +137,27 @@ MainWindow::MainWindow(QWidget* parent)
         previews_++;
         view_->setImage(image);
     });
-    connect(&client_, &ComfyClient::imageReady, this, [this](const QString& id, const QImage& image, const QString& file) {
-        auto* item = new QListWidgetItem(QIcon(QPixmap::fromImage(image.scaled(96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation))),
-                                         QString());
-        item->setData(Qt::UserRole, image);
-        item->setToolTip(file);
-        history_->insertItem(0, item);
-        while (history_->count() > 40)
-            delete history_->takeItem(history_->count() - 1);
-        if (id == currentId_) {
-            view_->setImage(image);
-            saveImageBtn_->setEnabled(true);
+    connect(&client_, &ComfyClient::imageReady, this, &MainWindow::addImage);
+    connect(&client_, &ComfyClient::imageSetComing, this, [this](const QString& id, int count) {
+        if (id == currentId_)
+            view_->setCaption(videoIds_.contains(id) ? tr("reading %1 frames ...").arg(count) : tr("reading %1 pictures ...").arg(count));
+    });
+    connect(&client_, &ComfyClient::imageSetReady, this, [this](const QString& id, const QList<QImage>& images, const QStringList& files) {
+        if (videoIds_.contains(id)) {
+            const bool ok = !images.isEmpty();
+            if (ok)
+                addVideo(id, images, files);
+            else
+                log(tr("the video's frames could not be read"));
+            videoIds_.remove(id);
+            if (doneAfterVideo_ == id) {
+                doneAfterVideo_.clear();
+                emit runDone(ok, QString());
+            }
+            return;
         }
-        log(tr("image: %1 (%2 x %3)").arg(file).arg(image.width()).arg(image.height()));
+        for (qsizetype i = 0; i < images.size(); ++i)   // a batch of pictures
+            addImage(id, images[i], files[i]);
     });
     connect(&client_, &ComfyClient::audioReady, this, [this](const QString& id, const QByteArray& bytes, const QString& file) {
         // kept in ComfyLive's own folder, so the history can play it again and "Save audio..." can copy it
@@ -177,9 +193,14 @@ MainWindow::MainWindow(QWidget* parent)
         if (id == currentId_) {
             const double s = runClock_.elapsed() / 1000.0;
             progress_->setValue(progress_->maximum());
-            view_->setCaption(tr("done in %1 s").arg(s, 0, 'f', 1));
             log(tr("done in %1 s, %2 previews").arg(s, 0, 'f', 1).arg(previews_));
-            emit runDone(true, QString());
+            if (videoIds_.contains(id)) {   // its frames are still on their way: the run is done when they are shown
+                doneAfterVideo_ = id;
+            } else {
+                if (frames_.isEmpty())
+                    view_->setCaption(tr("done in %1 s").arg(s, 0, 'f', 1));
+                emit runDone(true, QString());
+            }
         }
         stopBtn_->setEnabled(!pending_.isEmpty());
     });
@@ -197,6 +218,138 @@ MainWindow::MainWindow(QWidget* parent)
     });
 }
 
+void MainWindow::addImage(const QString& id, const QImage& image, const QString& file)
+{
+    auto* item = new QListWidgetItem(QIcon(QPixmap::fromImage(image.scaled(96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation))),
+                                     QString());
+    item->setData(Qt::UserRole, image);
+    item->setToolTip(file);
+    history_->insertItem(0, item);
+    while (history_->count() > 40)
+        delete history_->takeItem(history_->count() - 1);
+    if (id == currentId_) {
+        hideVideo();
+        view_->setImage(image);
+        saveImageBtn_->setEnabled(true);
+    }
+    log(tr("image: %1 (%2 x %3)").arg(file).arg(image.width()).arg(image.height()));
+}
+
+void MainWindow::addVideo(const QString& id, const QList<QImage>& frames, const QStringList& files)
+{
+    const double fps = videoIds_.take(id);
+    // kept in ComfyLive's own folder, so the history can play it again and "Save video..." can copy it
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/video");
+    QDir().mkpath(dir);
+    QString base = QFileInfo(files.value(0)).completeBaseName();   // ComfyLive_video_00012_
+    while (base.endsWith(QLatin1Char('_')))
+        base.chop(1);
+    const QString mp4 = QDir(dir).filePath(base + QStringLiteral(".mp4"));
+    const QString framesDir = VideoTools::framesDirFor(mp4);
+    const QString shown = tr("%1: %2 frames, %3 x %4, %5 s").arg(base).arg(frames.size()).arg(frames.first().width())
+                              .arg(frames.first().height()).arg(frames.size() / fps, 0, 'f', 1);
+    QString why;
+    if (!VideoTools::writeFrames(frames, framesDir, &why)) {
+        log(why);
+        return;
+    }
+    log(tr("video: %1").arg(shown));
+    log(tr("frames: %1").arg(QDir::toNativeSeparators(framesDir)));
+    const QJsonObject sent = client_.sentGraph(id);
+    const QJsonObject extra{{QStringLiteral("comfyFile"), files.value(0)}, {QStringLiteral("frames"), QFileInfo(framesDir).fileName()},
+                            {QStringLiteral("frameCount"), int(frames.size())}, {QStringLiteral("fps"), fps},
+                            {QStringLiteral("width"), frames.first().width()}, {QStringLiteral("height"), frames.first().height()}};
+    if (!sent.isEmpty() && Workflow::writeSettings(mp4, sent, workflow_.name(), extra, &why))
+        log(tr("settings: %1").arg(QDir::toNativeSeparators(Workflow::settingsPathFor(mp4))));
+    auto* item = new QListWidgetItem(QIcon(QPixmap::fromImage(frames.first().scaled(96, 96, Qt::KeepAspectRatio, Qt::SmoothTransformation))),
+                                     QStringLiteral("\u25B6 ") + base.right(12));
+    item->setData(Qt::UserRole + 2, mp4);
+    item->setData(Qt::UserRole + 3, fps);
+    item->setToolTip(shown);
+    history_->insertItem(0, item);
+    while (history_->count() > 40)
+        delete history_->takeItem(history_->count() - 1);
+    if (id == currentId_)
+        showVideo(mp4, frames, fps, shown);
+    COMFYLIVE_SETTINGS(s);
+    VideoTools::encode(SongTools::findFfmpeg(s.value(QStringLiteral("ffmpeg")).toString()), framesDir, fps, mp4,
+                       [this](bool ok, const QString& message) {
+                           log(ok ? tr("video file: %1").arg(QDir::toNativeSeparators(message)) : tr("no MP4 (the frames are kept): %1").arg(message));
+                       });
+}
+
+void MainWindow::showVideo(const QString& mp4Path, const QList<QImage>& frames, double fps, const QString& shown)
+{
+    if (player_)
+        player_->stop();
+    audioRow_->hide();
+    audioRow_->setProperty("path", QString());
+    frames_ = frames;
+    framesFps_ = fps > 0 ? fps : 24.0;
+    videoPath_ = mp4Path;
+    videoShown_ = shown;
+    videoRow_->setVisible(!frames_.isEmpty());
+    if (frames_.isEmpty())
+        return;
+    saveImageBtn_->setEnabled(true);   // the frame on screen
+    view_->setCaption(shown);
+    showFrame(0);
+    frameTimer_.start(qMax(1, int(1000.0 / framesFps_ + 0.5)));
+    videoPlayBtn_->setIcon(style()->standardIcon(QStyle::SP_MediaPause));
+    videoPlayBtn_->setText(tr("Pause"));
+}
+
+void MainWindow::hideVideo()
+{
+    frameTimer_.stop();
+    frames_.clear();
+    videoPath_.clear();
+    videoShown_.clear();
+    if (videoRow_)
+        videoRow_->hide();
+}
+
+void MainWindow::showFrame(int index)
+{
+    if (index < 0 || index >= frames_.size())
+        return;
+    frameIndex_ = index;
+    view_->setImage(frames_[index]);
+    videoLabel_->setText(tr("frame %1 / %2   %3 s").arg(index + 1).arg(frames_.size()).arg(index / framesFps_, 0, 'f', 2));
+}
+
+void MainWindow::onSaveVideo()
+{
+    if (videoPath_.isEmpty())
+        return;
+    COMFYLIVE_SETTINGS(s);
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save the video"),
+                                                      QDir(s.value(QStringLiteral("lastVideoDir")).toString()).filePath(QFileInfo(videoPath_).fileName()),
+                                                      tr("Video (*.mp4)"));
+    if (path.isEmpty())
+        return;
+    s.setValue(QStringLiteral("lastVideoDir"), QFileInfo(path).absolutePath());
+    // the frames (what the other tools read) in <name>_frames, the MP4 when ffmpeg made one, and the settings
+    QString why;
+    const QString framesDir = VideoTools::framesDirFor(path);
+    if (!VideoTools::writeFrames(frames_, framesDir, &why)) {
+        QMessageBox::warning(this, tr("ComfyLive"), why);
+        return;
+    }
+    log(tr("saved ") + QDir::toNativeSeparators(framesDir));
+    if (QFileInfo(videoPath_).isFile()) {
+        QFile::remove(path);
+        if (QFile::copy(videoPath_, path))
+            log(tr("saved ") + QDir::toNativeSeparators(path));
+        else
+            QMessageBox::warning(this, tr("ComfyLive"), tr("Could not write %1").arg(path));
+    } else {
+        log(tr("no MP4 was made (ffmpeg): only the frames were saved"));
+    }
+    if (Workflow::copySettings(videoPath_, path, {{QStringLiteral("frames"), QFileInfo(framesDir).fileName()}}))
+        log(tr("saved ") + QDir::toNativeSeparators(Workflow::settingsPathFor(path)));
+}
+
 MainWindow::~MainWindow()
 {
     // Nothing may reach the window while it is torn down: the child widgets go in creation order (the Play button
@@ -210,6 +363,7 @@ MainWindow::~MainWindow()
     server_.disconnect(this);
     speechServer_.disconnect(this);
     liveTimer_.stop();
+    frameTimer_.stop();
 }
 
 void MainWindow::buildUi()
@@ -279,13 +433,17 @@ void MainWindow::buildUi()
     openBtn->setToolTip(tr("A ComfyUI graph saved with Workflow > Export (API)"));
     auto* saveBtn = new QPushButton(tr("Save graph..."), left);
     auto* builtInBtn = new QPushButton(tr("Built-in"), left);
-    builtInBtn->setToolTip(tr("A built-in graph: SDXL text to image, ACE-Step 1.5 text to music, Stable Audio Open text to sound effect, or Qwen3-TTS text to speech"));
+    builtInBtn->setToolTip(tr("A built-in graph: SDXL text to image, ACE-Step 1.5 text to music, Stable Audio Open text to sound effect, Qwen3-TTS text to speech, or Wan 2.2 / HyperFlow H3 Flash text to video"));
     auto* builtInMenu = new QMenu(builtInBtn);
     builtInMenu->addAction(tr("Text to image (SDXL)"), this, [this] { setWorkflow(Workflow::textToImage()); });
     builtInMenu->addAction(tr("Text to music (ACE-Step 1.5)"), this, [this] { setWorkflow(Workflow::textToMusic()); });
     builtInMenu->addAction(tr("Text to sound effect (Stable Audio Open)"), this, [this] { setWorkflow(Workflow::textToSoundEffect()); });
     builtInMenu->addAction(tr("Text to speech, preset voice (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeech()); });
     builtInMenu->addAction(tr("Text to speech, voice from a description (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeechDesigned()); });
+    builtInMenu->addAction(tr("Text to video (Wan 2.2 TI2V-5B)"), this, [this] { setWorkflow(Workflow::textToVideo()); });
+    builtInMenu->addAction(tr("Text to video (HyperFlow H3 Flash Q3_K_M)"), this, [this] { setWorkflow(Workflow::textToVideoHyperFlow()); });
+    builtInMenu->addAction(tr("Picture to video (Wan 2.2 TI2V-5B)"), this, [this] { setWorkflow(Workflow::imageToVideo()); });
+    builtInMenu->addAction(tr("Picture to video (HyperFlow H3 Flash Q3_K_M)"), this, [this] { setWorkflow(Workflow::imageToVideoHyperFlow()); });
     builtInBtn->setMenu(builtInMenu);
     auto* helpBtn = new QPushButton(QStringLiteral("?"), left);
     helpBtn->setFixedWidth(28);
@@ -375,8 +533,54 @@ void MainWindow::buildUi()
     arl->addWidget(saveAudioBtn_);
     audioRow_->hide();
     player_ = new AudioPlayer(this);
+    videoRow_ = new QWidget(right);
+    auto* vrl = new QHBoxLayout(videoRow_);
+    vrl->setContentsMargins(0, 0, 0, 0);
+    videoPlayBtn_ = new QPushButton(style()->standardIcon(QStyle::SP_MediaPause), tr("Pause"), videoRow_);
+    auto* prevFrameBtn = new QPushButton(QStringLiteral("\u25C0"), videoRow_);
+    auto* nextFrameBtn = new QPushButton(QStringLiteral("\u25B6"), videoRow_);
+    prevFrameBtn->setFixedWidth(32);
+    nextFrameBtn->setFixedWidth(32);
+    prevFrameBtn->setToolTip(tr("One frame back"));
+    nextFrameBtn->setToolTip(tr("One frame on"));
+    videoLabel_ = new QLabel(videoRow_);
+    openFramesBtn_ = new QPushButton(tr("Open frames folder"), videoRow_);
+    openFramesBtn_->setToolTip(tr("The video's frames as PNG files (frame_0001.png ...), and its MP4 beside the folder"));
+    saveVideoBtn_ = new QPushButton(tr("Save video..."), videoRow_);
+    saveVideoBtn_->setToolTip(tr("The MP4, its frames in <name>_frames and its settings .json, wherever you want"));
+    vrl->addWidget(videoPlayBtn_);
+    vrl->addWidget(prevFrameBtn);
+    vrl->addWidget(nextFrameBtn);
+    vrl->addWidget(videoLabel_, 1);
+    vrl->addWidget(openFramesBtn_);
+    vrl->addWidget(saveVideoBtn_);
+    videoRow_->hide();
+    connect(videoPlayBtn_, &QPushButton::clicked, this, [this] {
+        const bool play = !frameTimer_.isActive();
+        if (play)
+            frameTimer_.start(qMax(1, int(1000.0 / framesFps_ + 0.5)));
+        else
+            frameTimer_.stop();
+        videoPlayBtn_->setIcon(style()->standardIcon(play ? QStyle::SP_MediaPause : QStyle::SP_MediaPlay));
+        videoPlayBtn_->setText(play ? tr("Pause") : tr("Play"));
+    });
+    for (auto [button, step] : {std::pair{prevFrameBtn, -1}, std::pair{nextFrameBtn, 1}})
+        connect(button, &QPushButton::clicked, this, [this, step] {
+            if (frames_.isEmpty())
+                return;
+            frameTimer_.stop();
+            videoPlayBtn_->setIcon(style()->standardIcon(QStyle::SP_MediaPlay));
+            videoPlayBtn_->setText(tr("Play"));
+            showFrame(int((frameIndex_ + step + frames_.size()) % frames_.size()));
+        });
+    connect(openFramesBtn_, &QPushButton::clicked, this, [this] {
+        if (!videoPath_.isEmpty())
+            QDesktopServices::openUrl(QUrl::fromLocalFile(VideoTools::framesDirFor(videoPath_)));
+    });
+    connect(saveVideoBtn_, &QPushButton::clicked, this, &MainWindow::onSaveVideo);
     rvl->addWidget(view_, 1);
     rvl->addWidget(audioRow_);
+    rvl->addWidget(videoRow_);
     rvl->addWidget(history_);
     rvl->addWidget(log_);
 
@@ -426,6 +630,16 @@ void MainWindow::buildUi()
             showAudio(audio, item->toolTip(), true);
             return;
         }
+        const QString video = item->data(Qt::UserRole + 2).toString();
+        if (!video.isEmpty()) {
+            const QList<QImage> frames = VideoTools::readFrames(VideoTools::framesDirFor(video));
+            if (frames.isEmpty())
+                log(tr("no frames in %1").arg(QDir::toNativeSeparators(VideoTools::framesDirFor(video))));
+            else
+                showVideo(video, frames, item->data(Qt::UserRole + 3).toDouble(), item->toolTip());
+            return;
+        }
+        hideVideo();
         view_->setImage(item->data(Qt::UserRole).value<QImage>());
         view_->setCaption(item->toolTip());
         saveImageBtn_->setEnabled(true);
@@ -452,6 +666,17 @@ void MainWindow::buildParams()
             v->addWidget(box);
         }
         const QString nodeId = p.nodeId, input = p.input;
+        if (p.classType.startsWith(QStringLiteral("InspyrenetRembg")) && nodeId == QStringLiteral("30") && workflow_.hasRemoveBackground() &&
+            input == QStringLiteral("torchscript_jit")) {
+            auto* check = new QCheckBox(tr("on: the frames are PNG files with only the character (transparent background)"), box);
+            check->setChecked(workflow_.removeBackground());
+            check->setToolTip(tr("Off: the frames keep the video's background. The MP4 always has a grey background."));
+            connect(check, &QCheckBox::toggled, this, [this](bool on) {
+                workflow_.setRemoveBackground(on);
+                onParamChanged();
+            });
+            form->addRow(check);
+        }
         const bool aceSong = workflow_.graph().value(nodeId).toObject().value(QStringLiteral("class_type")).toString()
                                  .startsWith(QStringLiteral("TextEncodeAceStepAudio"));
         if (aceSong && input == QStringLiteral("tags")) {
@@ -602,6 +827,45 @@ void MainWindow::buildParams()
                 form->addRow(p.input, row);
             continue;
         }
+        if (p.classType == QStringLiteral("LoadImage") && workflow_.hasStartImage() && p.kind == ParamDef::Kind::Line) {
+            // the reference picture: a file on this PC, with Browse; the video takes the picture's shape
+            auto* row = new QWidget(box);
+            auto* h = new QHBoxLayout(row);
+            h->setContentsMargins(0, 0, 0, 0);
+            auto* line = static_cast<QLineEdit*>(editor);
+            line->disconnect(this);   // not at every key: when the path is whole
+            line->setPlaceholderText(tr("a picture of the character: whole body, plain background"));
+            auto apply = [this, line] {
+                const QString path = line->text().trimmed();
+                if (path == workflow_.startImage())
+                    return;
+                workflow_.setStartImage(path);
+                syncNumberFields();   // the width and height followed the picture
+                const QImage picture(path);
+                if (!picture.isNull()) {
+                    hideVideo();
+                    view_->setImage(picture);
+                    view_->setCaption(tr("reference picture: %1 x %2").arg(picture.width()).arg(picture.height()));
+                }
+                onParamChanged();
+            };
+            connect(line, &QLineEdit::editingFinished, this, apply);
+            auto* browse = new QPushButton(tr("Browse..."), row);
+            connect(browse, &QPushButton::clicked, this, [this, line, apply] {
+                COMFYLIVE_SETTINGS(s);
+                const QString start = line->text().isEmpty() ? s.value(QStringLiteral("lastPictureDir")).toString() : line->text();
+                const QString path = QFileDialog::getOpenFileName(this, tr("The reference picture"), start, tr("Pictures (*.png *.jpg *.jpeg *.webp *.bmp)"));
+                if (path.isEmpty())
+                    return;
+                s.setValue(QStringLiteral("lastPictureDir"), QFileInfo(path).absolutePath());
+                line->setText(QDir::toNativeSeparators(path));
+                apply();
+            });
+            h->addWidget(editor, 1);
+            h->addWidget(browse);
+            form->addRow(tr("picture"), row);
+            continue;
+        }
         if (p.isSeed()) {   // a seed: a dice button beside it
             auto* row = new QWidget(box);
             auto* h = new QHBoxLayout(row);
@@ -654,6 +918,10 @@ void MainWindow::rebuildUi()
     const int progressMax = progress_->maximum(), progressValue = progress_->value();
     const bool canStop = stopBtn_->isEnabled(), canSave = saveImageBtn_->isEnabled(), canStart = startServerBtn_->isEnabled();
     const QByteArray geometry = saveGeometry();
+    const QList<QImage> frames = frames_;
+    const QString videoPath = videoPath_, videoShown = videoShown_;
+    const double videoFps = framesFps_;
+    frameTimer_.stop();
     player_->close();
     delete player_;
     player_ = nullptr;
@@ -670,7 +938,9 @@ void MainWindow::rebuildUi()
     stopBtn_->setEnabled(canStop);
     saveImageBtn_->setEnabled(canSave);
     startServerBtn_->setEnabled(canStart);
-    if (!audioPath.isEmpty()) {
+    if (!videoPath.isEmpty() && !frames.isEmpty()) {
+        showVideo(videoPath, frames, videoFps, videoShown);
+    } else if (!audioPath.isEmpty()) {
         showAudio(audioPath, audioShown, false);
     } else {
         view_->setImage(image);
@@ -699,6 +969,7 @@ void MainWindow::syncNumberFields()
 
 void MainWindow::showAudio(const QString& path, const QString& shown, bool autoPlay)
 {
+    hideVideo();
     audioRow_->setProperty("path", path);
     audioRow_->setProperty("shown", shown);
     audioRow_->show();
@@ -854,6 +1125,8 @@ void MainWindow::generate()
         pending_.clear();
     }
     currentId_.clear();
+    nextIsVideo_ = workflow_.makesVideo();
+    nextFps_ = workflow_.videoFps();
     saveSettings();
     // the other ComfyUI lets go of the GPU first (12 GB: not room for a picture or song model and the speech model)
     const QString other = (client_.server() == speechServerEdit_->text().trimmed() ? serverEdit_ : speechServerEdit_)->text().trimmed();
@@ -963,11 +1236,22 @@ void MainWindow::setWorkflow(const Workflow& w)
     saveSettings();
 }
 
+bool MainWindow::openGraphForCheck(const QString& path, QString* why)
+{
+    Workflow w;
+    if (!w.load(path, why))
+        return false;
+    checkRun_ = true;
+    randomSeedCheck_->setChecked(w.loadedFromRecipe() && w.recipeRandomSeed());
+    setWorkflow(w);
+    return true;
+}
+
 void MainWindow::onOpenWorkflow()
 {
     COMFYLIVE_SETTINGS(s);
     const QString path = QFileDialog::getOpenFileName(this, tr("Open a ComfyUI graph (API format)"), s.value(QStringLiteral("lastDir")).toString(),
-                                                      tr("ComfyUI API graph, or a song's or sound's settings (*.json)"));
+                                                      tr("ComfyUI API graph, a recipe, or a song's, sound's or video's settings (*.json)"));
     if (path.isEmpty())
         return;
     s.setValue(QStringLiteral("lastDir"), QFileInfo(path).absolutePath());
@@ -1058,6 +1342,8 @@ void MainWindow::loadSettings()
 
 void MainWindow::saveSettings() const
 {
+    if (checkRun_)
+        return;
     COMFYLIVE_SETTINGS(s);
     s.setValue(QStringLiteral("server"), serverEdit_->text());
     s.setValue(QStringLiteral("speechServer"), speechServerEdit_->text());
@@ -1074,7 +1360,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
 {
     saveSettings();
     COMFYLIVE_SETTINGS(s);
-    s.setValue(QStringLiteral("geometry"), saveGeometry());
+    if (!checkRun_)
+        s.setValue(QStringLiteral("geometry"), saveGeometry());
     if (stopServerCheck_->isChecked() && (server_.isRunning() || speechServer_.isRunning() || startedServer_))
         stopLocalServers();
     event->accept();

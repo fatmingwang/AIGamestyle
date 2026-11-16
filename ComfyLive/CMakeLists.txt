@@ -21,6 +21,7 @@ add_executable(ComfyLive WIN32
     src/AudioPlayer.h       src/AudioPlayer.cpp
     src/Translator.h        src/Translator.cpp
     src/SongTools.h         src/SongTools.cpp
+    src/VideoTools.h        src/VideoTools.cpp
     src/ParamHelp.h         src/ParamHelp.cpp
 )
 target_include_directories(ComfyLive PRIVATE src)

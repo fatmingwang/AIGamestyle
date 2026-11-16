@@ -1,0 +1,7 @@
+{
+    "_comment": "Hero, bow, hurt: knocked back and recovers, 2 s.  ComfyLive.exe --make=video_hero_bow_hurt.json  (or Open graph... in the window). The frames go to <out>_frames, the MP4 beside them. docs: README.md \"Video\".",
+    "graph": "video",
+    "prompt": "a young archer with short brown hair, a blue tunic, a brown leather cape and boots, holding a wooden bow, fantasy game character, stands facing right, is hit from the right, flinches and staggers one step back with the arms up, then recovers to a ready stance",
+    "seconds": 2,
+    "seed": 103
+}

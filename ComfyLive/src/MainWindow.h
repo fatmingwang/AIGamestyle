@@ -5,6 +5,8 @@
 
 #include <QElapsedTimer>
 #include <QHash>
+#include <QImage>
+#include <QList>
 #include <QMainWindow>
 #include <QTimer>
 
@@ -21,7 +23,8 @@ class QScrollArea;
 class QSpinBox;
 
 // ComfyLive: the parameters of a ComfyUI graph as a form, sent to ComfyUI, the picture shown as it forms (or the
-// song played when the graph makes audio: ACE-Step and other SaveAudio graphs).
+// song played when the graph makes audio: ACE-Step and other SaveAudio graphs; or the video played in a loop when the
+// graph makes one: Wan 2.2, whose frames come back as pictures).
 //
 //  left   the server (connect, or start the local ComfyUI), the graph (built-in text to image, or any API-format
 //         .json), its parameters (made from the graph and the server's node list), Generate / Stop / Live
@@ -39,6 +42,9 @@ public:
     void startUp(bool startServer);
     void generate();
     void setSteps(int steps);
+    // For --screenshot runs: open this graph, settings or recipe file as Open graph... does. From then on the window
+    // saves nothing (the graph and values the user left stay as they were). False: the file could not be read.
+    bool openGraphForCheck(const QString& path, QString* why);
     void setLanguage(const QString& code);   // as if picked in the Language box (--screenshot --switch-lang)   // for --screenshot runs: the sampler's steps, when the graph has them
 
 signals:
@@ -66,6 +72,14 @@ private:
     void showAudio(const QString& path, const QString& shown, bool autoPlay);
     void addAudioToHistory(const QString& path, const QString& shown);
     void onTranspose();
+    void addImage(const QString& id, const QImage& image, const QString& file);   // one result picture: history, the view
+    // A video graph's frames: kept as frame_0001.png ... with their settings in ComfyLive's own folder, an MP4 made of
+    // them (ffmpeg), a history item, and played in the view.
+    void addVideo(const QString& id, const QList<QImage>& frames, const QStringList& files);
+    void showVideo(const QString& mp4Path, const QList<QImage>& frames, double fps, const QString& shown);
+    void hideVideo();          // the view shows something else: the frames stop and are let go
+    void showFrame(int index);
+    void onSaveVideo();
     void setTextField(const QString& key, const QString& text);   // a text field and the graph, as if typed
     void syncNumberFields();   // after a tied input changed with another (an ACE-Step song's duration and seconds)
     void stopRun();
@@ -109,6 +123,21 @@ private:
     QPushButton*  saveAudioBtn_ = nullptr;
     class QSpinBox* transposeSpin_ = nullptr;
     QPushButton*  transposeBtn_ = nullptr;
+    QWidget*      videoRow_ = nullptr;      // shown once there is a video
+    QLabel*       videoLabel_ = nullptr;
+    QPushButton*  videoPlayBtn_ = nullptr;
+    QPushButton*  openFramesBtn_ = nullptr;
+    QPushButton*  saveVideoBtn_ = nullptr;
+    QList<QImage> frames_;                  // the video being shown
+    QTimer        frameTimer_;
+    int           frameIndex_ = 0;
+    double        framesFps_ = 24.0;
+    QString       videoPath_;               // its MP4 (the frames are in <name>_frames beside it)
+    QString       videoShown_;
+    QHash<QString, double> videoIds_;       // our prompts that make a video -> its frames a second
+    QString       doneAfterVideo_;          // the run that ended while its frames were still being read: runDone then
+    bool          nextIsVideo_ = false;     // the graph being queued makes a video
+    double        nextFps_ = 24.0;
     QString       instrumentalBackup_;      // the lyrics before Singer = Instrumental replaced them
     AudioPlayer*  player_ = nullptr;
 
@@ -121,4 +150,5 @@ private:
     bool          startedServer_ = false;
     bool          connectWanted_ = false;
     bool          generateWhenConnected_ = false;
+    bool          checkRun_ = false;        // openGraphForCheck: saveSettings() does nothing
 };

@@ -1,5 +1,6 @@
 #include "HeadlessServer.h"
 #include "SongTools.h"
+#include "VideoTools.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -118,18 +119,31 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
         send(e);
     });
     connect(&client_, &ComfyClient::imageReady, this, [this](const QString& id, const QImage& image, const QString& file) {
+        if (id == promptId_ && busy_)
+            onImage(file, image);
+    });
+    connect(&client_, &ComfyClient::imageSetComing, this, [this](const QString& id, int) {
+        if (id == promptId_ && busy_)
+            setPending_ = true;
+    });
+    connect(&client_, &ComfyClient::imageSetReady, this, [this](const QString& id, const QList<QImage>& images, const QStringList& files) {
         if (id != promptId_ || !busy_)
             return;
-        QJsonObject e{{QStringLiteral("type"), QStringLiteral("image")}, {QStringLiteral("file"), file},
-                      {QStringLiteral("width"), image.width()}, {QStringLiteral("height"), image.height()}};
-        if (!outPath_.isEmpty()) {
-            if (image.save(outPath_))
-                e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(outPath_).absoluteFilePath());
-            else
-                e[QStringLiteral("error")] = QStringLiteral("could not write ") + outPath_;
+        auto done = [this] {
+            setPending_ = false;
+            if (afterSet_) {
+                auto then = std::move(afterSet_);
+                afterSet_ = nullptr;
+                then();
+            }
+        };
+        if (videoRun_ && !images.isEmpty()) {
+            onVideoFrames(images, files, done);
+            return;
         }
-        gotImage_ = true;
-        send(e);
+        for (qsizetype i = 0; i < images.size(); ++i)   // a batch of pictures: one event each ("out" keeps the last)
+            onImage(files[i], images[i]);
+        done();
     });
     connect(&client_, &ComfyClient::audioReady, this, [this](const QString& id, const QByteArray& bytes, const QString& file) {
         if (id != promptId_ || !busy_)
@@ -166,9 +180,12 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
                 return;
             result({{QStringLiteral("seconds"), seconds}, {QStringLiteral("previews"), previews_}, {QStringLiteral("output"), gotImage_}});
             end(gotImage_ ? 0 : 6, gotImage_ ? QStringLiteral("done")
-                                             : QStringLiteral("the graph made no image or audio (does it end in SaveImage, PreviewImage or SaveAudio?)"));
+                                             : QStringLiteral("the graph made no image, audio or video (does it end in SaveImage, PreviewImage or SaveAudio?)"));
         };
-        QTimer::singleShot(gotImage_ ? 0 : 1500, this, finishJob);
+        if (setPending_)   // the frames are still being read, or the MP4 made: end after that
+            afterSet_ = finishJob;
+        else
+            QTimer::singleShot(gotImage_ ? 0 : 1500, this, finishJob);
     });
     connect(&client_, &ComfyClient::failed, this, [this](const QString& id, const QString& why) {
         if (id == promptId_ && busy_)
@@ -177,6 +194,64 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
     connect(&client_, &ComfyClient::interrupted, this, [this](const QString& id) {
         if (id == promptId_ && busy_ && generating())
             end(8, QStringLiteral("stopped"));
+    });
+}
+
+void HeadlessServer::onImage(const QString& file, const QImage& image)
+{
+    QJsonObject e{{QStringLiteral("type"), QStringLiteral("image")}, {QStringLiteral("file"), file},
+                  {QStringLiteral("width"), image.width()}, {QStringLiteral("height"), image.height()}};
+    if (!outPath_.isEmpty()) {
+        if (image.save(outPath_))
+            e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(outPath_).absoluteFilePath());
+        else
+            e[QStringLiteral("error")] = QStringLiteral("could not write ") + outPath_;
+    }
+    gotImage_ = true;
+    send(e);
+}
+
+void HeadlessServer::onVideoFrames(const QList<QImage>& frames, const QStringList& files, const std::function<void()>& done)
+{
+    QJsonObject e{{QStringLiteral("type"), QStringLiteral("video")}, {QStringLiteral("file"), files.value(0)},
+                  {QStringLiteral("count"), int(frames.size())}, {QStringLiteral("fps"), videoFps_},
+                  {QStringLiteral("width"), frames.first().width()}, {QStringLiteral("height"), frames.first().height()}};
+    gotImage_ = true;
+    if (outPath_.isEmpty()) {   // generate without "out": nothing is written here (the frames are in ComfyUI's output)
+        send(e);
+        done();
+        return;
+    }
+    // "out" names the MP4; the frames go beside it
+    QString path = outPath_;
+    if (QFileInfo(path).suffix().compare(QStringLiteral("mp4"), Qt::CaseInsensitive) != 0)
+        path = QFileInfo(path).path() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QStringLiteral(".mp4");
+    const QString dir = VideoTools::framesDirFor(path);
+    QString why;
+    if (!VideoTools::writeFrames(frames, dir, &why)) {
+        e[QStringLiteral("error")] = why;
+        gotImage_ = false;
+        send(e);
+        done();
+        return;
+    }
+    e[QStringLiteral("frames")] = QDir::toNativeSeparators(QFileInfo(dir).absoluteFilePath());
+    const QJsonObject sent = client_.sentGraph(promptId_);
+    const QJsonObject extra{{QStringLiteral("comfyFile"), files.value(0)}, {QStringLiteral("frames"), QFileInfo(dir).fileName()},
+                            {QStringLiteral("frameCount"), int(frames.size())}, {QStringLiteral("fps"), videoFps_},
+                            {QStringLiteral("width"), frames.first().width()}, {QStringLiteral("height"), frames.first().height()}};
+    if (!sent.isEmpty() && Workflow::writeSettings(path, sent, workflow_.name(), extra, nullptr))
+        e[QStringLiteral("settings")] = QDir::toNativeSeparators(QFileInfo(Workflow::settingsPathFor(path)).absoluteFilePath());
+    const QString id = promptId_;
+    VideoTools::encode(SongTools::findFfmpeg(), dir, videoFps_, path, [this, e, id, done](bool ok, const QString& message) mutable {
+        if (id != promptId_ || !busy_)
+            return;
+        if (ok)
+            e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(message).absoluteFilePath());
+        else   // the frames are there all the same: the job has its result
+            e[QStringLiteral("mp4Error")] = message;
+        send(e);
+        done();
     });
 }
 
@@ -365,6 +440,10 @@ void HeadlessServer::startGenerate(const QJsonObject& a)
         QDir().mkpath(QFileInfo(outPath_).absolutePath());
     previews_ = 0;
     gotImage_ = false;
+    videoRun_ = workflow_.makesVideo();
+    videoFps_ = workflow_.videoFps();
+    setPending_ = false;
+    afterSet_ = nullptr;
     promptId_.clear();
     clock_.start();
     // the other ComfyUI lets go of the GPU first (12 GB: not room for a picture or song model and the speech model)
@@ -402,7 +481,8 @@ void HeadlessServer::runSong(const QJsonObject& a)
     QString out = genArgs.value(QStringLiteral("out")).toString();
     if (out.isEmpty())
         out = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QLatin1Char('_') +
-              QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")) + QStringLiteral(".mp3");
+              QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")) +
+              (w.makesVideo() ? QStringLiteral(".mp4") : QStringLiteral(".mp3"));
     else if (QFileInfo(out).isRelative())   // next to the song file, not wherever the server was started
         out = QFileInfo(path).absoluteDir().filePath(out);
     if (QFileInfo(Workflow::settingsPathFor(out)).absoluteFilePath().compare(QFileInfo(path).absoluteFilePath(), Qt::CaseInsensitive) == 0) {
@@ -565,7 +645,9 @@ void HeadlessServer::run(const Job& job)
         const QString which = a.value(QStringLiteral("graph")).toString(QStringLiteral("image"));
         if (!Workflow::builtIn(which, &workflow_)) {
             end(2, QStringLiteral("graph: image (SDXL text to image), music (ACE-Step 1.5), sfx (Stable Audio Open sound effect), "
-                                  "speech (Qwen3-TTS preset voice) or voice (Qwen3-TTS voice from a description)"));
+                                  "speech (Qwen3-TTS preset voice), voice (Qwen3-TTS voice from a description), "
+                                  "video (Wan 2.2 TI2V-5B text to video), video-h3 (HyperFlow H3 Flash Q3_K_M text to video), "
+                                  "video-image or video-h3-image (the same two with a reference picture as the first frame)"));
             return;
         }
         if (client_.isReady())
@@ -693,6 +775,7 @@ int runHeadlessTest(const HeadlessServer::Options& options, const QString& outPa
             if (type == QStringLiteral("progress")) { ++progressEvents; continue; }
             if (type == QStringLiteral("preview")) { ++previewEvents; continue; }
             if (type == QStringLiteral("result") || type == QStringLiteral("image") || type == QStringLiteral("audio") ||
+                type == QStringLiteral("video") ||
                 type == QStringLiteral("queued") || type == QStringLiteral("log")) {
                 QJsonObject shown = e;
                 if (shown.contains(QStringLiteral("params")))
@@ -830,6 +913,19 @@ int runSongFile(const HeadlessServer::Options& options, const QString& songJson,
                 else
                     say(QStringLiteral("song: %1\nsettings: %2").arg(e.value(QStringLiteral("path")).toString(),
                                                                        e.value(QStringLiteral("settings")).toString()));
+            } else if (type == QStringLiteral("video")) {
+                if (e.contains(QStringLiteral("error")))
+                    say(QStringLiteral("ERROR ") + e.value(QStringLiteral("error")).toString());
+                else {
+                    say(QStringLiteral("frames: %1 (%2 frames, %3 x %4, %5 a second)").arg(e.value(QStringLiteral("frames")).toString())
+                            .arg(e.value(QStringLiteral("count")).toInt()).arg(e.value(QStringLiteral("width")).toInt())
+                            .arg(e.value(QStringLiteral("height")).toInt()).arg(e.value(QStringLiteral("fps")).toDouble()));
+                    if (e.contains(QStringLiteral("mp4Error")))
+                        say(QStringLiteral("no MP4: ") + e.value(QStringLiteral("mp4Error")).toString());
+                    else
+                        say(QStringLiteral("video: ") + e.value(QStringLiteral("path")).toString());
+                    say(QStringLiteral("settings: ") + e.value(QStringLiteral("settings")).toString());
+                }
             } else if (type == QStringLiteral("result") && e.contains(QStringLiteral("seconds"))) {
                 say(QStringLiteral("made in %1 s").arg(e.value(QStringLiteral("seconds")).toDouble(), 0, 'f', 1));
             } else if (type == QStringLiteral("job_end")) {

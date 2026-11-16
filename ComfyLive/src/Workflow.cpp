@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QImageReader>
 #include <QJsonArray>
 #include <QJsonDocument>
 
@@ -240,9 +241,231 @@ Workflow Workflow::textToSpeechDesigned()
     return w;
 }
 
+QString Workflow::videoPromptSuffix()
+{
+    return QStringLiteral("one single character alone, full body shot, the character is large and tall in the picture, "
+                          "the body fills most of the height of the frame from head to feet with a little room around it, "
+                          "side view, static camera, locked-off shot, plain flat light grey studio background, "
+                          "even soft lighting, sharp and clear, no motion blur");
+}
+
+Workflow Workflow::textToVideo()
+{
+    // ComfyUI's "Wan 2.2 TI2V-5B" template (video_wan2_2_5B_ti2v), ending in SaveImage: the frames come back as PNG
+    // pictures, which ComfyLive numbers and makes an MP4 of (VideoTools). The models (README.md "Video"):
+    // diffusion_models/wan2.2_ti2v_5B_fp16.safetensors, text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors,
+    // vae/wan2.2_vae.safetensors. 24 frames a second; length is 4n+1 frames (73: 3 s).
+    QJsonObject g;
+    g[QStringLiteral("37")] = node(QStringLiteral("UNETLoader"), QStringLiteral("Model"),
+                                   {{QStringLiteral("unet_name"), QStringLiteral("wan2.2_ti2v_5B_fp16.safetensors")},
+                                    {QStringLiteral("weight_dtype"), QStringLiteral("default")}});
+    g[QStringLiteral("38")] = node(QStringLiteral("CLIPLoader"), QStringLiteral("Text encoder"),
+                                   {{QStringLiteral("clip_name"), QStringLiteral("umt5_xxl_fp8_e4m3fn_scaled.safetensors")},
+                                    {QStringLiteral("type"), QStringLiteral("wan")}, {QStringLiteral("device"), QStringLiteral("default")}});
+    g[QStringLiteral("39")] = node(QStringLiteral("VAELoader"), QStringLiteral("VAE"),
+                                   {{QStringLiteral("vae_name"), QStringLiteral("wan2.2_vae.safetensors")}});
+    g[QStringLiteral("48")] = node(QStringLiteral("ModelSamplingSD3"), QStringLiteral("Model shift"),
+                                   {{QStringLiteral("shift"), 8.0}, {QStringLiteral("model"), link("37", 0)}});
+    g[QStringLiteral("6")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Video"),
+                                  {{QStringLiteral("text"), QStringLiteral("a young archer in a blue tunic and a brown cape stands ready, then "
+                                                                           "draws a wooden bow and releases an arrow to the right, "
+                                                                           "fantasy game character, ") + videoPromptSuffix()},
+                                   {QStringLiteral("clip"), link("38", 0)}});
+    g[QStringLiteral("7")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Avoid"),
+                                  {{QStringLiteral("text"), QStringLiteral("blurry, motion blur, camera movement, zoom, pan, cuts, several characters, "
+                                                                           "crowd, cropped body, close-up, busy background, scenery, text, subtitles, "
+                                                                           "watermark, extra limbs, deformed hands, low quality, still picture")},
+                                   {QStringLiteral("clip"), link("38", 0)}});
+    g[QStringLiteral("55")] = node(QStringLiteral("Wan22ImageToVideoLatent"), QStringLiteral("Size and length"),
+                                   {{QStringLiteral("width"), 1280}, {QStringLiteral("height"), 704}, {QStringLiteral("length"), 73},
+                                    {QStringLiteral("batch_size"), 1}, {QStringLiteral("vae"), link("39", 0)}});
+    g[QStringLiteral("3")] = node(QStringLiteral("KSampler"), QStringLiteral("Sampler"),
+                                  {{QStringLiteral("seed"), 1}, {QStringLiteral("steps"), 20}, {QStringLiteral("cfg"), 5.0},
+                                   {QStringLiteral("sampler_name"), QStringLiteral("uni_pc")}, {QStringLiteral("scheduler"), QStringLiteral("simple")},
+                                   {QStringLiteral("denoise"), 1.0}, {QStringLiteral("model"), link("48", 0)},
+                                   {QStringLiteral("positive"), link("6", 0)}, {QStringLiteral("negative"), link("7", 0)},
+                                   {QStringLiteral("latent_image"), link("55", 0)}});
+    g[QStringLiteral("8")] = node(QStringLiteral("VAEDecode"), QStringLiteral("Decode"),
+                                  {{QStringLiteral("samples"), link("3", 0)}, {QStringLiteral("vae"), link("39", 0)}});
+    g[QStringLiteral("30")] = node(QStringLiteral("InspyrenetRembg"), QStringLiteral("Remove background"),
+                                   {{QStringLiteral("torchscript_jit"), QStringLiteral("default")}, {QStringLiteral("image"), link("8", 0)}});
+    g[QStringLiteral("9")] = node(QStringLiteral("SaveImage"), QStringLiteral("Save"),
+                                  {{QStringLiteral("filename_prefix"), QStringLiteral("video/ComfyLive_video")}, {QStringLiteral("images"), link("30", 0)}});
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to video, Wan 2.2 TI2V-5B (built-in)");
+    return w;
+}
+
+Workflow Workflow::textToVideoHyperFlow()
+{
+    // ComfyUI-HyperFlow-Flash's own text-to-video graph (example_workflows/api/hyperflow_t2v_api.json), with the Q3_K_M
+    // file and ending in SaveImage: the frames come back as PNG pictures, like the Wan graph's. The model also makes a
+    // soundtrack; it is not decoded here (an animation's frames are what is wanted). No negative prompt: it samples
+    // without CFG, in 4, 6 or 8 steps. length is 17n+5 frames at 24 a second (124: 5.2 s, the shortest it was trained on).
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("HyperFlowLoader"), QStringLiteral("Model"),
+                                  {{QStringLiteral("unet_name"), QStringLiteral("minimax_h3_fl2va_hyperflow_flash_14b-Q3_K_M.gguf")},
+                                   {QStringLiteral("weights_in"), QStringLiteral("auto")}});
+    g[QStringLiteral("2")] = node(QStringLiteral("CLIPLoader"), QStringLiteral("Text encoder"),
+                                  {{QStringLiteral("clip_name"), QStringLiteral("qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors")},
+                                   {QStringLiteral("type"), QStringLiteral("minimax")}, {QStringLiteral("device"), QStringLiteral("default")}});
+    g[QStringLiteral("3")] = node(QStringLiteral("VAELoader"), QStringLiteral("VAE"),
+                                  {{QStringLiteral("vae_name"), QStringLiteral("minimax_h3_video_vae_fp16.safetensors")}});
+    g[QStringLiteral("5")] = node(QStringLiteral("MiniMaxH3ImageToVideo"), QStringLiteral("Video"),
+                                  {{QStringLiteral("prompt"), QStringLiteral("a young archer in a blue tunic and a brown cape stands ready, then "
+                                                                             "draws a wooden bow and releases an arrow to the right, "
+                                                                             "fantasy game character, ") + videoPromptSuffix()},
+                                   {QStringLiteral("width"), 832}, {QStringLiteral("height"), 480}, {QStringLiteral("length"), 73},
+                                   {QStringLiteral("clip"), link("2", 0)}, {QStringLiteral("vae"), link("3", 0)}});
+    g[QStringLiteral("6")] = node(QStringLiteral("HyperFlowSigmas"), QStringLiteral("Steps"),
+                                  {{QStringLiteral("steps"), 6}, {QStringLiteral("model"), link("1", 0)}});
+    g[QStringLiteral("7")] = node(QStringLiteral("KSamplerSelect"), QStringLiteral("Sampler"),
+                                  {{QStringLiteral("sampler_name"), QStringLiteral("euler")}});
+    g[QStringLiteral("8")] = node(QStringLiteral("RandomNoise"), QStringLiteral("Seed"), {{QStringLiteral("noise_seed"), 1}});
+    g[QStringLiteral("9")] = node(QStringLiteral("BasicGuider"), QStringLiteral("Guider"),
+                                  {{QStringLiteral("model"), link("1", 0)}, {QStringLiteral("conditioning"), link("5", 0)}});
+    g[QStringLiteral("10")] = node(QStringLiteral("SamplerCustomAdvanced"), QStringLiteral("Sample"),
+                                   {{QStringLiteral("noise"), link("8", 0)}, {QStringLiteral("guider"), link("9", 0)},
+                                    {QStringLiteral("sampler"), link("7", 0)}, {QStringLiteral("sigmas"), link("6", 0)},
+                                    {QStringLiteral("latent_image"), link("5", 1)}});
+    g[QStringLiteral("11")] = node(QStringLiteral("VAEDecode"), QStringLiteral("Decode"),
+                                   {{QStringLiteral("samples"), link("10", 0)}, {QStringLiteral("vae"), link("3", 0)}});
+    g[QStringLiteral("30")] = node(QStringLiteral("InspyrenetRembg"), QStringLiteral("Remove background"),
+                                   {{QStringLiteral("torchscript_jit"), QStringLiteral("default")}, {QStringLiteral("image"), link("11", 0)}});
+    g[QStringLiteral("12")] = node(QStringLiteral("SaveImage"), QStringLiteral("Save"),
+                                   {{QStringLiteral("filename_prefix"), QStringLiteral("video/ComfyLive_h3")}, {QStringLiteral("images"), link("30", 0)}});
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to video, HyperFlow H3 Flash Q3_K_M (built-in)");
+    return w;
+}
+
+QString Workflow::videoPromptSuffixWithImage()
+{
+    return QStringLiteral("the same single character as in the first frame, the same clothes and colours, the whole body stays "
+                          "in the frame, static camera, locked-off shot, the background does not change, sharp and clear, "
+                          "no motion blur");
+}
+
+namespace {
+const QString kStartImageNode = QStringLiteral("20");
+
+// the text graph with a LoadImage node as its first frame, and the prompt's ending for a picture
+Workflow withStartImage(Workflow w, const QString& latentNode, const QString& imageInput, const QString& promptInput, const QString& name)
+{
+    QJsonObject g = w.graph();
+    g[kStartImageNode] = node(QStringLiteral("LoadImage"), QStringLiteral("Reference picture"), {{QStringLiteral("image"), QString()}});
+    QJsonObject n = g.value(latentNode).toObject();
+    QJsonObject inputs = n.value(QStringLiteral("inputs")).toObject();
+    inputs[imageInput] = QJsonArray{kStartImageNode, 0};
+    n[QStringLiteral("inputs")] = inputs;
+    g[latentNode] = n;
+    w.fromJson(g, nullptr);
+    const QString promptNode = promptInput.section(QLatin1Char('/'), 0, 0), input = promptInput.section(QLatin1Char('/'), 1);
+    w.setValue(promptNode, input, QStringLiteral("the archer stands ready, then raises the bow, draws the string back to the cheek and "
+                                                 "releases the arrow, ") + Workflow::videoPromptSuffixWithImage());
+    w.setName(name);
+    return w;
+}
+}  // namespace
+
+Workflow Workflow::imageToVideo()
+{
+    return withStartImage(textToVideo(), QStringLiteral("55"), QStringLiteral("start_image"), QStringLiteral("6/text"),
+                          QStringLiteral("Picture to video, Wan 2.2 TI2V-5B (built-in)"));
+}
+
+Workflow Workflow::imageToVideoHyperFlow()
+{
+    return withStartImage(textToVideoHyperFlow(), QStringLiteral("5"), QStringLiteral("first_frame"), QStringLiteral("5/prompt"),
+                          QStringLiteral("Picture to video, HyperFlow H3 Flash Q3_K_M (built-in)"));
+}
+
+namespace {
+const QString kRemoveBackgroundNode = QStringLiteral("30");
+
+// the Save node that takes the background-removal node's pictures, or what that node itself takes (the decoded frames)
+QString saveNodeAfter(const QJsonObject& graph, const QJsonValue& source)
+{
+    for (auto it = graph.begin(); it != graph.end(); ++it) {
+        const QJsonObject n = it.value().toObject();
+        if (n.value(QStringLiteral("class_type")).toString() == QStringLiteral("SaveImage") &&
+            n.value(QStringLiteral("inputs")).toObject().value(QStringLiteral("images")) == source)
+            return it.key();
+    }
+    return {};
+}
+}  // namespace
+
+bool Workflow::hasRemoveBackground() const
+{
+    const QJsonObject n = graph_.value(kRemoveBackgroundNode).toObject();
+    if (!n.value(QStringLiteral("class_type")).toString().startsWith(QStringLiteral("InspyrenetRembg")) || !makesVideo())
+        return false;
+    const QJsonValue decoded = n.value(QStringLiteral("inputs")).toObject().value(QStringLiteral("image"));
+    return !saveNodeAfter(graph_, QJsonArray{kRemoveBackgroundNode, 0}).isEmpty() || !saveNodeAfter(graph_, decoded).isEmpty();
+}
+
+bool Workflow::removeBackground() const
+{
+    return hasRemoveBackground() && !saveNodeAfter(graph_, QJsonArray{kRemoveBackgroundNode, 0}).isEmpty();
+}
+
+void Workflow::setRemoveBackground(bool on)
+{
+    if (!hasRemoveBackground() || on == removeBackground())
+        return;
+    const QJsonValue removed = QJsonArray{kRemoveBackgroundNode, 0};
+    const QJsonValue decoded = graph_.value(kRemoveBackgroundNode).toObject().value(QStringLiteral("inputs")).toObject().value(QStringLiteral("image"));
+    const QString save = saveNodeAfter(graph_, on ? decoded : removed);
+    QJsonObject n = graph_.value(save).toObject();
+    QJsonObject inputs = n.value(QStringLiteral("inputs")).toObject();
+    inputs[QStringLiteral("images")] = on ? removed : decoded;
+    n[QStringLiteral("inputs")] = inputs;
+    graph_[save] = n;
+}
+
+bool Workflow::hasStartImage() const
+{
+    return graph_.value(kStartImageNode).toObject().value(QStringLiteral("class_type")).toString() == QStringLiteral("LoadImage") && makesVideo();
+}
+
+QString Workflow::startImage() const
+{
+    return hasStartImage() ? value(kStartImageNode, QStringLiteral("image")).toString() : QString();
+}
+
+void Workflow::setStartImage(const QString& path)
+{
+    if (!hasStartImage())
+        return;
+    setValue(kStartImageNode, QStringLiteral("image"), path);
+    const QSize size = QImageReader(path).size();
+    if (!size.isValid() || size.isEmpty())
+        return;
+    // the node that has the video's size: the same number of pixels, the picture's shape, on the 32-pixel grid
+    for (auto it = graph_.begin(); it != graph_.end(); ++it) {
+        const QJsonObject inputs = it.value().toObject().value(QStringLiteral("inputs")).toObject();
+        const QString cls = it.value().toObject().value(QStringLiteral("class_type")).toString();
+        if (!(cls.contains(QStringLiteral("ToVideo")) || cls.contains(QStringLiteral("LatentVideo"))) ||
+            !inputs.value(QStringLiteral("width")).isDouble() || !inputs.value(QStringLiteral("height")).isDouble())
+            continue;
+        const double area = inputs.value(QStringLiteral("width")).toDouble() * inputs.value(QStringLiteral("height")).toDouble();
+        const double aspect = double(size.width()) / size.height();
+        const int w = qMax(32, int(std::lround(std::sqrt(area * aspect) / 32.0)) * 32);
+        const int h = qMax(32, int(std::lround(w / aspect / 32.0)) * 32);
+        const QString id = it.key();
+        setValue(id, QStringLiteral("width"), w);
+        setValue(id, QStringLiteral("height"), h);
+        break;
+    }
+}
+
 QStringList Workflow::builtInIds()
 {
-    return {QStringLiteral("image"), QStringLiteral("music"), QStringLiteral("sfx"), QStringLiteral("speech"), QStringLiteral("voice")};
+    return {QStringLiteral("image"), QStringLiteral("music"), QStringLiteral("sfx"), QStringLiteral("speech"), QStringLiteral("voice"),
+            QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image")};
 }
 
 bool Workflow::builtIn(const QString& id, Workflow* out)
@@ -257,6 +480,14 @@ bool Workflow::builtIn(const QString& id, Workflow* out)
         *out = textToSpeech();
     else if (id == QStringLiteral("voice"))
         *out = textToSpeechDesigned();
+    else if (id == QStringLiteral("video"))
+        *out = textToVideo();
+    else if (id == QStringLiteral("video-h3"))
+        *out = textToVideoHyperFlow();
+    else if (id == QStringLiteral("video-image"))
+        *out = imageToVideo();
+    else if (id == QStringLiteral("video-h3-image"))
+        *out = imageToVideoHyperFlow();
     else
         return false;
     return true;
@@ -264,9 +495,14 @@ bool Workflow::builtIn(const QString& id, Workflow* out)
 
 bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
 {
-    const QString id = o.value(QStringLiteral("graph")).toString(QStringLiteral("music"));   // an old song file has none
+    QString id = o.value(QStringLiteral("graph")).toString(QStringLiteral("music"));   // an old song file has none
+    // a video recipe with a reference picture: the same model's graph with the picture as its first frame
+    const QString imagePath = o.value(QStringLiteral("image")).toString();
+    const bool withImage = id.endsWith(QStringLiteral("-image")) || ((id == QStringLiteral("video") || id == QStringLiteral("video-h3")) && !imagePath.isEmpty());
+    if (id.endsWith(QStringLiteral("-image")))
+        id.chop(6);
     Workflow w;
-    if (!builtIn(id, &w)) {
+    if (!builtIn(withImage ? id + QStringLiteral("-image") : id, &w)) {
         if (why)
             *why = QStringLiteral("\"graph\": \"%1\" is not a built-in graph (%2)").arg(id, builtInIds().join(QStringLiteral(", ")));
         return false;
@@ -283,12 +519,31 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
         alias.insert(QStringLiteral("voice"), QStringLiteral("1/instruct"));
     } else if (id == QStringLiteral("speech")) {
         alias.insert(QStringLiteral("style"), QStringLiteral("1/instruct"));
+    } else if (id == QStringLiteral("video")) {
+        alias.insert(QStringLiteral("prompt"), QStringLiteral("6/text"));
+        alias.insert(QStringLiteral("text"), QStringLiteral("6/text"));   // plain "text" is on both prompts
+        alias.insert(QStringLiteral("avoid"), QStringLiteral("7/text"));
+        alias.insert(QStringLiteral("seconds"), QStringLiteral("55/length"));
+    } else if (id == QStringLiteral("video-h3")) {   // no "avoid": this model has no negative prompt
+        alias.insert(QStringLiteral("text"), QStringLiteral("5/prompt"));
+        alias.insert(QStringLiteral("seconds"), QStringLiteral("5/length"));
+        alias.insert(QStringLiteral("seed"), QStringLiteral("8/noise_seed"));
     }
+    const bool videoRecipe = id == QStringLiteral("video") || id == QStringLiteral("video-h3");
+    if (videoRecipe)   // on unless the recipe says false
+        w.setRemoveBackground(o.value(QStringLiteral("remove-background")).toBool(true));
+    if (withImage && !imagePath.isEmpty())
+        w.setStartImage(imagePath);   // first: "width" / "height" in the recipe then win over the picture's shape
+    const QString videoPromptKey = id == QStringLiteral("video") ? QStringLiteral("6/text") : QStringLiteral("5/prompt");
+    const bool rawPrompt = o.value(QStringLiteral("raw-prompt")).toBool();
     QJsonObject values;
     static const QStringList reserved{QStringLiteral("out"), QStringLiteral("random-seed"), QStringLiteral("params"),
-                                      QStringLiteral("name"), QStringLiteral("graph"), QStringLiteral("comfylive")};
+                                      QStringLiteral("name"), QStringLiteral("graph"), QStringLiteral("comfylive"),
+                                      QStringLiteral("raw-prompt"), QStringLiteral("remove-background")};
     for (auto it = o.begin(); it != o.end(); ++it) {
         if (reserved.contains(it.key()) || it.key().startsWith(QLatin1Char('_')))   // "_comment": notes for people
+            continue;
+        if (videoRecipe && it.key() == QStringLiteral("image"))   // set above
             continue;
         values[it.key()] = it.value();
     }
@@ -306,6 +561,16 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
             const QString input = key.section(QLatin1Char('/'), -1);
             const bool speechText = (id == QStringLiteral("speech") || id == QStringLiteral("voice")) && input == QStringLiteral("text");
             v = parts.join(input == QStringLiteral("tags") ? QStringLiteral(", ") : speechText ? QStringLiteral(" ") : QStringLiteral("\n"));
+        }
+        if (videoRecipe && it.key() == QStringLiteral("seconds")) {
+            // seconds -> frames at the model's rate, on the grid the model takes: 4n+1 (Wan; 3 s: 73) or 17n+5
+            // (MiniMax H3; 3 s: 73, 5 s: 124)
+            const double frames = v.toDouble() * w.videoFps();
+            v = id == QStringLiteral("video") ? qMax(5, int(std::lround(frames / 4.0)) * 4 + 1)
+                                              : qMax(22, int(std::ceil((frames - 5.0) / 17.0)) * 17 + 5);
+        } else if (videoRecipe && (key == videoPromptKey || (key == QStringLiteral("prompt") && id == QStringLiteral("video-h3"))) &&
+                   !rawPrompt) {
+            v = v.toString().trimmed() + QStringLiteral(", ") + (withImage ? videoPromptSuffixWithImage() : videoPromptSuffix());
         }
         bool found = false;
         for (auto n = w.graph_.begin(); n != w.graph_.end(); ++n) {
@@ -346,6 +611,14 @@ bool Workflow::isRecipe(const QJsonObject& o)
     return false;
 }
 
+namespace {
+// the settings file's key for the result it belongs to: "video" for an MP4, else "audio"
+QString resultKey(const QString& path)
+{
+    return QFileInfo(path).suffix().compare(QStringLiteral("mp4"), Qt::CaseInsensitive) == 0 ? QStringLiteral("video") : QStringLiteral("audio");
+}
+}  // namespace
+
 QString Workflow::settingsPathFor(const QString& audioPath)
 {
     const QFileInfo f(audioPath);
@@ -359,7 +632,7 @@ bool Workflow::writeSettings(const QString& audioPath, const QJsonObject& graph,
     o[QStringLiteral("comfylive")] = QStringLiteral("settings");
     o[QStringLiteral("version")] = 1;
     o[QStringLiteral("name")] = name;
-    o[QStringLiteral("audio")] = QFileInfo(audioPath).fileName();
+    o[resultKey(audioPath)] = QFileInfo(audioPath).fileName();
     o[QStringLiteral("created")] = QDateTime::currentDateTime().toString(Qt::ISODate);
     o[QStringLiteral("how")] = QStringLiteral("ComfyLive: Open graph... with this file, then Generate: the same song or sound "
                                               "again (New seed each run is turned off for it)");
@@ -384,7 +657,8 @@ bool Workflow::copySettings(const QString& from, const QString& to, const QJsonO
         return false;
     for (auto it = extra.begin(); it != extra.end(); ++it)
         o[it.key()] = it.value();
-    o[QStringLiteral("audio")] = QFileInfo(to).fileName();
+    o.remove(resultKey(from));
+    o[resultKey(to)] = QFileInfo(to).fileName();
     QFile out(settingsPathFor(to));
     if (!out.open(QIODevice::WriteOnly | QIODevice::Truncate))
         return false;
@@ -438,6 +712,15 @@ bool Workflow::load(const QString& path, QString* why)
     if (isRecipe(doc.object())) {
         if (!fromRecipe(doc.object(), why))
             return false;
+        if (hasStartImage() && !startImage().isEmpty() && QFileInfo(startImage()).isRelative()) {
+            QJsonObject n = graph_.value(kStartImageNode).toObject();   // beside the recipe; the size was set from it?
+            const QString absolute = QDir::cleanPath(QFileInfo(path).absoluteDir().filePath(startImage()));
+            const bool sized = doc.object().contains(QStringLiteral("width")) || doc.object().contains(QStringLiteral("height"));
+            if (sized)
+                setValue(kStartImageNode, QStringLiteral("image"), absolute);
+            else
+                setStartImage(absolute);
+        }
         if (!doc.object().contains(QStringLiteral("name")))
             name_ = QFileInfo(path).completeBaseName();
         return true;
@@ -503,7 +786,9 @@ QList<ParamDef> Workflow::params(const QJsonObject& objectInfo) const
             const QJsonObject opts = spec.size() > 1 ? spec[1].toObject() : QJsonObject();
             p.tooltip = opts.value(QStringLiteral("tooltip")).toString();
             const QStringList choices = choicesOf(spec);
-            if (!choices.isEmpty()) {
+            if (cls == QStringLiteral("LoadImage") && input == QStringLiteral("image") && id == kStartImageNode && hasStartImage()) {
+                p.kind = ParamDef::Kind::Line;   // a file on this PC (ComfyClient sends it), not one of the server's list
+            } else if (!choices.isEmpty()) {
                 p.kind = ParamDef::Kind::Combo;
                 p.choices = choices;
             } else if (type == QStringLiteral("INT")) {
@@ -595,6 +880,26 @@ bool Workflow::needsSpeechServer() const
     return false;
 }
 
+bool Workflow::makesVideo() const
+{
+    for (auto it = graph_.begin(); it != graph_.end(); ++it) {
+        const QString cls = it.value().toObject().value(QStringLiteral("class_type")).toString();
+        if (cls.contains(QStringLiteral("ToVideo")) || cls.contains(QStringLiteral("LatentVideo")))
+            return true;
+    }
+    return false;
+}
+
+double Workflow::videoFps() const
+{
+    for (auto it = graph_.begin(); it != graph_.end(); ++it) {
+        const QString cls = it.value().toObject().value(QStringLiteral("class_type")).toString();
+        if (cls == QStringLiteral("Wan22ImageToVideoLatent") || cls.startsWith(QStringLiteral("MiniMaxH3")))
+            return 24.0;
+    }
+    return 16.0;
+}
+
 QJsonValue Workflow::value(const QString& nodeId, const QString& input) const
 {
     return graph_.value(nodeId).toObject().value(QStringLiteral("inputs")).toObject().value(input);
@@ -606,7 +911,7 @@ QStringList Workflow::fixMissingChoices(const QJsonObject& objectInfo)
     for (const ParamDef& p : params(objectInfo)) {
         if (p.kind != ParamDef::Kind::Combo || p.choices.isEmpty() || p.choices.contains(p.value.toString()))
             continue;
-        if (p.classType.startsWith(QStringLiteral("FB_Qwen3TTS")))
+        if (p.classType.startsWith(QStringLiteral("FB_Qwen3TTS")) || p.classType == QStringLiteral("LoadImage"))
             continue;   // the speech node's lists are its own (speakers, languages, sizes), never a model file
         // the same family as the missing one: an ACE-Step model for an ACE-Step graph, a Stable Audio model or a T5
         // encoder for a sound graph, else an SDXL picture model. A sound model with nothing of its family on the server
@@ -620,6 +925,15 @@ QStringList Workflow::fixMissingChoices(const QJsonObject& objectInfo)
             family = p.choices.filter(QStringLiteral("ace"), Qt::CaseInsensitive);
         else if (isStableAudio(was))
             std::copy_if(p.choices.begin(), p.choices.end(), std::back_inserter(family), isStableAudio);
+        else if (has(was, "minimax") || has(was, "hyperflow"))   // MiniMax H3 / HyperFlow: only another file of the same part
+            family = p.choices.filter(QStringLiteral("minimax"), Qt::CaseInsensitive)
+                         .filter(has(was, "audio_vae") ? QStringLiteral("audio_vae") : has(was, "video_vae") ? QStringLiteral("video_vae")
+                                 : has(was, "qwen3vl") ? QStringLiteral("qwen3vl") : QStringLiteral("hyperflow"), Qt::CaseInsensitive);
+        else if (has(was, "umt5"))
+            family = p.choices.filter(QStringLiteral("umt5"), Qt::CaseInsensitive);
+        else if (has(was, "wan"))   // a Wan video model, or its VAE: only another of the same kind
+            family = p.choices.filter(QStringLiteral("wan"), Qt::CaseInsensitive)
+                         .filter(has(was, "vae") ? QStringLiteral("vae") : QStringLiteral("ti2v"), Qt::CaseInsensitive);
         else if (has(was, "t5"))
             family = p.choices.filter(QStringLiteral("t5"), Qt::CaseInsensitive);
         else {

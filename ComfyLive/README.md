@@ -166,6 +166,103 @@ ComfyLive starts it as `.venv-speech\Scripts\python.exe main.py --port 8189 --di
 --whitelist-custom-nodes ComfyUI-Qwen-TTS`. The first run of a voice loads the model (about 20 s); a sentence then
 takes a few seconds.
 
+## Video (Wan 2.2 TI2V-5B)
+
+A short video of one character moving, from a prompt. It is the first step of TOMS's character animation from video
+(TOMS `docs/engine/24_VIDEO_TO_SKELETON.md`): the later tools read the frames, so the frames are the main result and
+the MP4 is for looking at.
+
+1. **The models** (in `D:\Work\AI\models`, 17 GB together; TOMS `tools\setup_ai_art.cmd` downloads them). All are
+   Apache 2.0 and need no sign-in. No custom node is needed: ComfyUI has the Wan nodes.
+   - `diffusion_models/wan2.2_ti2v_5B_fp16.safetensors` (10.0 GB) and `vae/wan2.2_vae.safetensors` (1.4 GB), from
+     `https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged` (`split_files/`);
+   - `text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors` (6.7 GB), from
+     `https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged` (`split_files/text_encoders/`).
+2. **Built-in > Text to video (Wan 2.2 TI2V-5B).** The form shows:
+   - **Video:** the prompt. Say who it is, then what the body does, step by step and in order: `stands facing right,
+     raises the bow, draws the string back to the cheek, holds for a moment, releases the arrow`. The default prompt
+     ends with the words that keep the video readable for the later tools: one character, the whole body in the frame,
+     a side view, a camera that does not move, a plain grey background. Keep them.
+   - **Avoid:** what not to see (camera movement, several characters, a busy background ...).
+   - **Size and length:** `width` and `height` (1280 x 704 is the model's own size; 704 x 1280 for a tall picture) and
+     `length` in frames. The model makes 24 frames a second and takes 4n+1 frames: 49 is 2 s, 73 is 3 s, 121 is 5 s.
+   - **Sampler:** 20 steps, cfg 5, `uni_pc` / `simple`, and **Model shift** 8 (ComfyUI's own template for this model).
+3. **Generate.** While it runs the view shows the sampler's previews. When it is done the frames are read from ComfyUI
+   and the video plays in a loop. Under it: **Pause / Play**, one frame back and on, **Open frames folder** and
+   **Save video...**.
+   - The frames are kept as `frame_0001.png`, `frame_0002.png` ... in `<name>_frames`, with `<name>.mp4` (made by
+     ffmpeg, the same one Transpose uses) and the settings `<name>.json` beside the folder. **Save video...** copies
+     all three wherever you want. Without ffmpeg there is no MP4; the frames are still kept.
+   - **Open graph...** with the `.json`, then **Generate**, makes the same video again.
+   - **Save picture...** saves the frame on screen.
+
+With text only the video is a new person each time: only the prompt describes the look. To get the same character
+in every clip, give a reference picture (below).
+
+### A reference picture: the video starts as your picture
+
+**Built-in > Picture to video (Wan 2.2 TI2V-5B)** or **Picture to video (HyperFlow H3 Flash Q3_K_M)**. The form has
+one more box, **Reference picture**: type the file's path or click **Browse...**. The picture is the video's first
+frame, so the video shows that character, in that pose, on that background.
+
+- **The picture:** one character, the whole body, a little room around it for the motion, a plain background. The
+  pose in the picture is the pose every clip starts from, so a ready stance is the most useful.
+- **The size follows the picture.** Choosing a picture sets `width` and `height` to its shape (about as many pixels as
+  before, in steps of 32), so nothing is cropped or stretched. You can still change them.
+- **The prompt says only what moves:** `the boy raises the bow, draws the string back and releases the arrow`. The
+  look comes from the picture. The built-in prompt ends with the words that hold the camera and the background still.
+- ComfyLive sends the picture to ComfyUI's `input` folder itself (as `comfylive_<id>_<name>`). The settings file keeps
+  your own path, so opening it makes the same video again.
+- **In a recipe:** add `"image"` to a `video` or `video-h3` recipe (a path; a relative one is beside the recipe):
+
+  ```json
+  { "graph": "video", "image": "hero_ready.png", "prompt": "the boy breathes calmly, the cape sways", "seconds": 3 }
+  ```
+
+- **Measured on an RTX 4070 (12 GB)** with an 832 x 1216 picture, 73 frames: Wan at 800 x 1184 took 261 s; HyperFlow
+  at 512 x 736 took 65 s. Both kept the face, the clothes and the colours through the clip.
+
+### Remove background: frames with only the character
+
+All four video graphs have a **Remove background** box in the form, **on by default**. With it on, every frame is a
+PNG with only the character and a transparent background (the ground shadow goes too), ready to be packed into an
+atlas and played as a picture sequence. Turn it off to keep the video's own background.
+
+- It is the Inspyrenet background-removal node (`comfyui-inspyrenet-rembg`, the custom node TOMS's art scripts use),
+  run on each frame after the video is made. It added about 40 s to a 73-frame clip at 512 x 736 on an RTX 4070.
+- The MP4 has no transparency (H.264): it shows the character on grey. The window shows the frames on its dark view.
+- In a recipe: `"remove-background": false` turns it off.
+- The choice is kept in the settings file with the rest of the graph.
+
+### A second video model: HyperFlow H3 Flash (Q3_K_M)
+
+**Built-in > Text to video (HyperFlow H3 Flash Q3_K_M)**, or `"graph": "video-h3"` in a recipe
+(`examples/video_h3_hero_bow_attack.json`). It is Video Rebirth's 6-step version of MiniMax H3, a 14B model, as a GGUF
+file. The frames, the MP4, the settings file and the window's controls are the same as for Wan.
+
+- **Licence: read it before using anything it makes.** The weights are under the MiniMax H3 Community License
+  Agreement (`https://huggingface.co/VideoRebirthAI/hyperflow-h3-flash/blob/main/LICENSE`), accepted by running the
+  model. It does not cover use in the USA, the European Union, the United Kingdom or South Korea, and it forbids
+  using, distributing or showing the model's outputs there. A commercial product has to show "MiniMax H3" in its
+  interface. Wan 2.2 (Apache 2.0) has none of these limits.
+- **Custom nodes** (in `ComfyUI/custom_nodes/`, loaded when ComfyUI starts):
+  `https://github.com/city96/ComfyUI-GGUF` and `https://github.com/Video-Rebirth/ComfyUI-HyperFlow-Flash`, plus
+  `pip install "gguf>=0.13.0"` in ComfyUI's `.venv`. ComfyUI 0.43 or newer (it has the MiniMax H3 nodes).
+- **The models** (28.7 GB together; not in `tools\setup_ai_art.cmd`, because of the licence):
+  - `diffusion_models/minimax_h3_fl2va_hyperflow_flash_14b-Q3_K_M.gguf` (7.2 GB), from
+    `https://huggingface.co/VideoRebirthAI/hyperflow-h3-flash` (`fl2va_gguf/`);
+  - `text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` (15.7 GB), `vae/minimax_h3_video_vae_fp16.safetensors`
+    (5.2 GB) and `vae/minimax_h3_audio_vae_fp32.safetensors` (0.6 GB, not used by this graph), from
+    `https://huggingface.co/Comfy-Org/MiniMax-H3`.
+- **The form:** **Video** has the prompt, `width`, `height` and `length` (17n+5 frames at 24 a second: 56, 73, 90, 107,
+  124 ...; the model was trained on 124 and more, shorter works but is outside that). There is no **Avoid**: the model
+  samples without a negative prompt. **Steps** is 4, 6 or 8. **Model** `weights_in`: `auto` keeps the weights that do
+  not fit on the GPU in the file on a fast NVMe drive (`disk`), which is what a 12 GB card needs.
+- **Measured on an RTX 4070 (12 GB), 64 GB of RAM, models on NVMe, 6 steps:** 640 x 352, 56 frames: 35 s, peak
+  11.2 GB of VRAM. 832 x 480, 73 frames: 61 s, peak 10.5 GB. Larger sizes are not tried yet; the publisher measured
+  only 24 GB and 32 GB cards.
+- Another quant: put its `.gguf` in `diffusion_models/` and pick it in **Model** `unet_name`.
+
 ## Headless mode
 
 ```
@@ -232,7 +329,7 @@ A ComfyUI that the headless server starts keeps running after it exits (`--stop-
 ComfyLive.exe --make=recipe.json [--out=x.mp3] [--random-seed] [--stop-comfy-on-exit] [--server=...] [--speech-server=...]
 ```
 
-This makes one song, sound or speech and exits: 0 when the file was written, otherwise the codes above. It uses the
+This makes one song, sound, speech or video and exits: 0 when the file was written, otherwise the codes above. It uses the
 ComfyUI that answers, or starts the one the graph needs and leaves it running. `--song=` is the same option. The `make`
 command of `--headless` does the same thing. Without `--out`, the file goes next to the JSON file as
 `<name>_<date-time>.mp3`, with its settings file `<name>_<date-time>.json` beside it. An `out` whose settings file would
@@ -281,6 +378,48 @@ The file can be one of three kinds:
   - Keys starting with `_` are notes and are ignored. `out` and `random-seed` in the file are defaults that the command
     line overrides.
 
+### A video recipe
+
+```json
+{
+    "graph": "video",
+    "prompt": "a young archer in a blue tunic stands facing right, draws a wooden bow and releases the arrow",
+    "seconds": 3,
+    "seed": 102
+}
+```
+
+```
+ComfyLive.exe --make=examples\video_hero_bow_attack.json --out=D:\out\hero_bow_attack.mp4
+```
+
+This writes `D:\out\hero_bow_attack_frames\frame_0001.png` ... (73 frames for 3 s), `hero_bow_attack.mp4` and
+`hero_bow_attack.json`, and prints the three paths. Without `--out` they go next to the recipe as
+`<name>_<date-time>`. The exit code is 0 when the frames were written; a missing ffmpeg only leaves out the MP4
+(`no MP4: ...` is printed, the code is still 0).
+
+- `"graph": "video-h3"` is HyperFlow H3 Flash instead of Wan: the same keys, without `avoid`, and `seconds` is
+  rounded up to 17n+5 frames.
+- `prompt` (or `text`): what happens. ComfyLive adds the ending that keeps one whole character, a fixed camera and a
+  plain background (`Workflow::videoPromptSuffix`). `"raw-prompt": true` sends the prompt exactly as written.
+- `avoid`: the negative prompt; leave it out to keep the built-in one.
+- `seconds`: turned into frames (24 a second, rounded to 4n+1). `length` gives the frames directly.
+- `image`: a reference picture as the first frame (see "A reference picture"); without `width` and `height` the
+  video takes the picture's shape.
+- `remove-background`: `false` keeps the video's background (on by default: transparent frames).
+- `width`, `height`, `steps`, `cfg`, `seed`: as in the form. No `seed`: a new video each run.
+
+In `--headless`, `make` (or `reset-graph {"graph": "video"}`, `set-params`, `generate {"out": "x.mp4"}`) sends one
+event when the frames are in:
+
+```json
+{"type": "video", "path": "D:\\out\\x.mp4", "frames": "D:\\out\\x_frames", "count": 73, "fps": 24, "width": 1280,
+ "height": 704, "settings": "D:\\out\\x.json"}
+```
+
+`mp4Error` replaces `path` when ffmpeg could not make the MP4. Three recipes for the TOMS hero are in `examples/`:
+`video_hero_bow_idle`, `video_hero_bow_attack`, `video_hero_bow_hurt`.
+
 ## Checks (nothing appears on the screen)
 
 ```
@@ -299,6 +438,14 @@ ComfyLive.exe --selftest [--start] [--steps=8] [--out=result.png] [--server=...]
 ComfyLive.exe --screenshot=window.png [--start] [--generate] [--steps=8] [--lang=zh_TW] [--switch-lang=zh_TW]
 ```
 
+```
+ComfyLive.exe --video-test [--out=video_test.mp4]
+```
+
+`--video-test` needs no ComfyUI and no model: it checks the video recipe's rules (seconds to frames, the prompt's
+ending, `raw-prompt`), writes 12 drawn frames as PNG files, reads them back, makes an MP4 of them and checks its
+settings file. It prints `ALL CHECKS PASSED` (exit 0) or `SOME CHECKS FAILED` (exit 1).
+
 `--selftest` runs the built-in graph once. `--screenshot` draws the window off screen, after one generation if you
 add `--generate`. These modes use Qt's `offscreen` platform, with fonts from `%WINDIR%\Fonts`.
 
@@ -309,11 +456,12 @@ add `--generate`. These modes use Qt's `offscreen` platform, with fonts from `%W
 | `src/ComfyClient` | HTTP (`/object_info`, `/prompt`, `/interrupt`, `/queue`, `/view`) plus the WebSocket events and previews |
 | `src/MiniWebSocket` | a small RFC 6455 client on QTcpSocket (this Qt has no WebSockets module) |
 | `src/ComfyProcess` | starts the local ComfyUIs hidden (main, speech), and stops one by its port |
-| `src/Workflow` | the API-format graph, its parameters, the built-in graphs (image, music, sfx, speech, voice), recipes |
+| `src/Workflow` | the API-format graph, its parameters, the built-in graphs (image, music, sfx, speech, voice, video, video-h3), recipes |
 | `src/MainWindow`, `src/ImageView` | the window |
 | `src/AudioPlayer` | plays a song with Windows' MCI (winmm) |
 | `src/ParamHelp` | what each parameter does (hover, the ? list), English and 繁體中文 |
 | `src/SongTools` | Singer / Voice tags, key steps, Transpose (ffmpeg) |
+| `src/VideoTools` | a video's frames as numbered PNG files, and an MP4 of them (ffmpeg) |
 | `src/Translator` | the English / 繁體中文 switch: the Traditional Chinese table |
 | `src/HeadlessServer` | `--headless`, `--headless-test` and `--make` |
-| `examples/` | recipes: a song, 14 sound effects (`sfx_*`), 8 speeches (`speech_*`, `voice_*`) |
+| `examples/` | recipes: a song, 14 sound effects (`sfx_*`), 8 speeches (`speech_*`, `voice_*`), 4 videos (`video_*`) |

@@ -32,6 +32,9 @@ public:
     QString server() const { return server_; }
     const QJsonObject& objectInfo() const { return objectInfo_; }
 
+    // A LoadImage node whose "image" is a file on this PC (an absolute path) is uploaded to the server's input folder
+    // first (POST /upload/image) and the graph sent with the uploaded name; sentGraph() keeps the graph as given, with
+    // the path. An empty "image" is refused here (promptRejected).
     void queuePrompt(const QJsonObject& graph);
     void interrupt();
     void deleteQueued(const QStringList& promptIds);
@@ -53,6 +56,11 @@ signals:
     void progress(const QString& promptId, int value, int max);
     void preview(const QImage& image);
     void imageReady(const QString& promptId, const QImage& image, const QString& fileName);
+    // An output with more than one picture (a video graph's frames, a batch): imageSetComing when its downloads start,
+    // then imageSetReady with all of them in the output's order (not one imageReady each: downloads end in any order).
+    // Pictures that could not be read are left out; none readable: an empty list.
+    void imageSetComing(const QString& promptId, int count);
+    void imageSetReady(const QString& promptId, const QList<QImage>& images, const QStringList& fileNames);
     void audioReady(const QString& promptId, const QByteArray& bytes, const QString& fileName);   // the file as saved (mp3, flac ...)
     void finished(const QString& promptId);
     void failed(const QString& promptId, const QString& why);
@@ -64,7 +72,9 @@ private:
     void openSocket();
     void onSocketText(const QString& text);
     void onSocketBinary(const QByteArray& data);
+    void postPrompt(const QJsonObject& sendGraph, const QJsonObject& givenGraph);
     void fetchImage(const QString& promptId, const QJsonObject& ref);
+    void fetchImageSet(const QString& promptId, const QJsonArray& refs);
     void fetchAudio(const QString& promptId, const QJsonObject& ref);
     QNetworkReply* fetchFile(const QJsonObject& ref, QString* shown);
 

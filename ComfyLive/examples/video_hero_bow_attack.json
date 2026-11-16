@@ -1,0 +1,7 @@
+{
+    "_comment": "Hero, bow, attack: draws and releases, 3 s.  ComfyLive.exe --make=video_hero_bow_attack.json  (or Open graph... in the window). The frames go to <out>_frames, the MP4 beside them. docs: README.md \"Video\".",
+    "graph": "video",
+    "prompt": "a young archer with short brown hair, a blue tunic, a brown leather cape and boots, holding a wooden bow, fantasy game character, stands facing right, raises the bow, draws the string back to the cheek, holds for a moment, releases the arrow to the right, then lowers the bow, feet planted",
+    "seconds": 3,
+    "seed": 102
+}

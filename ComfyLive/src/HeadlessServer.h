@@ -62,6 +62,10 @@ private:
     bool generating() const;                                  // the running command makes a picture or a song
     void startGenerate(const QJsonObject& args);              // queue the graph: generate's args (out, preview-dir, random-seed)
     void runSong(const QJsonObject& args);
+    void onImage(const QString& file, const QImage& image);   // one picture of the running job: saved to "out", sent
+    // The frames of a video graph: frame_0001.png ... in <out>_frames, the settings beside "out", then the MP4 (ffmpeg);
+    // done() once the "video" event is sent.
+    void onVideoFrames(const QList<QImage>& frames, const QStringList& files, const std::function<void()>& done);
     QJsonArray paramsJson() const;
     bool setParams(const QJsonObject& values, QStringList* changed, QString* why);
     // The ComfyUI the graph runs on: the speech one for a Qwen3-TTS graph, else the main one. routeForGraph() points the
@@ -86,7 +90,11 @@ private:
     QString outPath_;
     QString previewDir_;
     int previews_ = 0;
-    bool gotImage_ = false;   // an image or a song came back
+    bool gotImage_ = false;   // an image, a song or a video came back
+    bool videoRun_ = false;   // the graph that was queued makes a video: its pictures are frames
+    double videoFps_ = 24.0;
+    bool setPending_ = false;             // a set of pictures is still being read (or made into a video)
+    std::function<void()> afterSet_;      // the job's end, waiting for it
     QElapsedTimer clock_;
 };
 

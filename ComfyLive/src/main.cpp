@@ -8,19 +8,23 @@
 //   ComfyLive.exe --selftest [--start] [--steps=8] [--out=result.png] [--server=127.0.0.1:8188]
 //       connects, runs the built-in graph once, counts the previews and saves the result; exit 0 = it worked
 //   ComfyLive.exe --screenshot=window.png [--start] [--generate] [--steps=8] [--lang=en|zh_TW] [--switch-lang=zh_TW]
-//       the window drawn off screen (after one generation with --generate), saved as a picture
+//                 [--graph=recipe.json]
+//       the window drawn off screen (after one generation with --generate), saved as a picture. --graph: with that
+//       graph, settings or recipe file, and the window's saved settings left as they are
 //
 // Headless (no window; README.md "Headless mode", the same protocol as GameStyleAI's --headless):
 //   ComfyLive.exe --headless [--port=8766] [--host=127.0.0.1] [--server=127.0.0.1:8188] [--graph=g.json] [--start]
 //       a TCP server: one JSON command per line in, NDJSON events out
 //   ComfyLive.exe --make=recipe.json [--out=x.mp3] [--random-seed] [--stop-comfy-on-exit] [--server=...] [--comfy-root=...]
-//       one song, sound or speech from a JSON file (a recipe, a settings file or an API graph; --song= is the same), then
+//       one song, sound, speech or video from a JSON file (a recipe, a settings file or an API graph; --song= is the same), then
 //       exit; starts the local ComfyUI when nothing answers and leaves it running (--stop-comfy-on-exit: stops it);
 //       exit 0 = the file was written
 //   ComfyLive.exe --comfy-stop[=main|speech|all]    stops the local ComfyUIs (8188 main, 8189 speech; all by default).
 //       ComfyLive never stops one by itself. --speech-server=127.0.0.1:8189 moves the speech one
 //   ComfyLive.exe --headless-test [--start] [--music] [--out=headless_test.png]
 //   ComfyLive.exe --song-test     the song helpers' rules (Singer / Voice tags, key steps); no ComfyUI
+//   ComfyLive.exe --video-test [--out=video_test.mp4]
+//       the video recipe's rules, and frames -> PNG files -> MP4 (ffmpeg); no ComfyUI
 //       the server and a built-in client in one process; exit 0 = ALL CHECKS PASSED
 #include "ComfyClient.h"
 #include "ComfyProcess.h"
@@ -29,11 +33,17 @@
 #include "ParamHelp.h"
 #include "MainWindow.h"
 #include "Translator.h"
+#include "VideoTools.h"
 #include "Workflow.h"
 
 #include <QApplication>
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QPainter>
 #include <QImage>
 #include <QSettings>
 #include <QTimer>
@@ -146,6 +156,14 @@ int runScreenshot(const QStringList& args)
     }
     const int steps = optionValue(args, QStringLiteral("--steps"), QStringLiteral("0")).toInt();
     MainWindow w;
+    const QString graphFile = optionValue(args, QStringLiteral("--graph"));
+    if (!graphFile.isEmpty()) {
+        QString why;
+        if (!w.openGraphForCheck(graphFile, &why)) {
+            say(QStringLiteral("cannot open %1: %2").arg(graphFile, why));
+            return 1;
+        }
+    }
     w.resize(1400, 900);
     w.show();
     auto grab = [&w, out](int code) {
@@ -267,6 +285,132 @@ int runSongTest()
     return failures == 0 ? 0 : 1;
 }
 
+// --video-test: the video recipe's rules, and frames -> frame_0001.png ... -> an MP4 and back (no ComfyUI, no model).
+int runVideoTest(const QStringList& args)
+{
+    int failures = 0;
+    auto has = [&failures](const QString& what, bool ok) {
+        failures += ok ? 0 : 1;
+        say(QStringLiteral("%1 %2").arg(ok ? QStringLiteral("ok  ") : QStringLiteral("FAIL"), what));
+    };
+    Workflow w;
+    QString why;
+    has(QStringLiteral("the built-in graphs have \"video\""), Workflow::builtInIds().contains(QStringLiteral("video")));
+    const bool loaded = w.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video")}, {QStringLiteral("prompt"), QStringLiteral("a knight swings a sword")},
+                                      {QStringLiteral("avoid"), QStringLiteral("blurry")}, {QStringLiteral("seconds"), 3}, {QStringLiteral("seed"), 7}}, &why);
+    has(QStringLiteral("a video recipe loads ") + why, loaded);
+    has(QStringLiteral("it makes a video at 24 frames a second"), w.makesVideo() && w.videoFps() == 24.0);
+    has(QStringLiteral("3 seconds are %1 frames (73)").arg(w.value(QStringLiteral("55"), QStringLiteral("length")).toInt()),
+        w.value(QStringLiteral("55"), QStringLiteral("length")).toInt() == 73);
+    const QString prompt = w.value(QStringLiteral("6"), QStringLiteral("text")).toString();
+    has(QStringLiteral("the prompt keeps its words and gets the fixed-camera, plain-background ending"),
+        prompt.startsWith(QStringLiteral("a knight swings a sword, ")) && prompt.endsWith(Workflow::videoPromptSuffix()));
+    has(QStringLiteral("avoid goes to the negative prompt only"), w.value(QStringLiteral("7"), QStringLiteral("text")).toString() == QStringLiteral("blurry"));
+    has(QStringLiteral("the recipe's seed is kept (no random seed)"),
+        w.value(QStringLiteral("3"), QStringLiteral("seed")).toInt() == 7 && !w.recipeRandomSeed());
+    Workflow raw;
+    has(QStringLiteral("\"raw-prompt\": the prompt as written"),
+        raw.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video")}, {QStringLiteral("text"), QStringLiteral("only this")},
+                        {QStringLiteral("raw-prompt"), true}}, &why) &&
+            raw.value(QStringLiteral("6"), QStringLiteral("text")).toString() == QStringLiteral("only this"));
+    Workflow h3;
+    const bool h3Loaded = h3.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video-h3")}, {QStringLiteral("prompt"), QStringLiteral("a knight swings a sword")},
+                                         {QStringLiteral("seconds"), 5}, {QStringLiteral("seed"), 9}}, &why);
+    has(QStringLiteral("a HyperFlow recipe (\"video-h3\") loads ") + (h3Loaded ? QString() : why), h3Loaded);
+    has(QStringLiteral("it makes a video at 24 frames a second; 5 seconds are %1 frames (124)").arg(h3.value(QStringLiteral("5"), QStringLiteral("length")).toInt()),
+        h3.makesVideo() && h3.videoFps() == 24.0 && h3.value(QStringLiteral("5"), QStringLiteral("length")).toInt() == 124);
+    has(QStringLiteral("its prompt gets the same ending, its seed goes to the noise"),
+        h3.value(QStringLiteral("5"), QStringLiteral("prompt")).toString() == QStringLiteral("a knight swings a sword, ") + Workflow::videoPromptSuffix() &&
+            h3.value(QStringLiteral("8"), QStringLiteral("noise_seed")).toInt() == 9 && !h3.recipeRandomSeed());
+    Workflow noAvoid;
+    has(QStringLiteral("\"avoid\" is refused for it (no negative prompt)"),
+        !noAvoid.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video-h3")}, {QStringLiteral("avoid"), QStringLiteral("blurry")}}, &why));
+    // a reference picture: 400 x 600 (2:3) -> the video takes its shape, about as many pixels as before
+    const QString refPath = QFileInfo(optionValue(args, QStringLiteral("--out"), QStringLiteral("video_test.mp4"))).absolutePath() + QStringLiteral("/video_test_ref.png");
+    QDir().mkpath(QFileInfo(refPath).absolutePath());
+    QImage ref(400, 600, QImage::Format_RGB32);
+    ref.fill(QColor(200, 200, 200));
+    ref.save(refPath);
+    Workflow pic;
+    const bool picLoaded = pic.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video")}, {QStringLiteral("prompt"), QStringLiteral("draws the bow")},
+                                           {QStringLiteral("image"), refPath}, {QStringLiteral("seconds"), 2}}, &why);
+    has(QStringLiteral("a video recipe with \"image\" loads ") + (picLoaded ? QString() : why), picLoaded);
+    has(QStringLiteral("it has the picture as its first frame"), pic.hasStartImage() && pic.startImage() == refPath && pic.makesVideo());
+    const int pw = pic.value(QStringLiteral("55"), QStringLiteral("width")).toInt(), ph = pic.value(QStringLiteral("55"), QStringLiteral("height")).toInt();
+    has(QStringLiteral("the video takes the picture's shape: %1 x %2 (768 x 1152)").arg(pw).arg(ph), pw == 768 && ph == 1152);
+    has(QStringLiteral("its prompt ends for a picture (the look is not described again)"),
+        pic.value(QStringLiteral("6"), QStringLiteral("text")).toString() == QStringLiteral("draws the bow, ") + Workflow::videoPromptSuffixWithImage());
+    Workflow picH3;
+    has(QStringLiteral("the same for HyperFlow, and \"width\" / \"height\" in the recipe win"),
+        picH3.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video-h3")}, {QStringLiteral("image"), refPath}, {QStringLiteral("width"), 480},
+                          {QStringLiteral("height"), 704}}, &why) &&
+            picH3.hasStartImage() && picH3.value(QStringLiteral("5"), QStringLiteral("width")).toInt() == 480 &&
+            picH3.value(QStringLiteral("5"), QStringLiteral("height")).toInt() == 704);
+    // Remove background: on by default in all four video graphs; "remove-background": false in a recipe turns it off
+    bool allOn = true;
+    for (const QString& id : {QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image")}) {
+        Workflow g;
+        allOn = allOn && Workflow::builtIn(id, &g) && g.hasRemoveBackground() && g.removeBackground();
+    }
+    has(QStringLiteral("Remove background is on by default in the four video graphs"), allOn);
+    has(QStringLiteral("a recipe has it on unless it says false"), w.removeBackground() && pic.removeBackground());
+    Workflow keep;
+    has(QStringLiteral("\"remove-background\": false: Save takes the decoded frames"),
+        keep.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video")}, {QStringLiteral("remove-background"), false}}, &why) &&
+            keep.hasRemoveBackground() && !keep.removeBackground() &&
+            keep.value(QStringLiteral("9"), QStringLiteral("images")) == QJsonValue(QJsonArray{QStringLiteral("8"), 0}));
+    keep.setRemoveBackground(true);
+    has(QStringLiteral("turned on again: Save takes the background-removal node's pictures"),
+        keep.removeBackground() && keep.value(QStringLiteral("9"), QStringLiteral("images")) == QJsonValue(QJsonArray{QStringLiteral("30"), 0}));
+    has(QStringLiteral("the picture graph has no such option"), !Workflow::textToImage().hasRemoveBackground());
+    has(QStringLiteral("a text video graph has no picture"), !w.hasStartImage() && w.startImage().isEmpty());
+    has(QStringLiteral("the picture and song graphs make no video"), !Workflow::textToImage().makesVideo() && !Workflow::textToMusic().makesVideo());
+
+    // 12 frames with a bar that moves -> PNG files -> read back -> an MP4
+    const QString mp4 = QFileInfo(optionValue(args, QStringLiteral("--out"), QStringLiteral("video_test.mp4"))).absoluteFilePath();
+    const QString dir = VideoTools::framesDirFor(mp4);
+    QList<QImage> frames;
+    for (int i = 0; i < 12; ++i) {
+        QImage f(320, 192, QImage::Format_ARGB32);   // transparent but for the bar, as with Remove background
+        f.fill(Qt::transparent);
+        QPainter p(&f);
+        p.fillRect(20 + i * 20, 60, 40, 72, QColor(90, 170, 255));
+        p.end();
+        frames << f;
+    }
+    why.clear();
+    const bool written = VideoTools::writeFrames(frames, dir, &why);
+    has(QStringLiteral("12 frames written to ") + QDir::toNativeSeparators(dir) + QLatin1Char(' ') + why, written);
+    const QList<QImage> back = VideoTools::readFrames(dir);
+    has(QStringLiteral("12 frames read back, in order (%1)").arg(back.size()),
+        back.size() == 12 && back.first().hasAlphaChannel() && qAlpha(back.first().pixel(300, 10)) == 0 && back.first().pixel(30, 90) == frames.first().pixel(30, 90) && back.last().pixel(250, 90) == frames.last().pixel(250, 90) &&
+            back.first().pixel(250, 90) != back.last().pixel(250, 90));
+    has(QStringLiteral("a shorter take replaces a longer one (5 frames left)"),
+        VideoTools::writeFrames(frames.mid(0, 5), dir, &why) && VideoTools::readFrames(dir).size() == 5 && VideoTools::writeFrames(frames, dir, &why));
+    QFile::remove(mp4);
+    const QString ffmpeg = SongTools::findFfmpeg();
+    if (ffmpeg.isEmpty()) {
+        say(QStringLiteral("skip the MP4: no ffmpeg (tools\\get_ffmpeg.cmd in TOMS, or ffmpeg.exe next to ComfyLive.exe)"));
+        say(failures == 0 ? QStringLiteral("ALL CHECKS PASSED") : QStringLiteral("SOME CHECKS FAILED"));
+        return failures == 0 ? 0 : 1;
+    }
+    VideoTools::encode(ffmpeg, dir, 24.0, mp4, [&](bool ok, const QString& message) {
+        has(QStringLiteral("the MP4: %1 (%2 bytes)").arg(QDir::toNativeSeparators(message)).arg(QFileInfo(mp4).size()), ok && QFileInfo(mp4).size() > 500);
+        bool named = Workflow::writeSettings(mp4, w.graph(), w.name(), {{QStringLiteral("fps"), 24.0}}, nullptr);
+        QFile f(Workflow::settingsPathFor(mp4));
+        named = named && f.open(QIODevice::ReadOnly) && f.readAll().contains("\"video\": \"" + QFileInfo(mp4).fileName().toUtf8() + "\"");
+        f.close();
+        has(QStringLiteral("its settings file names it as \"video\""), named);
+        Workflow again;
+        has(QStringLiteral("the settings file opens as the same graph"),
+            again.load(Workflow::settingsPathFor(mp4), nullptr) && again.fromSettings() && again.graph() == w.graph());
+        say(failures == 0 ? QStringLiteral("ALL CHECKS PASSED") : QStringLiteral("SOME CHECKS FAILED"));
+        qApp->exit(failures == 0 ? 0 : 1);
+    });
+    QTimer::singleShot(60000, qApp, [] { say(QStringLiteral("FAIL timed out")); qApp->exit(2); });
+    return qApp->exec();
+}
+
 }  // namespace
 
 int main(int argc, char* argv[])
@@ -279,9 +423,10 @@ int main(int argc, char* argv[])
     const bool headless = args.contains(QStringLiteral("--headless"));
     const bool headlessTest = args.contains(QStringLiteral("--headless-test"));
     const bool songTest = args.contains(QStringLiteral("--song-test"));
+    const bool videoTest = args.contains(QStringLiteral("--video-test"));
     const QString songFile = optionValue(args, QStringLiteral("--make"), optionValue(args, QStringLiteral("--song")));
     const bool comfyStop = args.contains(QStringLiteral("--comfy-stop")) || !optionValue(args, QStringLiteral("--comfy-stop")).isEmpty();
-    if (selfTest || screenshot || headless || headlessTest || songTest || comfyStop || !songFile.isEmpty()) {
+    if (selfTest || screenshot || headless || headlessTest || songTest || videoTest || comfyStop || !songFile.isEmpty()) {
         qputenv("QT_QPA_PLATFORM", "offscreen");   // nothing on the screen
 #ifdef Q_OS_WIN
         if (qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR"))   // the offscreen platform finds no fonts by itself
@@ -306,6 +451,8 @@ int main(int argc, char* argv[])
         return runScreenshot(args);
     if (songTest)
         return runSongTest();
+    if (videoTest)
+        return runVideoTest(args);
     if (comfyStop) {   // --comfy-stop[=main|speech|all]: end the local ComfyUIs, then exit (0: at least one was stopped)
         const HeadlessServer::Options o = headlessOptions(args);
         const QString which = optionValue(args, QStringLiteral("--comfy-stop"), QStringLiteral("all"));

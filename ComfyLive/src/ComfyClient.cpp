@@ -1,5 +1,11 @@
 #include "ComfyClient.h"
 
+#include <memory>
+
+#include <QCryptographicHash>
+#include <QFile>
+#include <QFileInfo>
+#include <QHttpMultiPart>
 #include <QJsonDocument>
 #include <QNetworkReply>
 #include <QUrlQuery>
@@ -112,8 +118,91 @@ void ComfyClient::openSocket()
 
 void ComfyClient::queuePrompt(const QJsonObject& graph)
 {
+    // the pictures to upload first: LoadImage nodes that name a file on this PC
+    struct Upload { QString nodeId, path; };
+    auto todo = std::make_shared<QList<Upload>>();
+    for (auto it = graph.begin(); it != graph.end(); ++it) {
+        const QJsonObject n = it.value().toObject();
+        if (n.value(QStringLiteral("class_type")).toString() != QStringLiteral("LoadImage"))
+            continue;
+        const QString image = n.value(QStringLiteral("inputs")).toObject().value(QStringLiteral("image")).toString();
+        if (image.trimmed().isEmpty()) {
+            emit promptRejected(QStringLiteral("no reference picture: choose one (the Reference picture field, or \"image\" in the recipe)"));
+            return;
+        }
+        if (QFileInfo(image).isAbsolute()) {
+            if (!QFileInfo(image).isFile()) {
+                emit promptRejected(QStringLiteral("the reference picture is not there: ") + image);
+                return;
+            }
+            todo->append({it.key(), image});
+        }
+    }
+    if (todo->isEmpty()) {
+        postPrompt(graph, graph);
+        return;
+    }
+    auto send = std::make_shared<QJsonObject>(graph);
+    auto next = std::make_shared<std::function<void()>>();
+    *next = [this, todo, send, graph, next] {
+        if (todo->isEmpty()) {
+            postPrompt(*send, graph);
+            *next = nullptr;   // lets go of itself
+            return;
+        }
+        const Upload u = todo->takeFirst();
+        QFile f(u.path);
+        if (!f.open(QIODevice::ReadOnly)) {
+            emit promptRejected(QStringLiteral("could not read the reference picture ") + u.path);
+            *next = nullptr;
+            return;
+        }
+        const QByteArray bytes = f.readAll();
+        // the same picture gets the same name on the server, another picture of the same file name does not replace it
+        const QString name = QStringLiteral("comfylive_%1_%2").arg(QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex().left(10)),
+                                                                   QFileInfo(u.path).fileName());
+        auto* multi = new QHttpMultiPart(QHttpMultiPart::FormDataType);
+        QHttpPart file;
+        file.setHeader(QNetworkRequest::ContentDispositionHeader,
+                       QStringLiteral("form-data; name=\"image\"; filename=\"%1\"").arg(QString(name).replace(QLatin1Char('"'), QLatin1Char('_'))));
+        file.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/octet-stream"));
+        file.setBody(bytes);
+        multi->append(file);
+        for (const auto& [key, value] : {std::pair{"overwrite", "true"}, std::pair{"type", "input"}}) {
+            QHttpPart part;
+            part.setHeader(QNetworkRequest::ContentDispositionHeader, QStringLiteral("form-data; name=\"%1\"").arg(QLatin1String(key)));
+            part.setBody(value);
+            multi->append(part);
+        }
+        QNetworkReply* reply = net_.post(QNetworkRequest(url(QStringLiteral("/upload/image"))), multi);
+        multi->setParent(reply);
+        connect(reply, &QNetworkReply::finished, this, [this, reply, u, send, next] {
+            reply->deleteLater();
+            const QJsonObject answer = QJsonDocument::fromJson(reply->readAll()).object();
+            const QString stored = answer.value(QStringLiteral("name")).toString();
+            if (reply->error() != QNetworkReply::NoError || stored.isEmpty()) {
+                emit promptRejected(QStringLiteral("could not send the reference picture %1 to ComfyUI: %2").arg(u.path, reply->errorString()));
+                *next = nullptr;
+                return;
+            }
+            const QString sub = answer.value(QStringLiteral("subfolder")).toString();
+            QJsonObject n = send->value(u.nodeId).toObject();
+            QJsonObject inputs = n.value(QStringLiteral("inputs")).toObject();
+            inputs[QStringLiteral("image")] = sub.isEmpty() ? stored : sub + QLatin1Char('/') + stored;
+            n[QStringLiteral("inputs")] = inputs;
+            (*send)[u.nodeId] = n;
+            emit logLine(QStringLiteral("reference picture sent: ") + stored);
+            if (*next)
+                (*next)();
+        });
+    };
+    (*next)();
+}
+
+void ComfyClient::postPrompt(const QJsonObject& sendGraph, const QJsonObject& graph)
+{
     QJsonObject body;
-    body[QStringLiteral("prompt")] = graph;
+    body[QStringLiteral("prompt")] = sendGraph;
     body[QStringLiteral("client_id")] = clientId_;
     QNetworkRequest request(url(QStringLiteral("/prompt")));
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
@@ -188,8 +277,12 @@ void ComfyClient::onSocketText(const QString& text)
             emit executing(promptId, node.toString());
     } else if (type == QStringLiteral("executed")) {
         const QJsonObject output = data.value(QStringLiteral("output")).toObject();
-        for (const QJsonValue& image : output.value(QStringLiteral("images")).toArray())
-            fetchImage(promptId, image.toObject());
+        const QJsonArray images = output.value(QStringLiteral("images")).toArray();
+        if (images.size() > 1)
+            fetchImageSet(promptId, images);
+        else
+            for (const QJsonValue& image : images)
+                fetchImage(promptId, image.toObject());
         for (const QJsonValue& audio : output.value(QStringLiteral("audio")).toArray())
             fetchAudio(promptId, audio.toObject());
     } else if (type == QStringLiteral("execution_error")) {
@@ -258,6 +351,43 @@ void ComfyClient::fetchImage(const QString& promptId, const QJsonObject& ref)
         }
         emit imageReady(promptId, image, shown);
     });
+}
+
+void ComfyClient::fetchImageSet(const QString& promptId, const QJsonArray& refs)
+{
+    struct Set {
+        QList<QImage> images;
+        QStringList files;
+        qsizetype left = 0;
+    };
+    auto set = std::make_shared<Set>();
+    set->images.resize(refs.size());
+    set->files.resize(refs.size());
+    set->left = refs.size();
+    emit imageSetComing(promptId, int(refs.size()));
+    for (qsizetype i = 0; i < refs.size(); ++i) {
+        QString shown;
+        QNetworkReply* reply = fetchFile(refs[i].toObject(), &shown);
+        set->files[i] = shown;
+        connect(reply, &QNetworkReply::finished, this, [this, reply, promptId, shown, set, i] {
+            reply->deleteLater();
+            QImage image;
+            if (reply->error() != QNetworkReply::NoError || !image.loadFromData(reply->readAll()))
+                emit logLine(QStringLiteral("could not read the image ") + shown);
+            else
+                set->images[i] = image;
+            if (--set->left > 0)
+                return;
+            QList<QImage> images;   // those that were read, in the output's order
+            QStringList files;
+            for (qsizetype k = 0; k < set->images.size(); ++k)
+                if (!set->images[k].isNull()) {
+                    images << set->images[k];
+                    files << set->files[k];
+                }
+            emit imageSetReady(promptId, images, files);
+        });
+    }
 }
 
 void ComfyClient::fetchAudio(const QString& promptId, const QJsonObject& ref)

@@ -1,0 +1,9 @@
+{
+    "_comment": "Hero, bow, attack with HyperFlow H3 Flash Q3_K_M (a 14B model: slow on 12 GB; 832 x 480, 3 s).  ComfyLive.exe --make=video_h3_hero_bow_attack.json  docs: README.md \"Video\".",
+    "graph": "video-h3",
+    "prompt": "a young archer with short brown hair, a blue tunic, a brown leather cape and boots, holding a wooden bow, fantasy game character, stands facing right, raises the bow, draws the string back to the cheek, holds for a moment, releases the arrow to the right, then lowers the bow, feet planted",
+    "seconds": 3,
+    "width": 832,
+    "height": 480,
+    "seed": 102
+}

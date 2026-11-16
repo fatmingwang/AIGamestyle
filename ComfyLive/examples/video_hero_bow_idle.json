@@ -1,0 +1,7 @@
+{
+    "_comment": "Hero, bow, idle: stands ready and breathes, 3 s.  ComfyLive.exe --make=video_hero_bow_idle.json  (or Open graph... in the window). The frames go to <out>_frames, the MP4 beside them. docs: README.md \"Video\".",
+    "graph": "video",
+    "prompt": "a young archer with short brown hair, a blue tunic, a brown leather cape and boots, holding a wooden bow, fantasy game character, stands ready facing right, bow lowered in the left hand, breathing calmly, the cape sways a little, feet planted",
+    "seconds": 3,
+    "seed": 101
+}
