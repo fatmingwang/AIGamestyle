@@ -39,6 +39,9 @@ public:
     void interrupt();
     void deleteQueued(const QStringList& promptIds);
     void ping(const std::function<void(bool)>& done);
+    // The first GPU's memory as ComfyUI reports it (GET /system_stats): the card's total and what is in use now, in GB.
+    // ok false: no answer.
+    void gpuMemory(const std::function<void(bool ok, double totalGB, double usedGB)>& done);
     // Another ComfyUI (the speech one, or the main one) unloads its models: the GPU has 12 GB, not room for both. done
     // is called either way (nothing at that address is fine).
     void freeMemory(const QString& server, const std::function<void()>& done);

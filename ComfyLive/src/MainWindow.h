@@ -45,6 +45,10 @@ public:
     // For --screenshot runs: open this graph, settings or recipe file as Open graph... does. From then on the window
     // saves nothing (the graph and values the user left stay as they were). False: the file could not be read.
     bool openGraphForCheck(const QString& path, QString* why);
+    // Delete result: the files of the result picked in the history (the one on screen) go to the Recycle Bin: its
+    // picture, or its frames folder, MP4 and settings, or its sound and settings, and ComfyUI's own copy in its output
+    // folder when that ComfyUI is on this PC. confirm: ask first, naming the files. Returns what was moved.
+    QStringList deleteCurrentResult(bool confirm);
     void setLanguage(const QString& code);   // as if picked in the Language box (--screenshot --switch-lang)   // for --screenshot runs: the sampler's steps, when the graph has them
 
 signals:
@@ -80,6 +84,13 @@ private:
     void hideVideo();          // the view shows something else: the frames stop and are let go
     void showFrame(int index);
     void onSaveVideo();
+    QString comfyFilePath(const QString& file) const;
+    // The note over the view when a size or a length changes (and before a run): the size, the frames, what such a
+    // run cost on this PC (VramLog) and the card's memory. It goes away by itself.
+    void showSizeNote();
+    void recordRun(bool failed);
+    // a new result in the history: the files it owns (for Delete result), picked when it is the one on screen
+    void addHistoryItem(class QListWidgetItem* item, const QStringList& files, bool onScreen);   // the full path of a file ComfyUI wrote ("output/x.png"), for the log
     void setTextField(const QString& key, const QString& text);   // a text field and the graph, as if typed
     void syncNumberFields();   // after a tied input changed with another (an ACE-Step song's duration and seconds)
     void stopRun();
@@ -112,6 +123,7 @@ private:
     QPushButton*  generateBtn_ = nullptr;
     QPushButton*  stopBtn_ = nullptr;
     QPushButton*  saveImageBtn_ = nullptr;
+    QPushButton*  deleteBtn_ = nullptr;
     QProgressBar* progress_ = nullptr;
     ImageView*    view_ = nullptr;
     QListWidget*  history_ = nullptr;
@@ -138,6 +150,10 @@ private:
     QString       doneAfterVideo_;          // the run that ended while its frames were still being read: runDone then
     bool          nextIsVideo_ = false;     // the graph being queued makes a video
     double        nextFps_ = 24.0;
+    QLabel*       toast_ = nullptr;         // the size note, over the view
+    QTimer        toastTimer_;
+    QTimer        vramTimer_;               // reads the GPU memory while a run is on
+    double        vramPeakGB_ = 0, vramTotalGB_ = 0;
     QString       instrumentalBackup_;      // the lyrics before Singer = Instrumental replaced them
     AudioPlayer*  player_ = nullptr;
 

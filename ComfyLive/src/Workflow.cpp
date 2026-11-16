@@ -305,7 +305,7 @@ Workflow Workflow::textToVideoHyperFlow()
     // without CFG, in 4, 6 or 8 steps. length is 17n+5 frames at 24 a second (124: 5.2 s, the shortest it was trained on).
     QJsonObject g;
     g[QStringLiteral("1")] = node(QStringLiteral("HyperFlowLoader"), QStringLiteral("Model"),
-                                  {{QStringLiteral("unet_name"), QStringLiteral("minimax_h3_fl2va_hyperflow_flash_14b-Q3_K_M.gguf")},
+                                  {{QStringLiteral("unet_name"), QStringLiteral("minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf")},
                                    {QStringLiteral("weights_in"), QStringLiteral("auto")}});
     g[QStringLiteral("2")] = node(QStringLiteral("CLIPLoader"), QStringLiteral("Text encoder"),
                                   {{QStringLiteral("clip_name"), QStringLiteral("qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors")},
@@ -337,8 +337,217 @@ Workflow Workflow::textToVideoHyperFlow()
                                    {{QStringLiteral("filename_prefix"), QStringLiteral("video/ComfyLive_h3")}, {QStringLiteral("images"), link("30", 0)}});
     Workflow w;
     w.graph_ = g;
-    w.name_ = QStringLiteral("Text to video, HyperFlow H3 Flash Q3_K_M (built-in)");
+    w.name_ = QStringLiteral("Text to video, HyperFlow H3 Flash (built-in)");
     return w;
+}
+
+namespace {
+// Qwen Image 2.1 Turbo, as ComfyUI's own template (image_qwen_image_2_1_turbo_t2i): the INT8 model and text encoder,
+// the model's cache, and the exact eight-step schedule (nine sigmas) through SamplerCustomAdvanced at CFG 1. A plain
+// KSampler with 8 steps does not give this schedule.
+QJsonObject qwenTurboBase(const QString& prompt, const QJsonArray& latent)
+{
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("UNETLoader"), QStringLiteral("Model"),
+                                  {{QStringLiteral("unet_name"), QStringLiteral("qwen-image-2.1-turbo-int8_convrot.safetensors")},
+                                   {QStringLiteral("weight_dtype"), QStringLiteral("default")}});
+    g[QStringLiteral("2")] = node(QStringLiteral("CLIPLoader"), QStringLiteral("Text encoder"),
+                                  {{QStringLiteral("clip_name"), QStringLiteral("qwen3vl_8b_int8_convrot.safetensors")},
+                                   {QStringLiteral("type"), QStringLiteral("qwen_image")}, {QStringLiteral("device"), QStringLiteral("default")}});
+    g[QStringLiteral("3")] = node(QStringLiteral("VAELoader"), QStringLiteral("VAE"),
+                                  {{QStringLiteral("vae_name"), QStringLiteral("qwen_image_2.1_vae_bf16.safetensors")}});
+    g[QStringLiteral("4")] = node(QStringLiteral("QwenImage21Cache"), QStringLiteral("Cache"),
+                                  {{QStringLiteral("device"), QStringLiteral("auto")}, {QStringLiteral("dtype"), QStringLiteral("default")},
+                                   {QStringLiteral("model"), link("1", 0)}});
+    g[QStringLiteral("5")] = node(QStringLiteral("TextEncodeQwenImage21"), QStringLiteral("Picture"),
+                                  {{QStringLiteral("prompt"), prompt}, {QStringLiteral("negative_prompt"), QString()},
+                                   {QStringLiteral("resolution"), 1024}, {QStringLiteral("clip"), link("2", 0)}});
+    g[QStringLiteral("7")] = node(QStringLiteral("ManualSigmas"), QStringLiteral("Steps"),
+                                  {{QStringLiteral("sigmas"), QStringLiteral("1.0, 0.978453, 0.95418, 0.926626, 0.89508, 0.845148, 0.704534, 0.414568, 0")}});
+    g[QStringLiteral("8")] = node(QStringLiteral("KSamplerSelect"), QStringLiteral("Sampler"), {{QStringLiteral("sampler_name"), QStringLiteral("euler")}});
+    g[QStringLiteral("9")] = node(QStringLiteral("RandomNoise"), QStringLiteral("Seed"), {{QStringLiteral("noise_seed"), 1}});
+    g[QStringLiteral("10")] = node(QStringLiteral("CFGGuider"), QStringLiteral("Guider"),
+                                   {{QStringLiteral("cfg"), 1.0}, {QStringLiteral("model"), link("4", 0)},
+                                    {QStringLiteral("positive"), link("5", 0)}, {QStringLiteral("negative"), link("5", 1)}});
+    g[QStringLiteral("11")] = node(QStringLiteral("SamplerCustomAdvanced"), QStringLiteral("Sample"),
+                                   {{QStringLiteral("noise"), link("9", 0)}, {QStringLiteral("guider"), link("10", 0)},
+                                    {QStringLiteral("sampler"), link("8", 0)}, {QStringLiteral("sigmas"), link("7", 0)},
+                                    {QStringLiteral("latent_image"), latent}});
+    g[QStringLiteral("12")] = node(QStringLiteral("VAEDecode"), QStringLiteral("Decode"),
+                                   {{QStringLiteral("samples"), link("11", 0)}, {QStringLiteral("vae"), link("3", 0)}});
+    g[QStringLiteral("13")] = node(QStringLiteral("SaveImage"), QStringLiteral("Save"),
+                                   {{QStringLiteral("filename_prefix"), QStringLiteral("ComfyLive_qwen")}, {QStringLiteral("images"), link("12", 0)}});
+    return g;
+}
+const int kQwenPictures = 4;   // qwen-edit's picture boxes: nodes "21" .. "24"
+}  // namespace
+
+Workflow Workflow::qwenTextToImage()
+{
+    QJsonObject g = qwenTurboBase(QStringLiteral("a brave young archer with messy brown hair, a blue tunic and a brown leather cape, standing ready with a "
+                                                 "wooden bow, side view, full body, fantasy game character art, clean lines, soft lighting, plain light grey "
+                                                 "background"),
+                                  link("6", 0));
+    g[QStringLiteral("6")] = node(QStringLiteral("EmptyLatentImage"), QStringLiteral("Size"),
+                                  {{QStringLiteral("width"), 1024}, {QStringLiteral("height"), 1024}, {QStringLiteral("batch_size"), 1}});
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to image, Qwen Image 2.1 Turbo (built-in)");
+    return w;
+}
+
+Workflow Workflow::qwenEditImages()
+{
+    // the text encoder sees the pictures and gives the latent: the result has picture 1's shape, at about
+    // resolution x resolution pixels
+    QJsonObject g = qwenTurboBase(QStringLiteral("Keep the character in <image1> unchanged: the same face, hair, clothes and colours. Show the character "
+                                                 "from the side, standing ready and holding a wooden bow, full body, plain light grey background"),
+                                  link("5", 2));
+    QJsonObject enc = g.value(QStringLiteral("5")).toObject();
+    QJsonObject in = enc.value(QStringLiteral("inputs")).toObject();
+    in[QStringLiteral("vae")] = link("3", 0);
+    for (int i = 1; i <= kQwenPictures; ++i) {
+        const QString id = QString::number(20 + i);
+        g[id] = node(QStringLiteral("LoadImage"), i == 1 ? QStringLiteral("Picture 1") : QStringLiteral("Picture %1 (optional)").arg(i),
+                     {{QStringLiteral("image"), QString()}});
+        in[QStringLiteral("images.image_%1").arg(i)] = QJsonArray{id, 0};
+    }
+    enc[QStringLiteral("inputs")] = in;
+    enc[QStringLiteral("_meta")] = QJsonObject{{QStringLiteral("title"), QStringLiteral("Edit")}};
+    g[QStringLiteral("5")] = enc;
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Edit pictures, Qwen Image 2.1 Turbo (built-in)");
+    return w;
+}
+
+namespace {
+// a Turbo graph turned into the full model's: the GGUF loader, and one KSampler in place of the fixed eight steps
+Workflow qwenFull(Workflow w, const QString& name)
+{
+    QJsonObject g = w.graph();
+    const QJsonValue latent = g.value(QStringLiteral("11")).toObject().value(QStringLiteral("inputs")).toObject().value(QStringLiteral("latent_image"));
+    for (const char* id : {"7", "8", "9", "10", "11"})
+        g.remove(QLatin1String(id));
+    g[QStringLiteral("1")] = node(QStringLiteral("UnetLoaderGGUF"), QStringLiteral("Model"),
+                                  {{QStringLiteral("unet_name"), QStringLiteral("qwen-image-2.1-Q4_K_M.gguf")}});
+    g[QStringLiteral("11")] = node(QStringLiteral("KSampler"), QStringLiteral("Sampler"),
+                                   {{QStringLiteral("seed"), 1}, {QStringLiteral("steps"), 25}, {QStringLiteral("cfg"), 1.0},
+                                    {QStringLiteral("sampler_name"), QStringLiteral("euler")}, {QStringLiteral("scheduler"), QStringLiteral("simple")},
+                                    {QStringLiteral("denoise"), 1.0}, {QStringLiteral("model"), link("4", 0)},
+                                    {QStringLiteral("positive"), link("5", 0)}, {QStringLiteral("negative"), link("5", 1)},
+                                    {QStringLiteral("latent_image"), latent}});
+    QJsonObject save = g.value(QStringLiteral("13")).toObject();
+    QJsonObject in = save.value(QStringLiteral("inputs")).toObject();
+    in[QStringLiteral("filename_prefix")] = QStringLiteral("ComfyLive_qwen_full");
+    save[QStringLiteral("inputs")] = in;
+    g[QStringLiteral("13")] = save;
+    w.fromJson(g, nullptr);
+    w.setName(name);
+    return w;
+}
+}  // namespace
+
+namespace {
+Workflow qwenTurboGguf(Workflow w, const QString& name)
+{
+    QJsonObject g = w.graph();
+    g[QStringLiteral("1")] = node(QStringLiteral("UnetLoaderGGUF"), QStringLiteral("Model"),
+                                  {{QStringLiteral("unet_name"), QStringLiteral("qwen-image-2.1-turbo-Q6_K.gguf")}});
+    w.fromJson(g, nullptr);
+    w.setName(name);
+    return w;
+}
+}  // namespace
+
+Workflow Workflow::qwenGgufTextToImage()
+{
+    return qwenTurboGguf(qwenTextToImage(), QStringLiteral("Text to image, Qwen Image 2.1 Turbo Q6_K (built-in)"));
+}
+
+Workflow Workflow::qwenGgufEditImages()
+{
+    return qwenTurboGguf(qwenEditImages(), QStringLiteral("Edit pictures, Qwen Image 2.1 Turbo Q6_K (built-in)"));
+}
+
+Workflow Workflow::qwenFullTextToImage()
+{
+    return qwenFull(qwenTextToImage(), QStringLiteral("Text to image, Qwen Image 2.1 Q4_K_M (built-in)"));
+}
+
+Workflow Workflow::qwenFullEditImages()
+{
+    return qwenFull(qwenEditImages(), QStringLiteral("Edit pictures, Qwen Image 2.1 Q4_K_M (built-in)"));
+}
+
+bool Workflow::isLocalPicture(const QString& nodeId) const
+{
+    const QJsonObject n = graph_.value(nodeId).toObject();
+    if (n.value(QStringLiteral("class_type")).toString() != QStringLiteral("LoadImage"))
+        return false;
+    const QString title = n.value(QStringLiteral("_meta")).toObject().value(QStringLiteral("title")).toString();
+    return title.startsWith(QStringLiteral("Reference picture")) || title.startsWith(QStringLiteral("Picture "));
+}
+
+QStringList Workflow::localPictureNodes() const
+{
+    QStringList ids;
+    for (auto it = graph_.begin(); it != graph_.end(); ++it)
+        if (isLocalPicture(it.key()))
+            ids << it.key();
+    std::sort(ids.begin(), ids.end(), [](const QString& a, const QString& b) { return a.toInt() < b.toInt(); });
+    return ids;
+}
+
+bool Workflow::makesAudio() const
+{
+    for (auto it = graph_.begin(); it != graph_.end(); ++it)
+        if (it.value().toObject().value(QStringLiteral("class_type")).toString().contains(QStringLiteral("SaveAudio")))
+            return true;
+    return false;
+}
+
+QJsonObject Workflow::graphForRun() const
+{
+    QJsonObject g = graph_;
+    for (auto it = graph_.begin(); it != graph_.end(); ++it) {
+        QJsonObject n = it.value().toObject();
+        QJsonObject inputs = n.value(QStringLiteral("inputs")).toObject();
+        // this node's numbered pictures ("images.image_3" or "ref_images.ref_image_0": [node, 0]), in order
+        QList<QPair<int, QJsonValue>> pictures;
+        QString prefix;
+        for (auto in = inputs.begin(); in != inputs.end(); ++in) {
+            const qsizetype cut = in.key().lastIndexOf(QStringLiteral("image_"));
+            if (cut < 0 || !in.key().contains(QLatin1Char('.')) || !isLink(in.value()))
+                continue;
+            bool isNumber = false;
+            const int n = in.key().mid(cut + 6).toInt(&isNumber);
+            if (!isNumber)
+                continue;
+            prefix = in.key().left(cut + 6);
+            pictures.append({n, in.value()});
+        }
+        if (pictures.isEmpty())
+            continue;
+        std::sort(pictures.begin(), pictures.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        bool dropped = false;
+        int next = pictures.first().first;   // numbered from 1, or from 0
+        for (const auto& p : pictures) {
+            inputs.remove(prefix + QString::number(p.first));
+            const QString from = p.second.toArray()[0].toString();
+            if (isLocalPicture(from) && value(from, QStringLiteral("image")).toString().trimmed().isEmpty() && p.first != pictures.first().first) {
+                g.remove(from);   // an optional picture left empty
+                dropped = true;
+            } else {
+                inputs[prefix + QString::number(next++)] = p.second;
+            }
+        }
+        if (!dropped)
+            continue;
+        n[QStringLiteral("inputs")] = inputs;
+        g[it.key()] = n;
+    }
+    return g;
 }
 
 QString Workflow::videoPromptSuffixWithImage()
@@ -373,13 +582,13 @@ Workflow withStartImage(Workflow w, const QString& latentNode, const QString& im
 Workflow Workflow::imageToVideo()
 {
     return withStartImage(textToVideo(), QStringLiteral("55"), QStringLiteral("start_image"), QStringLiteral("6/text"),
-                          QStringLiteral("Picture to video, Wan 2.2 TI2V-5B (built-in)"));
+                          QStringLiteral("First frame to video, Wan 2.2 TI2V-5B (built-in)"));
 }
 
 Workflow Workflow::imageToVideoHyperFlow()
 {
     return withStartImage(textToVideoHyperFlow(), QStringLiteral("5"), QStringLiteral("first_frame"), QStringLiteral("5/prompt"),
-                          QStringLiteral("Picture to video, HyperFlow H3 Flash Q3_K_M (built-in)"));
+                          QStringLiteral("First frame to video, HyperFlow H3 Flash (built-in)"));
 }
 
 namespace {
@@ -426,6 +635,39 @@ void Workflow::setRemoveBackground(bool on)
     graph_[save] = n;
 }
 
+Workflow Workflow::referenceToVideoHyperFlow()
+{
+    // ComfyUI-HyperFlow-Flash's own graph (example_workflows/api/hyperflow_ref2v_api.json), ending in SaveImage like the
+    // other video graphs (the sound is not decoded). The reference pictures are nodes "41" .. "43".
+    QJsonObject g = textToVideoHyperFlow().graph();
+    g[QStringLiteral("1")] = node(QStringLiteral("HyperFlowLoader"), QStringLiteral("Model"),
+                                  {{QStringLiteral("unet_name"), QStringLiteral("minimax_h3_ref2va_hyperflow_flash_14b-Q4_K_S.gguf")},
+                                   {QStringLiteral("weights_in"), QStringLiteral("auto")}});
+    g[QStringLiteral("4")] = node(QStringLiteral("VAELoader"), QStringLiteral("Audio VAE"),
+                                  {{QStringLiteral("vae_name"), QStringLiteral("minimax_h3_audio_vae_fp32.safetensors")}});
+    QJsonObject in{{QStringLiteral("prompt"), QStringLiteral("<Picture 1> stands facing right, raises a wooden bow, draws the string back to the cheek and "
+                                                             "releases the arrow, then lowers the bow, ") + videoPromptSuffix()},
+                   {QStringLiteral("width"), 832}, {QStringLiteral("height"), 480}, {QStringLiteral("length"), 73},
+                   {QStringLiteral("ref_image_size"), QStringLiteral("match")},
+                   {QStringLiteral("clip"), link("2", 0)}, {QStringLiteral("vae"), link("3", 0)}, {QStringLiteral("audio_vae"), link("4", 0)}};
+    for (int i = 0; i < 3; ++i) {
+        const QString id = QString::number(41 + i);
+        g[id] = node(QStringLiteral("LoadImage"), i == 0 ? QStringLiteral("Picture 1") : QStringLiteral("Picture %1 (optional)").arg(i + 1),
+                     {{QStringLiteral("image"), QString()}});
+        in[QStringLiteral("ref_images.ref_image_%1").arg(i)] = QJsonArray{id, 0};
+    }
+    g[QStringLiteral("5")] = node(QStringLiteral("MiniMaxH3ReferenceToVideo"), QStringLiteral("Video"), in);
+    QJsonObject save = g.value(QStringLiteral("12")).toObject();
+    QJsonObject sin = save.value(QStringLiteral("inputs")).toObject();
+    sin[QStringLiteral("filename_prefix")] = QStringLiteral("video/ComfyLive_h3ref");
+    save[QStringLiteral("inputs")] = sin;
+    g[QStringLiteral("12")] = save;
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Reference pictures to video, HyperFlow H3 Flash (built-in)");
+    return w;
+}
+
 bool Workflow::hasStartImage() const
 {
     return graph_.value(kStartImageNode).toObject().value(QStringLiteral("class_type")).toString() == QStringLiteral("LoadImage") && makesVideo();
@@ -465,7 +707,9 @@ void Workflow::setStartImage(const QString& path)
 QStringList Workflow::builtInIds()
 {
     return {QStringLiteral("image"), QStringLiteral("music"), QStringLiteral("sfx"), QStringLiteral("speech"), QStringLiteral("voice"),
-            QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image")};
+            QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image"), QStringLiteral("qwen"), QStringLiteral("qwen-edit"),
+            QStringLiteral("qwen-gguf"), QStringLiteral("qwen-gguf-edit"), QStringLiteral("qwen-full"), QStringLiteral("qwen-full-edit"),
+            QStringLiteral("video-h3-ref")};
 }
 
 bool Workflow::builtIn(const QString& id, Workflow* out)
@@ -488,6 +732,20 @@ bool Workflow::builtIn(const QString& id, Workflow* out)
         *out = imageToVideo();
     else if (id == QStringLiteral("video-h3-image"))
         *out = imageToVideoHyperFlow();
+    else if (id == QStringLiteral("qwen"))
+        *out = qwenTextToImage();
+    else if (id == QStringLiteral("qwen-edit"))
+        *out = qwenEditImages();
+    else if (id == QStringLiteral("video-h3-ref"))
+        *out = referenceToVideoHyperFlow();
+    else if (id == QStringLiteral("qwen-gguf"))
+        *out = qwenGgufTextToImage();
+    else if (id == QStringLiteral("qwen-gguf-edit"))
+        *out = qwenGgufEditImages();
+    else if (id == QStringLiteral("qwen-full"))
+        *out = qwenFullTextToImage();
+    else if (id == QStringLiteral("qwen-full-edit"))
+        *out = qwenFullEditImages();
     else
         return false;
     return true;
@@ -524,12 +782,32 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
         alias.insert(QStringLiteral("text"), QStringLiteral("6/text"));   // plain "text" is on both prompts
         alias.insert(QStringLiteral("avoid"), QStringLiteral("7/text"));
         alias.insert(QStringLiteral("seconds"), QStringLiteral("55/length"));
-    } else if (id == QStringLiteral("video-h3")) {   // no "avoid": this model has no negative prompt
+    } else if (id.startsWith(QStringLiteral("qwen"))) {
+        alias.insert(QStringLiteral("text"), QStringLiteral("5/prompt"));
+        alias.insert(QStringLiteral("avoid"), QStringLiteral("5/negative_prompt"));
+        if (!id.startsWith(QStringLiteral("qwen-full")))   // the full model's KSampler has a plain "seed"
+            alias.insert(QStringLiteral("seed"), QStringLiteral("9/noise_seed"));
+    } else if (id == QStringLiteral("video-h3") || id == QStringLiteral("video-h3-ref")) {   // no "avoid": this model has no negative prompt
         alias.insert(QStringLiteral("text"), QStringLiteral("5/prompt"));
         alias.insert(QStringLiteral("seconds"), QStringLiteral("5/length"));
         alias.insert(QStringLiteral("seed"), QStringLiteral("8/noise_seed"));
     }
-    const bool videoRecipe = id == QStringLiteral("video") || id == QStringLiteral("video-h3");
+    const bool videoRecipe = id == QStringLiteral("video") || id == QStringLiteral("video-h3") || id == QStringLiteral("video-h3-ref");
+    // qwen-edit: "images": ["a.png", "b.png"] (or "image": "a.png") are pictures 1, 2 ...
+    const bool qwenEdit = (id.startsWith(QStringLiteral("qwen")) && id.endsWith(QStringLiteral("-edit"))) || id == QStringLiteral("video-h3-ref");
+    if (qwenEdit) {
+        QJsonArray list = o.value(QStringLiteral("images")).toArray();
+        if (list.isEmpty() && !imagePath.isEmpty())
+            list = QJsonArray{imagePath};
+        const QStringList nodes = w.localPictureNodes();
+        if (list.size() > nodes.size()) {
+            if (why)
+                *why = QStringLiteral("\"images\" has %1 pictures; this graph takes up to %2").arg(list.size()).arg(nodes.size());
+            return false;
+        }
+        for (qsizetype i = 0; i < list.size(); ++i)
+            w.setValue(nodes[i], QStringLiteral("image"), list[i].toString());
+    }
     if (videoRecipe)   // on unless the recipe says false
         w.setRemoveBackground(o.value(QStringLiteral("remove-background")).toBool(true));
     if (withImage && !imagePath.isEmpty())
@@ -544,6 +822,8 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
         if (reserved.contains(it.key()) || it.key().startsWith(QLatin1Char('_')))   // "_comment": notes for people
             continue;
         if (videoRecipe && it.key() == QStringLiteral("image"))   // set above
+            continue;
+        if (qwenEdit && (it.key() == QStringLiteral("image") || it.key() == QStringLiteral("images")))
             continue;
         values[it.key()] = it.value();
     }
@@ -566,9 +846,9 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
             // seconds -> frames at the model's rate, on the grid the model takes: 4n+1 (Wan; 3 s: 73) or 17n+5
             // (MiniMax H3; 3 s: 73, 5 s: 124)
             const double frames = v.toDouble() * w.videoFps();
-            v = id == QStringLiteral("video") ? qMax(5, int(std::lround(frames / 4.0)) * 4 + 1)
+            v = id == QStringLiteral("video") ? qMax(5, int(std::lround(frames / 4.0)) * 4 + 1)   // else MiniMax H3
                                               : qMax(22, int(std::ceil((frames - 5.0) / 17.0)) * 17 + 5);
-        } else if (videoRecipe && (key == videoPromptKey || (key == QStringLiteral("prompt") && id == QStringLiteral("video-h3"))) &&
+        } else if (videoRecipe && (key == videoPromptKey || (key == QStringLiteral("prompt") && id.startsWith(QStringLiteral("video-h3")))) &&
                    !rawPrompt) {
             v = v.toString().trimmed() + QStringLiteral(", ") + (withImage ? videoPromptSuffixWithImage() : videoPromptSuffix());
         }
@@ -615,7 +895,9 @@ namespace {
 // the settings file's key for the result it belongs to: "video" for an MP4, else "audio"
 QString resultKey(const QString& path)
 {
-    return QFileInfo(path).suffix().compare(QStringLiteral("mp4"), Qt::CaseInsensitive) == 0 ? QStringLiteral("video") : QStringLiteral("audio");
+    const QString s = QFileInfo(path).suffix().toLower();
+    return s == QStringLiteral("mp4") ? QStringLiteral("video")
+           : (s == QStringLiteral("png") || s == QStringLiteral("jpg") || s == QStringLiteral("jpeg")) ? QStringLiteral("image") : QStringLiteral("audio");
 }
 }  // namespace
 
@@ -712,6 +994,11 @@ bool Workflow::load(const QString& path, QString* why)
     if (isRecipe(doc.object())) {
         if (!fromRecipe(doc.object(), why))
             return false;
+        for (const QString& id : localPictureNodes()) {   // a picture named beside the recipe
+            const QString p = value(id, QStringLiteral("image")).toString();
+            if (id != kStartImageNode && !p.isEmpty() && QFileInfo(p).isRelative())
+                setValue(id, QStringLiteral("image"), QDir::cleanPath(QFileInfo(path).absoluteDir().filePath(p)));
+        }
         if (hasStartImage() && !startImage().isEmpty() && QFileInfo(startImage()).isRelative()) {
             QJsonObject n = graph_.value(kStartImageNode).toObject();   // beside the recipe; the size was set from it?
             const QString absolute = QDir::cleanPath(QFileInfo(path).absoluteDir().filePath(startImage()));
@@ -786,7 +1073,7 @@ QList<ParamDef> Workflow::params(const QJsonObject& objectInfo) const
             const QJsonObject opts = spec.size() > 1 ? spec[1].toObject() : QJsonObject();
             p.tooltip = opts.value(QStringLiteral("tooltip")).toString();
             const QStringList choices = choicesOf(spec);
-            if (cls == QStringLiteral("LoadImage") && input == QStringLiteral("image") && id == kStartImageNode && hasStartImage()) {
+            if (input == QStringLiteral("image") && isLocalPicture(id)) {
                 p.kind = ParamDef::Kind::Line;   // a file on this PC (ComfyClient sends it), not one of the server's list
             } else if (!choices.isEmpty()) {
                 p.kind = ParamDef::Kind::Combo;
@@ -885,7 +1172,7 @@ bool Workflow::makesVideo() const
     for (auto it = graph_.begin(); it != graph_.end(); ++it) {
         const QString cls = it.value().toObject().value(QStringLiteral("class_type")).toString();
         if (cls.contains(QStringLiteral("ToVideo")) || cls.contains(QStringLiteral("LatentVideo")))
-            return true;
+            return true;   // ...ImageToVideo, ...ReferenceToVideo, Empty...LatentVideo
     }
     return false;
 }
@@ -903,6 +1190,66 @@ double Workflow::videoFps() const
 QJsonValue Workflow::value(const QString& nodeId, const QString& input) const
 {
     return graph_.value(nodeId).toObject().value(QStringLiteral("inputs")).toObject().value(input);
+}
+
+QStringList Workflow::snapToSteps(const QJsonObject& objectInfo)
+{
+    QStringList changed;
+    auto onGrid = [](const ParamDef& p, double v) { return std::fmod(v - p.minimum, p.step) == 0.0 && v >= p.minimum && v <= p.maximum; };
+    auto gridded = [](const ParamDef& p) { return p.kind == ParamDef::Kind::Int && p.step > 1.0 && p.value.isDouble() && p.minimum > -1e9; };
+    // a node's width and height together: the same shape, about the same area
+    QHash<QString, QPair<ParamDef, ParamDef>> sizes;
+    for (const ParamDef& p : params(objectInfo)) {
+        if (!gridded(p))
+            continue;
+        if (p.input == QStringLiteral("width"))
+            sizes[p.nodeId].first = p;
+        else if (p.input == QStringLiteral("height"))
+            sizes[p.nodeId].second = p;
+    }
+    QStringList paired;
+    for (auto it = sizes.begin(); it != sizes.end(); ++it) {
+        const ParamDef& pw = it->first;
+        const ParamDef& ph = it->second;
+        if (pw.nodeId.isEmpty() || ph.nodeId.isEmpty())
+            continue;
+        paired << it.key();
+        const double w = pw.value.toDouble(), h = ph.value.toDouble();
+        if ((onGrid(pw, w) && onGrid(ph, h)) || w <= 0 || h <= 0)
+            continue;
+        const double ratio = w / h, area = w * h;
+        double best = 1e30, bw = w, bh = h;
+        const double w0 = pw.minimum + std::round((w - pw.minimum) / pw.step) * pw.step;
+        for (int k = -2; k <= 2; ++k) {   // widths near the given one; for each, the height on the grid nearest the ratio
+            const double cw = std::clamp(w0 + k * pw.step, pw.minimum, pw.maximum);
+            const double ch = std::clamp(ph.minimum + std::round((cw / ratio - ph.minimum) / ph.step) * ph.step, ph.minimum, ph.maximum);
+            const double score = std::fabs(cw / ch - ratio) / ratio + 0.1 * std::fabs(cw * ch - area) / area;
+            if (score < best) {
+                best = score;
+                bw = cw;
+                bh = ch;
+            }
+        }
+        setValue(pw.nodeId, pw.input, qint64(bw));
+        setValue(ph.nodeId, ph.input, qint64(bh));
+        changed << QStringLiteral("%1: %2 x %3 is not a size this model takes (steps of %4), using %5 x %6 (the same shape)")
+                       .arg(pw.group).arg(qint64(w)).arg(qint64(h)).arg(qint64(pw.step)).arg(qint64(bw)).arg(qint64(bh));
+    }
+    for (const ParamDef& p : params(objectInfo)) {
+        if (!gridded(p))
+            continue;
+        if (paired.contains(p.nodeId) && (p.input == QStringLiteral("width") || p.input == QStringLiteral("height")))
+            continue;
+        const double v = p.value.toDouble();
+        double snapped = p.minimum + std::round((v - p.minimum) / p.step) * p.step;
+        snapped = std::clamp(snapped, p.minimum, p.maximum);
+        if (snapped == v)
+            continue;
+        setValue(p.nodeId, p.input, qint64(snapped));
+        changed << QStringLiteral("%1.%2: %3 is not a value this input takes (steps of %4 from %5), using %6")
+                       .arg(p.group, p.input).arg(qint64(v)).arg(qint64(p.step)).arg(qint64(p.minimum)).arg(qint64(snapped));
+    }
+    return changed;
 }
 
 QStringList Workflow::fixMissingChoices(const QJsonObject& objectInfo)
@@ -929,6 +1276,10 @@ QStringList Workflow::fixMissingChoices(const QJsonObject& objectInfo)
             family = p.choices.filter(QStringLiteral("minimax"), Qt::CaseInsensitive)
                          .filter(has(was, "audio_vae") ? QStringLiteral("audio_vae") : has(was, "video_vae") ? QStringLiteral("video_vae")
                                  : has(was, "qwen3vl") ? QStringLiteral("qwen3vl") : QStringLiteral("hyperflow"), Qt::CaseInsensitive);
+        else if (has(was, "qwen-image") || has(was, "qwen_image") || has(was, "qwen3vl_8b"))   // Qwen Image 2.1: the same part only
+            family = p.choices.filter(has(was, "vae") ? QStringLiteral("qwen_image_2.1_vae") : has(was, "qwen3vl") ? QStringLiteral("qwen3vl_8b")
+                                                                                                                  : QStringLiteral("qwen-image-2.1"),
+                                      Qt::CaseInsensitive);
         else if (has(was, "umt5"))
             family = p.choices.filter(QStringLiteral("umt5"), Qt::CaseInsensitive);
         else if (has(was, "wan"))   // a Wan video model, or its VAE: only another of the same kind

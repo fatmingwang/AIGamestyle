@@ -1,0 +1,8 @@
+{
+    "_comment": "Qwen Image 2.1 (full model, Q4_K_M GGUF, 25 steps), text to image.  ComfyLive.exe --make=image_qwen_full_hero_side.json  (licence: research and evaluation only)",
+    "graph": "qwen-full",
+    "prompt": "a young archer boy with messy brown hair, a blue tunic, a brown leather cape and brown boots, standing ready and holding a wooden bow, seen from the side facing right, full body from head to feet, painted fantasy game character art, plain light grey background",
+    "width": 832,
+    "height": 1216,
+    "seed": 21
+}

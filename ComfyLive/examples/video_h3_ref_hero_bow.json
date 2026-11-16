@@ -1,0 +1,12 @@
+{
+    "_comment": "HyperFlow H3 Flash, reference pictures to video: the character of picture 1 (named <Picture 1> in the prompt) in a new scene and pose. 1 to 3 pictures in \"images\".  ComfyLive.exe --make=video_h3_ref_hero_bow.json",
+    "graph": "video-h3-ref",
+    "images": [
+        "../../../Build/art_out/hero_m/concept_606.png"
+    ],
+    "prompt": "<Picture 1> seen from the side, stands facing right, raises a wooden bow, draws the string back to the cheek, holds for a moment and releases the arrow to the right, then lowers the bow, feet planted",
+    "seconds": 3,
+    "width": 832,
+    "height": 480,
+    "seed": 31
+}

@@ -3,6 +3,7 @@
 #include <memory>
 
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QHttpMultiPart>
@@ -60,6 +61,20 @@ void ComfyClient::ping(const std::function<void(bool)>& done)
     connect(reply, &QNetworkReply::finished, this, [reply, done] {
         reply->deleteLater();
         done(reply->error() == QNetworkReply::NoError);
+    });
+}
+
+void ComfyClient::gpuMemory(const std::function<void(bool, double, double)>& done)
+{
+    QNetworkRequest request(url(QStringLiteral("/system_stats")));
+    request.setTransferTimeout(3000);
+    QNetworkReply* reply = net_.get(request);
+    connect(reply, &QNetworkReply::finished, this, [reply, done] {
+        reply->deleteLater();
+        const QJsonObject device = QJsonDocument::fromJson(reply->readAll()).object().value(QStringLiteral("devices")).toArray().at(0).toObject();
+        const double total = device.value(QStringLiteral("vram_total")).toDouble(), free = device.value(QStringLiteral("vram_free")).toDouble();
+        const double gb = 1024.0 * 1024.0 * 1024.0;
+        done(reply->error() == QNetworkReply::NoError && total > 0, total / gb, (total - free) / gb);
     });
 }
 
@@ -191,7 +206,7 @@ void ComfyClient::queuePrompt(const QJsonObject& graph)
             inputs[QStringLiteral("image")] = sub.isEmpty() ? stored : sub + QLatin1Char('/') + stored;
             n[QStringLiteral("inputs")] = inputs;
             (*send)[u.nodeId] = n;
-            emit logLine(QStringLiteral("reference picture sent: ") + stored);
+            emit logLine(QStringLiteral("reference picture sent: %1 (in ComfyUI's input folder as %2)").arg(QDir::toNativeSeparators(u.path), stored));
             if (*next)
                 (*next)();
         });

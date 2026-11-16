@@ -1,0 +1,9 @@
+{
+    "_comment": "Qwen Image 2.1 Turbo, edit: the character of picture 1 in a new pose. Put your own picture in \"images\" (1 to 4; <image1>, <image2> ... in the prompt name them).  ComfyLive.exe --make=image_qwen_edit_hero_bow.json",
+    "graph": "qwen-edit",
+    "images": [
+        "../../../Build/art_out/hero_m/concept_606.png"
+    ],
+    "prompt": "Keep the character in <image1> unchanged: the same face, hair, clothes and colours, the same painted style. Show him from the side facing right, standing ready and holding a wooden bow in his left hand, full body from head to feet, plain light grey background",
+    "seed": 21
+}

@@ -166,6 +166,82 @@ ComfyLive starts it as `.venv-speech\Scripts\python.exe main.py --port 8189 --di
 --whitelist-custom-nodes ComfyUI-Qwen-TTS`. The first run of a voice loads the model (about 20 s); a sentence then
 takes a few seconds.
 
+## Qwen Image 2.1 Turbo: a picture from text, and pictures edited
+
+Two built-in graphs for the 7B picture model Qwen Image 2.1 Turbo (8 steps):
+
+- **Built-in > Text to image (Qwen Image 2.1 Turbo)**, `"graph": "qwen"`: a picture from a prompt.
+- **Built-in > Edit pictures (Qwen Image 2.1 Turbo)**, `"graph": "qwen-edit"`: a new picture from 1 to 4 pictures of
+  this PC and a prompt. The prompt names them `<image1>`, `<image2>` ...: `Keep the character in <image1> unchanged,
+  show him from the side holding a bow`, or `put the shirt from <image2> on the character in <image1>`.
+
+**Licence: research and evaluation only.** The model is under the Qwen Research License Agreement
+(`https://huggingface.co/abenzerps/Qwen-Image-2.1-Turbo-Quantized/blob/main/LICENSE`): non-commercial use only; a
+commercial use needs a separate licence from its maker. Do not put its pictures into a game that is sold until that is
+settled. The model card also says the model has no content filter.
+
+1. **The models** (in `D:\Work\AI\models`, 17.3 GB together), all from
+   `https://huggingface.co/abenzerps/Qwen-Image-2.1-Turbo-Quantized` (no sign-in; its `SHA256SUMS` lists the hashes):
+   - `diffusion_models/qwen-image-2.1-turbo-int8_convrot.safetensors` (7.3 GB);
+   - `text_encoders/qwen3vl_8b_int8_convrot.safetensors` (9.4 GB), from the repository's `text_encoders/`;
+   - `vae/qwen_image_2.1_vae_bf16.safetensors` (0.7 GB), from its `vae/`.
+
+   No custom node is needed (ComfyUI 0.44 has the Qwen Image 2.1 nodes). They are not in TOMS's
+   `tools\setup_ai_art.cmd`, because of the licence.
+2. **The form.**
+   - **Picture** (or **Edit**): `prompt`; `negative_prompt` does nothing at the Turbo's CFG 1; `resolution` is the size
+     the edit's pictures are brought to (about resolution x resolution pixels).
+   - **Size** (text to image): `width` and `height`. 1024 x 1024 is the start; the model can do 2048 x 2048, which
+     needs more memory and is not tried on 12 GB.
+   - **Picture 1** and **Picture 2 to 4 (optional)** (edit): a path, or **Browse...**. Empty optional boxes are left
+     out. The result has picture 1's shape.
+   - **Steps** holds the Turbo's own eight-step schedule (nine numbers). Leave it: a plain 8-step sampler does not give
+     the same result. **Guider** `cfg` stays 1.
+3. **Generate.** The picture shows in the view; **Save picture...** saves it.
+
+**Recipes** (`ComfyLive.exe --make=x.json --out=x.png` writes the picture and its settings `x.json`):
+
+```json
+{ "graph": "qwen", "prompt": "a young archer boy ..., seen from the side, full body", "width": 832, "height": 1216, "seed": 21 }
+{ "graph": "qwen-edit", "images": ["hero.png"], "prompt": "Keep the character in <image1> unchanged ... from the side, holding a bow" }
+```
+
+`images` is a list of 1 to 4 paths (a relative one is beside the recipe); `avoid` is the negative prompt; no `seed`:
+a new picture each run. Examples: `examples/image_qwen_hero_side.json`, `examples/image_qwen_edit_hero_bow.json`.
+
+**Measured on an RTX 4070 (12 GB):** 832 x 1216 from text in 18 s; an edit of one 832 x 1216 picture in 16 s (both
+with the models already loaded once); peak 11.5 GB of VRAM.
+
+### The Turbo as a GGUF file (Q6_K)
+
+**Built-in > Text to image / Edit pictures (Qwen Image 2.1 Turbo Q6_K)**, `"graph": "qwen-gguf"` and `"qwen-gguf-edit"`:
+the Turbo graphs with `diffusion_models/qwen-image-2.1-turbo-Q6_K.gguf` (6.3 GB, from the Turbo repository above,
+SHA-256 checked) in place of the INT8 file. The same eight steps, form and recipe keys. It needs the GGUF loader fork
+named below. In these graphs **Model** `unet_name` lists every `.gguf` in `diffusion_models/`, so another quant is
+picked there. Measured on an RTX 4070: 832 x 1216 in about 20 s, an edit in 28 s, peak 11.4 GB: the same speed as the
+INT8 file.
+
+### The full model (not Turbo), as a GGUF file
+
+**Built-in > Text to image / Edit pictures (Qwen Image 2.1 Q4_K_M, 25 steps)**, `"graph": "qwen-full"` and
+`"qwen-full-edit"`: the same two jobs with the original Qwen Image 2.1 and a plain sampler (**Sampler** `steps`, 25 to
+start). The same text encoder, VAE, picture boxes and recipe keys; `seed` and `steps` are the sampler's.
+
+- **The model:** `diffusion_models/qwen-image-2.1-Q4_K_M.gguf` (4.6 GB). Its first publisher's repository is gone (the
+  address now leads to the Turbo one); the file here came from the copy
+  `https://huggingface.co/0xSojalSec/Qwen-Image-2.1-Uncensored-GGUF`, SHA-256 `833439e9...b4b2f8` as that copy lists.
+  Its card says it is the original weights quantized, with nothing changed ("uncensored" there means the model has no
+  content filter). The same research-only licence.
+- **The GGUF loader must be the fork `https://github.com/leejet/ComfyUI-GGUF`** (2026-11-13 or newer) in
+  `custom_nodes/ComfyUI-GGUF`: city96's loader of January 2026 answers "Unknown model architecture". HyperFlow H3 Flash
+  works with the fork too. The loader that was replaced is kept in `_comfyui/custom_nodes_backup/`.
+- **Measured on an RTX 4070 (12 GB):** 832 x 1216 from text in 60 s, an edit in 59 s (25 steps), peak 11.5 GB: about
+  three times the Turbo's time. Another quant: put its `.gguf` in `diffusion_models/` and pick it in **Model**.
+
+The two workflow files `examples/image_qwen_image_2_1_t2i_gguf.json` and `examples/Qwen image 2_1_multipPictures.json`
+are in ComfyUI's editor format (open them in ComfyUI itself); they are the full model's graphs, which the two
+`qwen-full` entries above do in ComfyLive.
+
 ## Video (Wan 2.2 TI2V-5B)
 
 A short video of one character moving, from a prompt. It is the first step of TOMS's character animation from video
@@ -221,6 +297,27 @@ frame, so the video shows that character, in that pose, on that background.
 
 - **Measured on an RTX 4070 (12 GB)** with an 832 x 1216 picture, 73 frames: Wan at 800 x 1184 took 261 s; HyperFlow
   at 512 x 736 took 65 s. Both kept the face, the clothes and the colours through the clip.
+
+### Reference pictures to video (HyperFlow): the character in a new pose
+
+**Built-in > Reference pictures to video (HyperFlow H3 Flash)**, `"graph": "video-h3-ref"`. The pictures are
+**references, not the first frame**: the video shows that character doing what the prompt says, in a new pose, framing
+and background. With **First frame to video** the video starts as the picture exactly as it is.
+
+- **Picture 1**, and **Picture 2 and 3 (optional)**: a path or **Browse...**. The prompt names them `<Picture 1>`,
+  `<Picture 2>`: `<Picture 1> seen from the side, raises a wooden bow, draws the string and releases the arrow`, or
+  `<Picture 1> walks through the scene of <Picture 2>`.
+- **The model** is its own file: `diffusion_models/minimax_h3_ref2va_hyperflow_flash_14b-Q4_K_S.gguf` (8.1 GB, from
+  the same repository, folder `ref2va_gguf/`). The text encoder and VAEs are the same; this graph also loads the audio VAE.
+- `width` and `height` are yours to set (the picture does not set them): 832 x 480 for a wide view, 480 x 832 for a
+  tall figure. `ref_image_size` `match` is the fast setting; `max` keeps more of the picture's detail and is slower.
+- In a recipe: `"images": ["hero.png"]` (1 to 3). Example: `examples/video_h3_ref_hero_bow.json`.
+- **Measured on an RTX 4070 (12 GB):** one reference picture, 832 x 480, 73 frames, background removed: 88 s, peak
+  11.6 GB. The hero of the concept picture, seen from the side, drew and released the bow.
+
+The HyperFlow text and first-frame entries now load **Q4_K_M** (`minimax_h3_fl2va_hyperflow_flash_14b-Q4_K_M.gguf`,
+9.1 GB) by default; Q3_K_M is still in the **Model** list. With Q4_K_M and Remove background on: text, 832 x 480,
+73 frames in 84 s; first frame, 512 x 736, 73 frames in 101 s; peak 11.9 GB.
 
 ### Remove background: frames with only the character
 
@@ -456,7 +553,7 @@ add `--generate`. These modes use Qt's `offscreen` platform, with fonts from `%W
 | `src/ComfyClient` | HTTP (`/object_info`, `/prompt`, `/interrupt`, `/queue`, `/view`) plus the WebSocket events and previews |
 | `src/MiniWebSocket` | a small RFC 6455 client on QTcpSocket (this Qt has no WebSockets module) |
 | `src/ComfyProcess` | starts the local ComfyUIs hidden (main, speech), and stops one by its port |
-| `src/Workflow` | the API-format graph, its parameters, the built-in graphs (image, music, sfx, speech, voice, video, video-h3), recipes |
+| `src/Workflow` | the API-format graph, its parameters, the built-in graphs (image, music, sfx, speech, voice, video, video-h3, qwen, qwen-edit), recipes |
 | `src/MainWindow`, `src/ImageView` | the window |
 | `src/AudioPlayer` | plays a song with Windows' MCI (winmm) |
 | `src/ParamHelp` | what each parameter does (hover, the ? list), English and 繁體中文 |

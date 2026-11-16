@@ -1,0 +1,9 @@
+{
+    "_comment": "Qwen Image 2.1 (full model, Q4_K_M GGUF, 25 steps), edit: the character of picture 1 in a new pose.  ComfyLive.exe --make=image_qwen_full_edit_hero_bow.json",
+    "graph": "qwen-full-edit",
+    "images": [
+        "../../../Build/art_out/hero_m/concept_606.png"
+    ],
+    "prompt": "Keep the character in <image1> unchanged: the same face, hair, clothes and colours, the same painted style. Show him from the side facing right, standing ready and holding a wooden bow in his left hand, full body from head to feet, plain light grey background",
+    "seed": 21
+}

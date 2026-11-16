@@ -1,0 +1,8 @@
+{
+    "_comment": "Qwen Image 2.1 Turbo, text to image: the hero side on, 832 x 1216.  ComfyLive.exe --make=image_qwen_hero_side.json  (licence: research and evaluation only; README.md \"Qwen Image 2.1\")",
+    "graph": "qwen",
+    "prompt": "a young archer boy with messy brown hair, a blue tunic, a brown leather cape and brown boots, standing ready and holding a wooden bow, seen from the side facing right, full body from head to feet, painted fantasy game character art, plain light grey background",
+    "width": 832,
+    "height": 1216,
+    "seed": 21
+}

@@ -11,6 +11,7 @@
 #include <QStringList>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QTimer>
 
 // `ComfyLive --headless`: the same work as the window, over TCP, with no window (README.md "Headless mode").
 //
@@ -96,6 +97,10 @@ private:
     bool setPending_ = false;             // a set of pictures is still being read (or made into a video)
     std::function<void()> afterSet_;      // the job's end, waiting for it
     QElapsedTimer clock_;
+    // the highest GPU memory in use during the run (VramLog)
+    QTimer vramTimer_;
+    double vramPeakGB_ = 0, vramTotalGB_ = 0;
+    void recordRun(double seconds, bool failed);
 };
 
 // `ComfyLive --headless-test`: the server and a built-in client in one process, like GameStyleAI's --headless-test.

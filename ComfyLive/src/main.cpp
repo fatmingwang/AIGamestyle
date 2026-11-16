@@ -8,7 +8,7 @@
 //   ComfyLive.exe --selftest [--start] [--steps=8] [--out=result.png] [--server=127.0.0.1:8188]
 //       connects, runs the built-in graph once, counts the previews and saves the result; exit 0 = it worked
 //   ComfyLive.exe --screenshot=window.png [--start] [--generate] [--steps=8] [--lang=en|zh_TW] [--switch-lang=zh_TW]
-//                 [--graph=recipe.json]
+//                 [--graph=recipe.json] [--delete-result]
 //       the window drawn off screen (after one generation with --generate), saved as a picture. --graph: with that
 //       graph, settings or recipe file, and the window's saved settings left as they are
 //
@@ -183,10 +183,24 @@ int runScreenshot(const QStringList& args)
             w.setSteps(steps);
         w.generate();
     });
-    QObject::connect(&w, &MainWindow::runDone, &w, [grab](bool ok, const QString& note) {
+    const bool deleteAfter = args.contains(QStringLiteral("--delete-result"));   // then Delete result, without asking
+    QObject::connect(&w, &MainWindow::runDone, &w, [grab, &w, deleteAfter](bool ok, const QString& note) {
         if (!ok)
             say(QStringLiteral("the run failed: ") + note);
-        QTimer::singleShot(2000, qApp, [grab, ok] { grab(ok ? 0 : 1); });
+        QTimer::singleShot(2000, qApp, [grab, ok, &w, deleteAfter] {
+            if (!deleteAfter) {
+                grab(ok ? 0 : 1);
+                return;
+            }
+            const QStringList moved = w.deleteCurrentResult(false);
+            bool gone = !moved.isEmpty();
+            for (const QString& f : moved) {
+                say(QStringLiteral("moved to the Recycle Bin: ") + f);
+                gone = gone && !QFileInfo::exists(f);
+            }
+            say(QStringLiteral("Delete result: %1 files and folders, all gone from their places: %2").arg(moved.size()).arg(gone ? "yes" : "NO"));
+            grab(ok && gone ? 0 : 1);
+        });
     });
     QTimer::singleShot(600000, qApp, [grab] { say(QStringLiteral("timed out")); grab(2); });
     QTimer::singleShot(0, &w, [&w, &args] { w.startUp(args.contains(QStringLiteral("--start"))); });
@@ -348,7 +362,8 @@ int runVideoTest(const QStringList& args)
             picH3.value(QStringLiteral("5"), QStringLiteral("height")).toInt() == 704);
     // Remove background: on by default in all four video graphs; "remove-background": false in a recipe turns it off
     bool allOn = true;
-    for (const QString& id : {QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image")}) {
+    for (const QString& id : {QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image"),
+                              QStringLiteral("video-h3-ref")}) {
         Workflow g;
         allOn = allOn && Workflow::builtIn(id, &g) && g.hasRemoveBackground() && g.removeBackground();
     }
@@ -363,6 +378,57 @@ int runVideoTest(const QStringList& args)
     has(QStringLiteral("turned on again: Save takes the background-removal node's pictures"),
         keep.removeBackground() && keep.value(QStringLiteral("9"), QStringLiteral("images")) == QJsonValue(QJsonArray{QStringLiteral("30"), 0}));
     has(QStringLiteral("the picture graph has no such option"), !Workflow::textToImage().hasRemoveBackground());
+    // Qwen Image 2.1 Turbo
+    Workflow q;
+    const bool qLoaded = q.fromRecipe({{QStringLiteral("graph"), QStringLiteral("qwen")}, {QStringLiteral("prompt"), QStringLiteral("a red fox")},
+                                       {QStringLiteral("avoid"), QStringLiteral("text")}, {QStringLiteral("width"), 768}, {QStringLiteral("height"), 1152},
+                                       {QStringLiteral("seed"), 5}}, &why);
+    has(QStringLiteral("a \"qwen\" recipe loads ") + (qLoaded ? QString() : why), qLoaded);
+    has(QStringLiteral("its prompt, size and seed are in the graph; it makes a picture, not a video or a sound"),
+        q.value(QStringLiteral("5"), QStringLiteral("prompt")).toString() == QStringLiteral("a red fox") &&
+            q.value(QStringLiteral("5"), QStringLiteral("negative_prompt")).toString() == QStringLiteral("text") &&
+            q.value(QStringLiteral("6"), QStringLiteral("height")).toInt() == 1152 && q.value(QStringLiteral("9"), QStringLiteral("noise_seed")).toInt() == 5 &&
+            !q.makesVideo() && !q.makesAudio() && q.localPictureNodes().isEmpty() && q.graphForRun() == q.graph());
+    Workflow qe;
+    const bool qeLoaded = qe.fromRecipe({{QStringLiteral("graph"), QStringLiteral("qwen-edit")}, {QStringLiteral("prompt"), QStringLiteral("put <image2> on <image1>")},
+                                         {QStringLiteral("images"), QJsonArray{refPath, refPath}}}, &why);
+    has(QStringLiteral("a \"qwen-edit\" recipe with two pictures loads ") + (qeLoaded ? QString() : why), qeLoaded);
+    const QJsonObject run = qe.graphForRun();
+    const QJsonObject encIn = run.value(QStringLiteral("5")).toObject().value(QStringLiteral("inputs")).toObject();
+    has(QStringLiteral("four picture boxes in the form; the two empty ones are not sent"),
+        qe.localPictureNodes().size() == 4 && run.contains(QStringLiteral("21")) && run.contains(QStringLiteral("22")) &&
+            !run.contains(QStringLiteral("23")) && !run.contains(QStringLiteral("24")) && encIn.contains(QStringLiteral("images.image_2")) &&
+            !encIn.contains(QStringLiteral("images.image_3")) && qe.graph().contains(QStringLiteral("24")));
+    qe.setValue(QStringLiteral("22"), QStringLiteral("image"), QString());
+    qe.setValue(QStringLiteral("23"), QStringLiteral("image"), refPath);
+    const QJsonObject gap = qe.graphForRun().value(QStringLiteral("5")).toObject().value(QStringLiteral("inputs")).toObject();
+    has(QStringLiteral("pictures 1 and 3 are sent as 1 and 2 (no gap)"),
+        gap.value(QStringLiteral("images.image_2")) == QJsonValue(QJsonArray{QStringLiteral("23"), 0}) && !gap.contains(QStringLiteral("images.image_3")));
+    Workflow qf;
+    has(QStringLiteral("\"qwen-full-edit\": the GGUF model, a sampler with steps, the same picture boxes"),
+        qf.fromRecipe({{QStringLiteral("graph"), QStringLiteral("qwen-full-edit")}, {QStringLiteral("images"), QJsonArray{refPath}},
+                       {QStringLiteral("steps"), 20}, {QStringLiteral("seed"), 3}}, &why) &&
+            qf.value(QStringLiteral("1"), QStringLiteral("unet_name")).toString() == QStringLiteral("qwen-image-2.1-Q4_K_M.gguf") &&
+            qf.value(QStringLiteral("11"), QStringLiteral("steps")).toInt() == 20 && qf.value(QStringLiteral("11"), QStringLiteral("seed")).toInt() == 3 &&
+            !qf.graph().contains(QStringLiteral("7")) && qf.localPictureNodes().size() == 4 && !qf.graphForRun().contains(QStringLiteral("22")));
+    Workflow qg;
+    has(QStringLiteral("\"qwen-gguf-edit\": the Turbo's eight steps with the Q6_K file"),
+        qg.fromRecipe({{QStringLiteral("graph"), QStringLiteral("qwen-gguf-edit")}, {QStringLiteral("images"), QJsonArray{refPath}}, {QStringLiteral("seed"), 4}}, &why) &&
+            qg.value(QStringLiteral("1"), QStringLiteral("unet_name")).toString() == QStringLiteral("qwen-image-2.1-turbo-Q6_K.gguf") &&
+            qg.graph().contains(QStringLiteral("7")) && qg.value(QStringLiteral("9"), QStringLiteral("noise_seed")).toInt() == 4);
+    Workflow rv;
+    const bool rvLoaded = rv.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video-h3-ref")}, {QStringLiteral("images"), QJsonArray{refPath}},
+                                         {QStringLiteral("prompt"), QStringLiteral("<Picture 1> walks")}, {QStringLiteral("seconds"), 5}, {QStringLiteral("seed"), 6}}, &why);
+    has(QStringLiteral("a \"video-h3-ref\" recipe loads ") + (rvLoaded ? QString() : why), rvLoaded);
+    const QJsonObject rvIn = rv.graphForRun().value(QStringLiteral("5")).toObject().value(QStringLiteral("inputs")).toObject();
+    has(QStringLiteral("reference pictures are not a first frame; one given: sent as ref_image_0 only; 124 frames; background removed"),
+        rv.makesVideo() && !rv.hasStartImage() && rv.localPictureNodes().size() == 3 && rvIn.contains(QStringLiteral("ref_images.ref_image_0")) &&
+            !rvIn.contains(QStringLiteral("ref_images.ref_image_1")) && !rv.graphForRun().contains(QStringLiteral("42")) &&
+            rv.value(QStringLiteral("5"), QStringLiteral("length")).toInt() == 124 && rv.value(QStringLiteral("8"), QStringLiteral("noise_seed")).toInt() == 6 &&
+            rv.removeBackground() && rv.value(QStringLiteral("5"), QStringLiteral("prompt")).toString().startsWith(QStringLiteral("<Picture 1> walks, ")));
+    Workflow tooMany;
+    has(QStringLiteral("five pictures are refused"),
+        !tooMany.fromRecipe({{QStringLiteral("graph"), QStringLiteral("qwen-edit")}, {QStringLiteral("images"), QJsonArray{refPath, refPath, refPath, refPath, refPath}}}, &why));
     has(QStringLiteral("a text video graph has no picture"), !w.hasStartImage() && w.startImage().isEmpty());
     has(QStringLiteral("the picture and song graphs make no video"), !Workflow::textToImage().makesVideo() && !Workflow::textToMusic().makesVideo());
 

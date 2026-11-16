@@ -6,6 +6,7 @@
 #include "SongTools.h"
 #include "Translator.h"
 #include "VideoTools.h"
+#include "VramLog.h"
 
 #include <QCheckBox>
 #include <QCloseEvent>
@@ -65,6 +66,20 @@ MainWindow::MainWindow(QWidget* parent)
     loadSettings();
     liveTimer_.setSingleShot(true);
     connect(&liveTimer_, &QTimer::timeout, this, &MainWindow::generate);
+    toastTimer_.setSingleShot(true);
+    connect(&toastTimer_, &QTimer::timeout, this, [this] {
+        if (toast_)
+            toast_->hide();
+    });
+    vramTimer_.setInterval(1200);
+    connect(&vramTimer_, &QTimer::timeout, this, [this] {
+        client_.gpuMemory([this](bool ok, double total, double used) {
+            if (ok && vramTimer_.isActive()) {
+                vramTotalGB_ = total;
+                vramPeakGB_ = qMax(vramPeakGB_, used);
+            }
+        });
+    });
     connect(&frameTimer_, &QTimer::timeout, this, [this] {
         if (!frames_.isEmpty())
             showFrame((frameIndex_ + 1) % int(frames_.size()));
@@ -113,6 +128,8 @@ MainWindow::MainWindow(QWidget* parent)
         if (nextIsVideo_)
             videoIds_.insert(id, nextFps_);
         frameTimer_.stop();   // the view is the new run's now (its previews)
+        vramPeakGB_ = 0;
+        vramTimer_.start();
         previews_ = 0;
         runClock_.start();
         progress_->setValue(0);
@@ -171,7 +188,9 @@ MainWindow::MainWindow(QWidget* parent)
         }
         f.close();
         addAudioToHistory(path, file);
-        log(tr("audio: %1 (%2 KB)").arg(file).arg(bytes.size() / 1024));
+        log(tr("audio: %1 (%2 KB)").arg(QDir::toNativeSeparators(path)).arg(bytes.size() / 1024));
+        if (QFileInfo(QDir(comfyRootEdit_->text()).filePath(file)).isFile())
+            log(tr("ComfyUI's own file: %1").arg(comfyFilePath(file)));
         // its settings beside it: Open graph... with them and Generate makes this song again
         QString why;
         const QJsonObject sent = client_.sentGraph(id);
@@ -194,6 +213,7 @@ MainWindow::MainWindow(QWidget* parent)
             const double s = runClock_.elapsed() / 1000.0;
             progress_->setValue(progress_->maximum());
             log(tr("done in %1 s, %2 previews").arg(s, 0, 'f', 1).arg(previews_));
+            recordRun(false);
             if (videoIds_.contains(id)) {   // its frames are still on their way: the run is done when they are shown
                 doneAfterVideo_ = id;
             } else {
@@ -210,6 +230,8 @@ MainWindow::MainWindow(QWidget* parent)
         log(tr("ComfyUI failed: ") + why);
         view_->setCaption(tr("failed: see the log"));
         if (id == currentId_)
+            recordRun(true);
+        if (id == currentId_)
             emit runDone(false, why);
     });
     connect(&client_, &ComfyClient::interrupted, this, [this](const QString& id) {
@@ -224,15 +246,61 @@ void MainWindow::addImage(const QString& id, const QImage& image, const QString&
                                      QString());
     item->setData(Qt::UserRole, image);
     item->setToolTip(file);
-    history_->insertItem(0, item);
-    while (history_->count() > 40)
-        delete history_->takeItem(history_->count() - 1);
+    addHistoryItem(item, {QDir(comfyRootEdit_->text()).filePath(file)}, id == currentId_);
     if (id == currentId_) {
         hideVideo();
         view_->setImage(image);
         saveImageBtn_->setEnabled(true);
     }
-    log(tr("image: %1 (%2 x %3)").arg(file).arg(image.width()).arg(image.height()));
+    log(tr("image: %1 (%2 x %3)").arg(comfyFilePath(file)).arg(image.width()).arg(image.height()));
+}
+
+void MainWindow::recordRun(bool failed)
+{
+    vramTimer_.stop();
+    VramLog::Record r;
+    if (vramPeakGB_ <= 0 || !VramLog::sizeOf(workflow_, &r))
+        return;
+    r.peakGB = vramPeakGB_;
+    r.totalGB = vramTotalGB_;
+    r.seconds = runClock_.elapsed() / 1000.0;
+    r.failed = failed;
+    VramLog::add(r);
+    log(tr("peak GPU memory: %1 of %2 GB (%3 x %4 x %5)").arg(r.peakGB, 0, 'f', 1).arg(r.totalGB, 0, 'f', 1).arg(r.width).arg(r.height).arg(r.frames));
+}
+
+void MainWindow::showSizeNote()
+{
+    if (!VramLog::sizeOf(workflow_, nullptr))
+        return;
+    auto show = [this](double total, double used) {
+        const QString text = VramLog::describe(workflow_, total, used);
+        if (text.isEmpty() || !toast_)
+            return;
+        toast_->setText(text);
+        toast_->adjustSize();
+        toast_->move(12, 12);
+        toast_->show();
+        toast_->raise();
+        toastTimer_.start(9000);
+    };
+    show(vramTotalGB_, -1);   // at once, then with the card's memory as it is now
+    if (client_.isReady())
+        client_.gpuMemory([this, show](bool ok, double total, double used) {
+            if (!ok)
+                return;
+            vramTotalGB_ = total;
+            show(total, used);
+        });
+}
+
+QString MainWindow::comfyFilePath(const QString& file) const
+{
+    // "output/x.png" is under the ComfyUI folder when that ComfyUI is on this PC; else the file is only on the server
+    const QString local = QDir(comfyRootEdit_->text()).filePath(file);
+    if (QFileInfo(local).isFile())
+        return QDir::toNativeSeparators(QFileInfo(local).absoluteFilePath());
+    return tr("%1 (on the ComfyUI server %2)").arg(file, client_.server());
 }
 
 void MainWindow::addVideo(const QString& id, const QList<QImage>& frames, const QStringList& files)
@@ -255,6 +323,8 @@ void MainWindow::addVideo(const QString& id, const QList<QImage>& frames, const 
     }
     log(tr("video: %1").arg(shown));
     log(tr("frames: %1").arg(QDir::toNativeSeparators(framesDir)));
+    if (QFileInfo(QDir(comfyRootEdit_->text()).filePath(files.value(0))).isFile())
+        log(tr("ComfyUI's own frames: %1 ... (%2 files)").arg(comfyFilePath(files.value(0))).arg(files.size()));
     const QJsonObject sent = client_.sentGraph(id);
     const QJsonObject extra{{QStringLiteral("comfyFile"), files.value(0)}, {QStringLiteral("frames"), QFileInfo(framesDir).fileName()},
                             {QStringLiteral("frameCount"), int(frames.size())}, {QStringLiteral("fps"), fps},
@@ -266,9 +336,10 @@ void MainWindow::addVideo(const QString& id, const QList<QImage>& frames, const 
     item->setData(Qt::UserRole + 2, mp4);
     item->setData(Qt::UserRole + 3, fps);
     item->setToolTip(shown);
-    history_->insertItem(0, item);
-    while (history_->count() > 40)
-        delete history_->takeItem(history_->count() - 1);
+    QStringList owned{mp4, Workflow::settingsPathFor(mp4), framesDir};
+    for (const QString& f : files)   // ComfyUI's own frames
+        owned << QDir(comfyRootEdit_->text()).filePath(f);
+    addHistoryItem(item, owned, id == currentId_);
     if (id == currentId_)
         showVideo(mp4, frames, fps, shown);
     COMFYLIVE_SETTINGS(s);
@@ -441,9 +512,16 @@ void MainWindow::buildUi()
     builtInMenu->addAction(tr("Text to speech, preset voice (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeech()); });
     builtInMenu->addAction(tr("Text to speech, voice from a description (Qwen3-TTS)"), this, [this] { setWorkflow(Workflow::textToSpeechDesigned()); });
     builtInMenu->addAction(tr("Text to video (Wan 2.2 TI2V-5B)"), this, [this] { setWorkflow(Workflow::textToVideo()); });
-    builtInMenu->addAction(tr("Text to video (HyperFlow H3 Flash Q3_K_M)"), this, [this] { setWorkflow(Workflow::textToVideoHyperFlow()); });
-    builtInMenu->addAction(tr("Picture to video (Wan 2.2 TI2V-5B)"), this, [this] { setWorkflow(Workflow::imageToVideo()); });
-    builtInMenu->addAction(tr("Picture to video (HyperFlow H3 Flash Q3_K_M)"), this, [this] { setWorkflow(Workflow::imageToVideoHyperFlow()); });
+    builtInMenu->addAction(tr("Text to video (HyperFlow H3 Flash)"), this, [this] { setWorkflow(Workflow::textToVideoHyperFlow()); });
+    builtInMenu->addAction(tr("Text to image (Qwen Image 2.1 Turbo)"), this, [this] { setWorkflow(Workflow::qwenTextToImage()); });
+    builtInMenu->addAction(tr("Edit pictures (Qwen Image 2.1 Turbo)"), this, [this] { setWorkflow(Workflow::qwenEditImages()); });
+    builtInMenu->addAction(tr("Text to image (Qwen Image 2.1 Turbo Q6_K)"), this, [this] { setWorkflow(Workflow::qwenGgufTextToImage()); });
+    builtInMenu->addAction(tr("Edit pictures (Qwen Image 2.1 Turbo Q6_K)"), this, [this] { setWorkflow(Workflow::qwenGgufEditImages()); });
+    builtInMenu->addAction(tr("Text to image (Qwen Image 2.1 Q4_K_M, 25 steps)"), this, [this] { setWorkflow(Workflow::qwenFullTextToImage()); });
+    builtInMenu->addAction(tr("Edit pictures (Qwen Image 2.1 Q4_K_M, 25 steps)"), this, [this] { setWorkflow(Workflow::qwenFullEditImages()); });
+    builtInMenu->addAction(tr("First frame to video (Wan 2.2 TI2V-5B)"), this, [this] { setWorkflow(Workflow::imageToVideo()); });
+    builtInMenu->addAction(tr("First frame to video (HyperFlow H3 Flash)"), this, [this] { setWorkflow(Workflow::imageToVideoHyperFlow()); });
+    builtInMenu->addAction(tr("Reference pictures to video (HyperFlow H3 Flash)"), this, [this] { setWorkflow(Workflow::referenceToVideoHyperFlow()); });
     builtInBtn->setMenu(builtInMenu);
     auto* helpBtn = new QPushButton(QStringLiteral("?"), left);
     helpBtn->setFixedWidth(28);
@@ -487,6 +565,12 @@ void MainWindow::buildUi()
     runRow->addWidget(generateBtn_, 1);
     runRow->addWidget(stopBtn_);
     runRow->addWidget(saveImageBtn_);
+    deleteBtn_ = new QPushButton(tr("Delete result..."), runBox);
+    deleteBtn_->setToolTip(tr("Move the files of the result picked in the list (the one on screen) to the Recycle Bin: its picture, or its "
+                              "frames, MP4 and settings, or its sound, and ComfyUI's own copy in its output folder"));
+    deleteBtn_->setEnabled(false);
+    runRow->addWidget(deleteBtn_);
+    connect(deleteBtn_, &QPushButton::clicked, this, [this] { deleteCurrentResult(true); });
     progress_ = new QProgressBar(runBox);
     progress_->setRange(0, 1);
     progress_->setValue(0);
@@ -499,6 +583,11 @@ void MainWindow::buildUi()
     auto* right = new QWidget(split);
     auto* rvl = new QVBoxLayout(right);
     view_ = new ImageView(right);
+    toast_ = new QLabel(view_);
+    toast_->setStyleSheet(QStringLiteral("QLabel { background: rgba(20, 24, 32, 225); color: #f0f0f0; border: 1px solid #5a8fd0; "
+                                         "border-radius: 6px; padding: 8px 10px; }"));
+    toast_->setTextFormat(Qt::PlainText);
+    toast_->hide();
     history_ = new QListWidget(right);
     history_->setViewMode(QListView::IconMode);
     history_->setIconSize(QSize(96, 96));
@@ -624,6 +713,7 @@ void MainWindow::buildUi()
     });
     connect(saveAudioBtn_, &QPushButton::clicked, this, &MainWindow::onSaveAudio);
     connect(transposeBtn_, &QPushButton::clicked, this, &MainWindow::onTranspose);
+    connect(history_, &QListWidget::currentItemChanged, this, [this](QListWidgetItem* now) { deleteBtn_->setEnabled(now != nullptr); });
     connect(history_, &QListWidget::itemClicked, this, [this](QListWidgetItem* item) {
         const QString audio = item->data(Qt::UserRole + 1).toString();
         if (!audio.isEmpty()) {
@@ -722,6 +812,9 @@ void MainWindow::buildParams()
             connect(spin, &QDoubleSpinBox::valueChanged, this, [this, nodeId, input, isInt](double d) {
                 workflow_.setValue(nodeId, input, isInt ? QJsonValue(qint64(d)) : QJsonValue(d));
                 syncNumberFields();
+                if (input == QStringLiteral("width") || input == QStringLiteral("height") || input == QStringLiteral("length") ||
+                    input == QStringLiteral("batch_size"))
+                    showSizeNote();
                 onParamChanged();
             });
             editor = spin;
@@ -827,24 +920,31 @@ void MainWindow::buildParams()
                 form->addRow(p.input, row);
             continue;
         }
-        if (p.classType == QStringLiteral("LoadImage") && workflow_.hasStartImage() && p.kind == ParamDef::Kind::Line) {
+        if (workflow_.isLocalPicture(nodeId) && input == QStringLiteral("image") && p.kind == ParamDef::Kind::Line) {
             // the reference picture: a file on this PC, with Browse; the video takes the picture's shape
             auto* row = new QWidget(box);
             auto* h = new QHBoxLayout(row);
             h->setContentsMargins(0, 0, 0, 0);
             auto* line = static_cast<QLineEdit*>(editor);
             line->disconnect(this);   // not at every key: when the path is whole
-            line->setPlaceholderText(tr("a picture of the character: whole body, plain background"));
-            auto apply = [this, line] {
-                const QString path = line->text().trimmed();
-                if (path == workflow_.startImage())
+            const bool firstFrame = workflow_.hasStartImage();
+            line->setPlaceholderText(firstFrame ? tr("a picture of the character: whole body, plain background") : tr("a picture file on this PC"));
+            auto apply = [this, line, nodeId, firstFrame] {
+                const QString path = QDir::fromNativeSeparators(line->text().trimmed());
+                if (path == workflow_.value(nodeId, QStringLiteral("image")).toString())
                     return;
-                workflow_.setStartImage(path);
-                syncNumberFields();   // the width and height followed the picture
+                if (firstFrame)
+                    workflow_.setStartImage(path);   // the video's width and height follow the picture
+                else
+                    workflow_.setValue(nodeId, QStringLiteral("image"), path);
+                syncNumberFields();
+                if (firstFrame)
+                    showSizeNote();
                 const QImage picture(path);
                 if (!picture.isNull()) {
                     hideVideo();
                     view_->setImage(picture);
+                    audioRow_->hide();
                     view_->setCaption(tr("reference picture: %1 x %2").arg(picture.width()).arg(picture.height()));
                 }
                 onParamChanged();
@@ -887,6 +987,7 @@ void MainWindow::buildParams()
     }
     v->addStretch();
     paramsArea_->setWidget(host);
+    showSizeNote();   // a graph was opened or picked: what its size costs
     workflowLabel_->setText(tr("Graph: <b>%1</b> (%2 nodes)").arg(workflow_.name().toHtmlEscaped()).arg(workflow_.graph().size()));
 }
 
@@ -933,6 +1034,7 @@ void MainWindow::rebuildUi()
     log_->setPlainText(logText);
     for (QListWidgetItem* item : items)
         history_->addItem(item);
+    deleteBtn_->setEnabled(history_->currentItem() != nullptr);
     progress_->setRange(0, progressMax);
     progress_->setValue(progressValue);
     stopBtn_->setEnabled(canStop);
@@ -1033,9 +1135,74 @@ void MainWindow::addAudioToHistory(const QString& path, const QString& shown)
     auto* item = new QListWidgetItem(style()->standardIcon(QStyle::SP_MediaVolume), QFileInfo(path).completeBaseName().right(14));
     item->setData(Qt::UserRole + 1, path);
     item->setToolTip(shown);
+    const QString original = QDir(comfyRootEdit_->text()).filePath(shown);   // ComfyUI's own file ("output/audio/x.mp3")
+    addHistoryItem(item, {path, Workflow::settingsPathFor(path), original, Workflow::settingsPathFor(original)}, true);
+}
+
+void MainWindow::addHistoryItem(QListWidgetItem* item, const QStringList& files, bool onScreen)
+{
+    item->setData(Qt::UserRole + 5, files);
     history_->insertItem(0, item);
     while (history_->count() > 40)
         delete history_->takeItem(history_->count() - 1);
+    if (onScreen || !history_->currentItem())
+        history_->setCurrentItem(item);
+    if (deleteBtn_)
+        deleteBtn_->setEnabled(history_->currentItem() != nullptr);
+}
+
+QStringList MainWindow::deleteCurrentResult(bool confirm)
+{
+    QListWidgetItem* item = history_->currentItem();
+    if (!item)
+        return {};
+    // what is really there (a settings file or ComfyUI's copy may not be); never the same file twice
+    QStringList files;
+    for (const QString& f : item->data(Qt::UserRole + 5).toStringList()) {
+        const QString path = QDir::toNativeSeparators(QFileInfo(f).absoluteFilePath());
+        if (QFileInfo::exists(f) && !files.contains(path, Qt::CaseInsensitive))
+            files << path;
+    }
+    if (confirm) {
+        QString list = files.mid(0, 8).join(QLatin1Char('\n'));
+        if (files.size() > 8)
+            list += QLatin1Char('\n') + tr("... and %1 more").arg(files.size() - 8);
+        const QString question = files.isEmpty() ? tr("Its files are no longer there. Take this result out of the list?")
+                                                 : tr("Move this result's %1 files and folders to the Recycle Bin?\n\n%2").arg(files.size()).arg(list);
+        if (QMessageBox::question(this, tr("Delete result"), question, QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Cancel) != QMessageBox::Yes)
+            return {};
+    }
+    // the players let go of the files first
+    const bool onScreen = item->data(Qt::UserRole + 2).toString() == videoPath_ && !videoPath_.isEmpty();
+    const bool audioOnScreen = !item->data(Qt::UserRole + 1).toString().isEmpty() &&
+                               item->data(Qt::UserRole + 1).toString() == audioRow_->property("path").toString();
+    if (onScreen)
+        hideVideo();
+    if (audioOnScreen) {
+        player_->close();
+        audioRow_->hide();
+        audioRow_->setProperty("path", QString());
+    }
+    QStringList moved;
+    for (const QString& f : files) {
+        if (QFile::moveToTrash(f)) {
+            moved << f;
+            log(tr("moved to the Recycle Bin: %1").arg(f));
+        } else {
+            log(tr("could not delete %1 (is it open in another program?)").arg(f));
+        }
+    }
+    if (moved.size() == files.size()) {   // all gone: the result leaves the list and the view
+        const bool wasPicture = item->data(Qt::UserRole + 1).toString().isEmpty() && item->data(Qt::UserRole + 2).toString().isEmpty();
+        delete history_->takeItem(history_->row(item));
+        if (onScreen || audioOnScreen || wasPicture) {
+            view_->setImage(QImage());
+            view_->setCaption(tr("deleted"));
+            saveImageBtn_->setEnabled(false);
+        }
+    }
+    deleteBtn_->setEnabled(history_->currentItem() != nullptr);
+    return moved;
 }
 
 void MainWindow::onTranspose()
@@ -1119,6 +1286,13 @@ void MainWindow::generate()
     }
     if (randomSeedCheck_->isChecked())
         randomizeSeeds();
+    const QStringList snapped = workflow_.snapToSteps(client_.objectInfo());
+    for (const QString& line : snapped)
+        log(line);
+    if (!snapped.isEmpty()) {
+        syncNumberFields();   // the form shows the value that is sent
+        showSizeNote();
+    }
     if (!pending_.isEmpty()) {   // what is running or waiting is out of date now
         client_.deleteQueued(pending_);
         client_.interrupt();
@@ -1130,7 +1304,7 @@ void MainWindow::generate()
     saveSettings();
     // the other ComfyUI lets go of the GPU first (12 GB: not room for a picture or song model and the speech model)
     const QString other = (client_.server() == speechServerEdit_->text().trimmed() ? serverEdit_ : speechServerEdit_)->text().trimmed();
-    const QJsonObject graph = workflow_.graph();
+    const QJsonObject graph = workflow_.graphForRun();
     client_.freeMemory(other, [this, graph] { client_.queuePrompt(graph); });
 }
 

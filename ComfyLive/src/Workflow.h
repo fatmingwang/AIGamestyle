@@ -43,8 +43,24 @@ public:
     // "image" is a file on this PC: ComfyClient sends it to the server). The video then shows that character.
     static Workflow imageToVideo();
     static Workflow imageToVideoHyperFlow();
-    // The built-in graphs by id: image, music, sfx, speech, voice, video, video-h3, video-image, video-h3-image (a
-    // recipe's "graph", reset-graph). A video recipe with "image" is the -image graph of its model.
+    // HyperFlow's reference-to-video (the ref2va model): 1 to 3 pictures of this PC are references, not frames. The
+    // prompt names them "<Picture 1>", "<Picture 2>" ...; the video shows that character (or thing, or place) doing
+    // what the prompt says, in a new pose, framing and background.
+    static Workflow referenceToVideoHyperFlow();
+    // Qwen Image 2.1 Turbo (README.md "Qwen Image 2.1"): a picture from a prompt in 8 steps, and a picture edited or
+    // put together from 1 to 4 pictures of this PC ("<image1>", "<image2>" ... in the prompt name them). Its licence is
+    // for research and evaluation only.
+    static Workflow qwenTextToImage();
+    static Workflow qwenEditImages();
+    // The same two with the full (not Turbo) Qwen Image 2.1 as a GGUF file (the custom node ComfyUI-GGUF): a plain
+    // sampler with a steps number, 25 to start. Slower than the Turbo, more faithful to the prompt.
+    // The Turbo graphs with the model as a GGUF file (Q6_K) in place of the INT8 safetensors: the same eight steps.
+    static Workflow qwenGgufTextToImage();
+    static Workflow qwenGgufEditImages();
+    static Workflow qwenFullTextToImage();
+    static Workflow qwenFullEditImages();
+    // The built-in graphs by id: image, music, sfx, speech, voice, video, video-h3, video-image, video-h3-image, qwen,
+    // qwen-edit, qwen-gguf, qwen-gguf-edit, qwen-full, qwen-full-edit, video-h3-ref (a recipe's "graph", reset-graph). A video recipe with "image" is the -image graph of its model.
     static QStringList builtInIds();
     static bool builtIn(const QString& id, Workflow* out);
 
@@ -76,6 +92,14 @@ public:
     static bool copySettings(const QString& from, const QString& to, const QJsonObject& extra);
 
     const QJsonObject& graph() const { return graph_; }
+    // The graph as it is queued: graph() without the optional pictures left empty (qwen-edit's picture 2 to 4), the
+    // pictures that are there numbered from 1 with no gap.
+    QJsonObject graphForRun() const;
+    // A LoadImage node of a built-in graph whose "image" is a file on this PC (ComfyClient sends it to the server): the
+    // form shows a path with Browse..., not the server's list.
+    bool isLocalPicture(const QString& nodeId) const;
+    QStringList localPictureNodes() const;   // their ids, in order
+    bool makesAudio() const;                 // a SaveAudio node is in the graph
     QString name() const { return name_; }
     void setName(const QString& name) { name_ = name; }
 
@@ -111,6 +135,12 @@ public:
     // A checkpoint / model name the server does not have: the first it does have of the same family (ACE-Step, Stable
     // Audio, T5, else SDXL). A sound or song model with none of its family stays. Returns what was changed, for the log.
     QStringList fixMissingChoices(const QJsonObject& objectInfo);
+    // A whole number that is off its input's grid (the server's min and step: a video's width in steps of 32, a
+    // length of 17n+5) is moved to the nearest value on it. ComfyUI itself does not check this, and the model then
+    // fails while sampling with a "shape is invalid" error. A node's width and height are moved together, to the size
+    // on the grid that keeps their ratio best without changing the picture's area much (288 x 368 in steps of 32
+    // becomes 320 x 416). Returns what was changed, for the log.
+    QStringList snapToSteps(const QJsonObject& objectInfo);
 
 private:
     QJsonObject graph_;

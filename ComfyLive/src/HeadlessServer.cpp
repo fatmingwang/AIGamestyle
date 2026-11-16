@@ -1,6 +1,7 @@
 #include "HeadlessServer.h"
 #include "SongTools.h"
 #include "VideoTools.h"
+#include "VramLog.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -13,6 +14,7 @@
 #include <QTimer>
 #include <QUrl>
 
+#include <cmath>
 #include <cstdio>
 
 namespace {
@@ -46,6 +48,15 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             emit log(QStringLiteral("cannot load %1: %2 (using the built-in graph)").arg(options_.graphPath, why));
     }
     client_.setServer(options_.comfyServer);
+    vramTimer_.setInterval(1200);
+    connect(&vramTimer_, &QTimer::timeout, this, [this] {
+        client_.gpuMemory([this](bool ok, double total, double used) {
+            if (ok && vramTimer_.isActive()) {
+                vramTotalGB_ = total;
+                vramPeakGB_ = qMax(vramPeakGB_, used);
+            }
+        });
+    });
     connect(&tcp_, &QTcpServer::newConnection, this, &HeadlessServer::onNewConnection);
     connect(&client_, &ComfyClient::logLine, this, &HeadlessServer::log);
     speechProcess_.setLaunch(QStringLiteral(".venv-speech"), {QStringLiteral("ComfyUI-Qwen-TTS")},
@@ -178,7 +189,9 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
         auto finishJob = [this, seconds] {
             if (!busy_ || !generating())
                 return;
-            result({{QStringLiteral("seconds"), seconds}, {QStringLiteral("previews"), previews_}, {QStringLiteral("output"), gotImage_}});
+            recordRun(seconds, false);
+            result({{QStringLiteral("seconds"), seconds}, {QStringLiteral("previews"), previews_}, {QStringLiteral("output"), gotImage_},
+                    {QStringLiteral("peakVramGB"), std::round(vramPeakGB_ * 100) / 100}, {QStringLiteral("vramTotalGB"), std::round(vramTotalGB_ * 100) / 100}});
             end(gotImage_ ? 0 : 6, gotImage_ ? QStringLiteral("done")
                                              : QStringLiteral("the graph made no image, audio or video (does it end in SaveImage, PreviewImage or SaveAudio?)"));
         };
@@ -188,8 +201,10 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             QTimer::singleShot(gotImage_ ? 0 : 1500, this, finishJob);
     });
     connect(&client_, &ComfyClient::failed, this, [this](const QString& id, const QString& why) {
-        if (id == promptId_ && busy_)
+        if (id == promptId_ && busy_) {
+            recordRun(clock_.elapsed() / 1000.0, true);
             end(7, QStringLiteral("ComfyUI failed: ") + why);
+        }
     });
     connect(&client_, &ComfyClient::interrupted, this, [this](const QString& id) {
         if (id == promptId_ && busy_ && generating())
@@ -197,14 +212,32 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
     });
 }
 
+void HeadlessServer::recordRun(double seconds, bool failed)
+{
+    vramTimer_.stop();
+    VramLog::Record r;
+    if (vramPeakGB_ <= 0 || !VramLog::sizeOf(workflow_, &r))
+        return;
+    r.peakGB = vramPeakGB_;
+    r.totalGB = vramTotalGB_;
+    r.seconds = seconds;
+    r.failed = failed;
+    VramLog::add(r);
+}
+
 void HeadlessServer::onImage(const QString& file, const QImage& image)
 {
     QJsonObject e{{QStringLiteral("type"), QStringLiteral("image")}, {QStringLiteral("file"), file},
                   {QStringLiteral("width"), image.width()}, {QStringLiteral("height"), image.height()}};
     if (!outPath_.isEmpty()) {
-        if (image.save(outPath_))
+        if (image.save(outPath_)) {
             e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(outPath_).absoluteFilePath());
-        else
+            // the settings beside it (a recipe or settings run only: generate's "out" may be any name)
+            const QJsonObject sent = client_.sentGraph(promptId_);
+            if (job_.command != QStringLiteral("generate") && !sent.isEmpty() &&
+                Workflow::writeSettings(outPath_, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, nullptr))
+                e[QStringLiteral("settings")] = QDir::toNativeSeparators(QFileInfo(Workflow::settingsPathFor(outPath_)).absoluteFilePath());
+        } else
             e[QStringLiteral("error")] = QStringLiteral("could not write ") + outPath_;
     }
     gotImage_ = true;
@@ -359,8 +392,17 @@ void HeadlessServer::next()
     }
 }
 
-void HeadlessServer::send(const QJsonObject& event)
+void HeadlessServer::send(const QJsonObject& eventIn)
 {
+    QJsonObject event = eventIn;
+    // a result ("file": "output/x.png", as ComfyUI names it): its full path too, when that ComfyUI is on this PC
+    const QString type = event.value(QStringLiteral("type")).toString();
+    if ((type == QStringLiteral("image") || type == QStringLiteral("audio") || type == QStringLiteral("video")) &&
+        event.contains(QStringLiteral("file")) && !options_.comfyRoot.isEmpty()) {
+        const QString local = QDir(options_.comfyRoot).filePath(event.value(QStringLiteral("file")).toString());
+        if (QFileInfo(local).isFile())
+            event[QStringLiteral("comfyPath")] = QDir::toNativeSeparators(QFileInfo(local).absoluteFilePath());
+    }
     if (job_.client)
         job_.client->write(QJsonDocument(event).toJson(QJsonDocument::Compact) + "\n");
 }
@@ -432,6 +474,8 @@ void HeadlessServer::startGenerate(const QJsonObject& a)
         for (const ParamDef& p : workflow_.params(client_.objectInfo()))
             if (p.isSeed())
                 workflow_.setValue(p.nodeId, p.input, qint64(QRandomGenerator::global()->bounded(Q_INT64_C(1) << 40)));
+    for (const QString& line : workflow_.snapToSteps(client_.objectInfo()))
+        send({{QStringLiteral("type"), QStringLiteral("log")}, {QStringLiteral("text"), line}});
     outPath_ = a.value(QStringLiteral("out")).toString();
     previewDir_ = a.value(QStringLiteral("preview-dir")).toString();
     if (!previewDir_.isEmpty())
@@ -446,9 +490,11 @@ void HeadlessServer::startGenerate(const QJsonObject& a)
     afterSet_ = nullptr;
     promptId_.clear();
     clock_.start();
+    vramPeakGB_ = 0;
+    vramTimer_.start();
     // the other ComfyUI lets go of the GPU first (12 GB: not room for a picture or song model and the speech model)
     const QString other = client_.server() == options_.speechServer ? options_.comfyServer : options_.speechServer;
-    const QJsonObject graph = workflow_.graph();
+    const QJsonObject graph = workflow_.graphForRun();
     client_.freeMemory(other, [this, graph] { client_.queuePrompt(graph); });
 }
 
@@ -482,7 +528,7 @@ void HeadlessServer::runSong(const QJsonObject& a)
     if (out.isEmpty())
         out = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QLatin1Char('_') +
               QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")) +
-              (w.makesVideo() ? QStringLiteral(".mp4") : QStringLiteral(".mp3"));
+              (w.makesVideo() ? QStringLiteral(".mp4") : w.makesAudio() ? QStringLiteral(".mp3") : QStringLiteral(".png"));
     else if (QFileInfo(out).isRelative())   // next to the song file, not wherever the server was started
         out = QFileInfo(path).absoluteDir().filePath(out);
     if (QFileInfo(Workflow::settingsPathFor(out)).absoluteFilePath().compare(QFileInfo(path).absoluteFilePath(), Qt::CaseInsensitive) == 0) {
@@ -647,7 +693,10 @@ void HeadlessServer::run(const Job& job)
             end(2, QStringLiteral("graph: image (SDXL text to image), music (ACE-Step 1.5), sfx (Stable Audio Open sound effect), "
                                   "speech (Qwen3-TTS preset voice), voice (Qwen3-TTS voice from a description), "
                                   "video (Wan 2.2 TI2V-5B text to video), video-h3 (HyperFlow H3 Flash Q3_K_M text to video), "
-                                  "video-image or video-h3-image (the same two with a reference picture as the first frame)"));
+                                  "video-image or video-h3-image (the same two with a reference picture as the first frame), "
+                                  "qwen (Qwen Image 2.1 Turbo text to image), qwen-edit (it edits 1 to 4 pictures), "
+                                  "qwen-full or qwen-full-edit (the same two with the full model, GGUF, 25 steps), "
+                                  "video-h3-ref (HyperFlow: 1 to 3 reference pictures to video)"));
             return;
         }
         if (client_.isReady())
@@ -911,8 +960,11 @@ int runSongFile(const HeadlessServer::Options& options, const QString& songJson,
                 if (e.contains(QStringLiteral("error")))
                     say(QStringLiteral("ERROR ") + e.value(QStringLiteral("error")).toString());
                 else
-                    say(QStringLiteral("song: %1\nsettings: %2").arg(e.value(QStringLiteral("path")).toString(),
+                    say(QStringLiteral("%1: %2\nsettings: %3").arg(type == QStringLiteral("image") ? QStringLiteral("picture") : QStringLiteral("song"),
+                                                                       e.value(QStringLiteral("path")).toString(),
                                                                        e.value(QStringLiteral("settings")).toString()));
+                if (e.contains(QStringLiteral("comfyPath")))
+                    say(QStringLiteral("ComfyUI's own file: ") + e.value(QStringLiteral("comfyPath")).toString());
             } else if (type == QStringLiteral("video")) {
                 if (e.contains(QStringLiteral("error")))
                     say(QStringLiteral("ERROR ") + e.value(QStringLiteral("error")).toString());
@@ -925,9 +977,15 @@ int runSongFile(const HeadlessServer::Options& options, const QString& songJson,
                     else
                         say(QStringLiteral("video: ") + e.value(QStringLiteral("path")).toString());
                     say(QStringLiteral("settings: ") + e.value(QStringLiteral("settings")).toString());
+                    if (e.contains(QStringLiteral("comfyPath")))
+                        say(QStringLiteral("ComfyUI's own frames: %1 ... (%2 files)").arg(e.value(QStringLiteral("comfyPath")).toString())
+                                .arg(e.value(QStringLiteral("count")).toInt()));
                 }
             } else if (type == QStringLiteral("result") && e.contains(QStringLiteral("seconds"))) {
                 say(QStringLiteral("made in %1 s").arg(e.value(QStringLiteral("seconds")).toDouble(), 0, 'f', 1));
+                if (e.value(QStringLiteral("peakVramGB")).toDouble() > 0)
+                    say(QStringLiteral("peak GPU memory: %1 of %2 GB").arg(e.value(QStringLiteral("peakVramGB")).toDouble(), 0, 'f', 1)
+                            .arg(e.value(QStringLiteral("vramTotalGB")).toDouble(), 0, 'f', 1));
             } else if (type == QStringLiteral("job_end")) {
                 const int code = e.value(QStringLiteral("code")).toInt();
                 say(code == 0 ? QStringLiteral("DONE") : QStringLiteral("FAILED (code %1): %2").arg(code).arg(e.value(QStringLiteral("message")).toString()));
