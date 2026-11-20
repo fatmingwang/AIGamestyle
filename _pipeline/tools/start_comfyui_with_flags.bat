@@ -65,6 +65,13 @@ if "%PYTORCH_INDEX_URL%"=="" (
 )
 if "%AUTO_FIX_TORCH_CUDA%"=="" set "AUTO_FIX_TORCH_CUDA=1"
 
+rem Version checks before every start (see check_comfyui_env.py):
+rem   MIN_TORCH_VERSION  - oldest PyTorch accepted; older (or one too old for comfy-kitchen) is upgraded.
+rem   AUTO_UPDATE_DEPS=0 - only warn, never upgrade PyTorch or the ComfyUI packages automatically.
+if "%MIN_TORCH_VERSION%"=="" set "MIN_TORCH_VERSION=2.7"
+if "%AUTO_UPDATE_DEPS%"=="" set "AUTO_UPDATE_DEPS=1"
+set "ENV_CHECK=%SCRIPT_DIR%check_comfyui_env.py"
+
 echo [INFO] Checking PyTorch installation...
 "%PYTHON_IN_VENV%" -c "import torch; print(torch.__version__)" >nul 2>nul
 if errorlevel 1 (
@@ -95,6 +102,47 @@ if errorlevel 1 (
     echo [ OK ] PyTorch installed successfully.
 ) else (
     echo [ OK ] PyTorch is already installed.
+)
+
+rem ---- PyTorch too old? (e.g. comfy-kitchen: "Parameter stride has unsupported type list[int]")
+echo [INFO] Checking PyTorch version ^(minimum !MIN_TORCH_VERSION!^)...
+"%PYTHON_IN_VENV%" "%ENV_CHECK%" torch !MIN_TORCH_VERSION!
+if errorlevel 1 (
+    if "!AUTO_UPDATE_DEPS!"=="1" (
+        echo [INFO] Upgrading PyTorch from: !PYTORCH_INDEX_URL!
+        "%PYTHON_IN_VENV%" -m pip install --upgrade torch torchvision torchaudio --index-url "!PYTORCH_INDEX_URL!"
+        "%PYTHON_IN_VENV%" "%ENV_CHECK%" torch !MIN_TORCH_VERSION!
+        if errorlevel 1 (
+            echo [FAIL] PyTorch is still too old after the upgrade.
+            echo [FIX ] Run manually, then start again:
+            echo        "%PYTHON_IN_VENV%" -m pip install --upgrade torch torchvision torchaudio --index-url !PYTORCH_INDEX_URL!
+            pause
+            exit /b 1
+        )
+    ) else (
+        echo [WARN] AUTO_UPDATE_DEPS=0, not upgrading. ComfyUI may fail to start.
+    )
+)
+
+rem ---- ComfyUI packages older than its requirements.txt? (e.g. comfy-aimdo after a ComfyUI update:
+rem      "init() got an unexpected keyword argument 'simple_vram_headroom'")
+rem      The PyTorch index is passed as an extra index so a torch reinstall stays a CUDA build.
+if exist "%COMFY_DIR%\requirements.txt" (
+    echo [INFO] Checking ComfyUI Python packages...
+    "%PYTHON_IN_VENV%" "%ENV_CHECK%" reqs "%COMFY_DIR%\requirements.txt"
+    if errorlevel 1 (
+        if "!AUTO_UPDATE_DEPS!"=="1" (
+            echo [INFO] Installing / upgrading packages from requirements.txt...
+            "%PYTHON_IN_VENV%" -m pip install -r "%COMFY_DIR%\requirements.txt" --extra-index-url "!PYTORCH_INDEX_URL!"
+            "%PYTHON_IN_VENV%" "%ENV_CHECK%" reqs "%COMFY_DIR%\requirements.txt"
+            if errorlevel 1 (
+                echo [WARN] Some packages are still out of date. ComfyUI may fail to start.
+                echo [FIX ] "%PYTHON_IN_VENV%" -m pip install --upgrade -r "%COMFY_DIR%\requirements.txt" --extra-index-url !PYTORCH_INDEX_URL!
+            )
+        ) else (
+            echo [WARN] AUTO_UPDATE_DEPS=0, not updating. ComfyUI may fail to start.
+        )
+    )
 )
 
 set "COMFY_DEVICE_ARG="
