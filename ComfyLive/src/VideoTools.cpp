@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QProcess>
 
 #ifdef Q_OS_WIN
@@ -50,6 +51,25 @@ QList<QImage> readFrames(const QString& dir)
     return out;
 }
 
+// Whether `ffmpeg -encoders` lists this encoder. Asked once per ffmpeg path (a fraction of a second).
+static bool hasEncoder(const QString& ffmpeg, const QString& name)
+{
+    static QHash<QString, QString> listed;  // ffmpeg path → its -encoders output
+    auto it = listed.find(ffmpeg);
+    if (it == listed.end()) {
+        QProcess p;
+#ifdef Q_OS_WIN
+        p.setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* a) { a->flags |= CREATE_NO_WINDOW; });
+#endif
+        p.start(ffmpeg, {QStringLiteral("-hide_banner"), QStringLiteral("-encoders")});
+        QString out;
+        if (p.waitForFinished(10000))
+            out = QString::fromUtf8(p.readAllStandardOutput());
+        it = listed.insert(ffmpeg, out);
+    }
+    return it->contains(QLatin1Char(' ') + name + QLatin1Char(' '));
+}
+
 void encode(const QString& ffmpeg, const QString& framesDir, double fps, const QString& outMp4,
             const std::function<void(bool, const QString&)>& done)
 {
@@ -58,15 +78,20 @@ void encode(const QString& ffmpeg, const QString& framesDir, double fps, const Q
         return;
     }
     // Frames with transparency (Remove background) are put on grey first: H.264 has none, and would show black.
-    // libopenh264: the H.264 encoder the LGPL ffmpeg builds have (TOMS's tools/ffmpeg); it wants a bitrate, not a crf
-    const QStringList args{QStringLiteral("-hide_banner"), QStringLiteral("-loglevel"), QStringLiteral("error"), QStringLiteral("-y"),
-                           QStringLiteral("-framerate"), QString::number(fps, 'f', 3),
-                           QStringLiteral("-i"), QDir(framesDir).filePath(QStringLiteral("frame_%04d.png")),
-                           QStringLiteral("-filter_complex"),
-                           QStringLiteral("[0:v]format=rgba,split[a][b];[a]drawbox=x=0:y=0:w=iw:h=ih:color=0x9a9a9a@1.0:t=fill:replace=1[bg];"
-                                          "[bg][b]overlay=format=auto,format=yuv420p"),
-                           QStringLiteral("-c:v"), QStringLiteral("libopenh264"), QStringLiteral("-b:v"), QStringLiteral("8M"),
-                           outMp4};
+    QStringList args{QStringLiteral("-hide_banner"), QStringLiteral("-loglevel"), QStringLiteral("error"), QStringLiteral("-y"),
+                     QStringLiteral("-framerate"), QString::number(fps, 'f', 3),
+                     QStringLiteral("-i"), QDir(framesDir).filePath(QStringLiteral("frame_%04d.png")),
+                     QStringLiteral("-filter_complex"),
+                     QStringLiteral("[0:v]format=rgba,split[a][b];[a]drawbox=x=0:y=0:w=iw:h=ih:color=0x9a9a9a@1.0:t=fill:replace=1[bg];"
+                                    "[bg][b]overlay=format=auto,format=yuv420p")};
+    // The H.264 encoder this ffmpeg has. LGPL builds (TOMS's tools/ffmpeg) have only libopenh264, which wants a
+    // bitrate; GPL builds (gyan.dev, winget's Gyan.FFmpeg) have libx264, and may lack libopenh264.
+    args << QStringLiteral("-c:v");
+    if (hasEncoder(ffmpeg, QStringLiteral("libx264")))
+        args << QStringLiteral("libx264") << QStringLiteral("-crf") << QStringLiteral("18") << QStringLiteral("-preset") << QStringLiteral("medium");
+    else
+        args << QStringLiteral("libopenh264") << QStringLiteral("-b:v") << QStringLiteral("8M");
+    args << QStringLiteral("-movflags") << QStringLiteral("+faststart") << outMp4;
     auto* p = new QProcess;
 #ifdef Q_OS_WIN
     p->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments* a) { a->flags |= CREATE_NO_WINDOW; });

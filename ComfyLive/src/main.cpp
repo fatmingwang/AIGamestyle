@@ -368,6 +368,18 @@ int runVideoTest(const QStringList& args)
         allOn = allOn && Workflow::builtIn(id, &g) && g.hasRemoveBackground() && g.removeBackground();
     }
     has(QStringLiteral("Remove background is on by default in the four video graphs"), allOn);
+    // LTX-2: the picture and the sound in one MP4; "seconds" sets both lengths, "sound" joins the prompt
+    Workflow ltx;
+    const bool ltxLoaded = ltx.fromRecipe({{QStringLiteral("graph"), QStringLiteral("video-ltx")}, {QStringLiteral("prompt"), QStringLiteral("a dog on a porch")},
+                                           {QStringLiteral("sound"), QStringLiteral("loud barking")}, {QStringLiteral("seconds"), 4},
+                                           {QStringLiteral("seed"), 7}}, &why);
+    has(QStringLiteral("a \"video-ltx\" recipe loads ") + (ltxLoaded ? QString() : why), ltxLoaded);
+    has(QStringLiteral("LTX: 4 s at 25 fps is 97 frames, for the picture and the sound"),
+        ltx.makesVideo() && ltx.videoFps() == 25.0 && ltx.value(QStringLiteral("6"), QStringLiteral("length")).toInt() == 97 &&
+            ltx.value(QStringLiteral("8"), QStringLiteral("frames_number")).toInt() == 97);
+    has(QStringLiteral("LTX: the sound is joined to the prompt, the seed is the noise seed, no background removal"),
+        ltx.value(QStringLiteral("3"), QStringLiteral("text")).toString() == QStringLiteral("a dog on a porch. Sound: loud barking") &&
+            ltx.value(QStringLiteral("10"), QStringLiteral("noise_seed")).toInt() == 7 && !ltx.hasRemoveBackground() && !ltx.recipeRandomSeed());
     has(QStringLiteral("a recipe has it on unless it says false"), w.removeBackground() && pic.removeBackground());
     Workflow keep;
     has(QStringLiteral("\"remove-background\": false: Save takes the decoded frames"),

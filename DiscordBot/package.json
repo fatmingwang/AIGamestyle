@@ -1,0 +1,15 @@
+{
+  "name": "gamestyle-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord bot: messages become ComfyLive recipes; the generated files come back as a zip.",
+  "type": "module",
+  "main": "src/main.mjs",
+  "engines": {
+    "node": ">=22.4"
+  },
+  "scripts": {
+    "start": "node src/main.mjs",
+    "check": "node --check src/main.mjs && node --check src/config.mjs && node --check src/logger.mjs && node --check src/discordRest.mjs && node --check src/discordGateway.mjs && node --check src/comfyLive.mjs && node --check src/request.mjs && node --check src/jobs.mjs && node --check src/zipWriter.mjs && node --check src/forms.mjs && node --check src/ui.mjs"
+  }
+}

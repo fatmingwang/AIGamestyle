@@ -1,0 +1,33 @@
+{
+  "bDevMode": false,
+  "discord": {
+    "enabled": true,
+    "botToken": "PUT-THE-BOT-TOKEN-HERE (or set the DISCORD_BOT_TOKEN environment variable)",
+    "channelId": "000000000000000000",
+    "commandsEnabled": true,
+    "commandAllowedUserIds": [],
+    "commandAllowedRoleIds": [],
+    "commandAllowEveryone": false,
+    "commandChannelIds": [],
+    "commandGuildId": "",
+    "commandAllowDM": true,
+    "commandInChannel": true,
+    "maxUploadMB": 10
+  },
+  "comfyLive": {
+    "host": "127.0.0.1",
+    "port": 8766,
+    "autoStart": true,
+    "exePath": "../ComfyLive/build/Release/ComfyLive.exe",
+    "comfyServer": "192.168.250.123:8188",
+    "speechServer": "192.168.250.123:8188",
+    "extraArgs": [],
+    "startTimeoutSec": 60
+  },
+  "jobs": {
+    "folder": "./jobs",
+    "timeoutMin": 30,
+    "maxQueue": 10,
+    "keepDays": 7
+  }
+}

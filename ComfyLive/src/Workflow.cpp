@@ -297,6 +297,69 @@ Workflow Workflow::textToVideo()
     return w;
 }
 
+Workflow Workflow::textToVideoLtx()
+{
+    // LTX-2 19B distilled (Lightricks): the picture and its sound made together, in 8 steps without CFG, at 768 x 512.
+    // Unlike the other video graphs it ends in SaveVideo: ComfyUI writes the MP4 with its soundtrack, and ComfyLive
+    // downloads that file (no frames, no ffmpeg here). Built from ComfyUI's own LTX nodes; tried on a 16 GB card: 4 s in
+    // about 70-90 s, 15.5 GB at the peak. 25 frames a second (the model's rate: at 24 the sound came out almost
+    // silent); length is 8n+1 frames (97: 3.9 s). The models: checkpoints/ltx-2-19b-distilled.safetensors (video and
+    // audio VAE inside) and text_encoders/gemma_3_12B_it.safetensors.
+    const QString ckpt = QStringLiteral("ltx-2-19b-distilled.safetensors");
+    QJsonObject g;
+    g[QStringLiteral("1")] = node(QStringLiteral("CheckpointLoaderSimple"), QStringLiteral("Model"), {{QStringLiteral("ckpt_name"), ckpt}});
+    g[QStringLiteral("2")] = node(QStringLiteral("LTXAVTextEncoderLoader"), QStringLiteral("Text encoder"),
+                                  {{QStringLiteral("text_encoder"), QStringLiteral("gemma_3_12B_it.safetensors")},
+                                   {QStringLiteral("ckpt_name"), ckpt}, {QStringLiteral("device"), QStringLiteral("default")}});
+    g[QStringLiteral("3")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Video and sound"),
+                                  {{QStringLiteral("text"), QStringLiteral("A small brown puppy sits on a wooden porch on a sunny afternoon, looks at the "
+                                                                           "camera and barks loudly twice: \"Woof! Woof!\", its tail wagging. Clear loud "
+                                                                           "barking sounds, birds chirp in the background. Static camera.")},
+                                   {QStringLiteral("clip"), link("2", 0)}});
+    g[QStringLiteral("4")] = node(QStringLiteral("CLIPTextEncode"), QStringLiteral("Avoid"),
+                                  {{QStringLiteral("text"), QStringLiteral("blurry, low quality, distorted, watermark, text, subtitles")},
+                                   {QStringLiteral("clip"), link("2", 0)}});
+    g[QStringLiteral("5")] = node(QStringLiteral("LTXVConditioning"), QStringLiteral("Frame rate"),
+                                  {{QStringLiteral("positive"), link("3", 0)}, {QStringLiteral("negative"), link("4", 0)},
+                                   {QStringLiteral("frame_rate"), 25.0}});
+    g[QStringLiteral("6")] = node(QStringLiteral("EmptyLTXVLatentVideo"), QStringLiteral("Size and length"),
+                                  {{QStringLiteral("width"), 768}, {QStringLiteral("height"), 512}, {QStringLiteral("length"), 97},
+                                   {QStringLiteral("batch_size"), 1}});
+    g[QStringLiteral("7")] = node(QStringLiteral("LTXVAudioVAELoader"), QStringLiteral("Audio VAE"), {{QStringLiteral("ckpt_name"), ckpt}});
+    g[QStringLiteral("8")] = node(QStringLiteral("LTXVEmptyLatentAudio"), QStringLiteral("Sound length"),
+                                  {{QStringLiteral("frames_number"), 97}, {QStringLiteral("frame_rate"), 25},
+                                   {QStringLiteral("batch_size"), 1}, {QStringLiteral("audio_vae"), link("7", 0)}});
+    g[QStringLiteral("9")] = node(QStringLiteral("LTXVConcatAVLatent"), QStringLiteral("Picture + sound"),
+                                  {{QStringLiteral("video_latent"), link("6", 0)}, {QStringLiteral("audio_latent"), link("8", 0)}});
+    g[QStringLiteral("10")] = node(QStringLiteral("RandomNoise"), QStringLiteral("Seed"), {{QStringLiteral("noise_seed"), 1}});
+    g[QStringLiteral("11")] = node(QStringLiteral("CFGGuider"), QStringLiteral("Guider"),
+                                   {{QStringLiteral("model"), link("1", 0)}, {QStringLiteral("positive"), link("5", 0)},
+                                    {QStringLiteral("negative"), link("5", 1)}, {QStringLiteral("cfg"), 1.0}});
+    g[QStringLiteral("12")] = node(QStringLiteral("KSamplerSelect"), QStringLiteral("Sampler"), {{QStringLiteral("sampler_name"), QStringLiteral("euler")}});
+    g[QStringLiteral("13")] = node(QStringLiteral("ManualSigmas"), QStringLiteral("Steps (distilled)"),
+                                   {{QStringLiteral("sigmas"), QStringLiteral("1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0")}});
+    g[QStringLiteral("14")] = node(QStringLiteral("SamplerCustomAdvanced"), QStringLiteral("Sample"),
+                                   {{QStringLiteral("noise"), link("10", 0)}, {QStringLiteral("guider"), link("11", 0)},
+                                    {QStringLiteral("sampler"), link("12", 0)}, {QStringLiteral("sigmas"), link("13", 0)},
+                                    {QStringLiteral("latent_image"), link("9", 0)}});
+    g[QStringLiteral("15")] = node(QStringLiteral("LTXVSeparateAVLatent"), QStringLiteral("Split"), {{QStringLiteral("av_latent"), link("14", 0)}});
+    g[QStringLiteral("16")] = node(QStringLiteral("VAEDecodeTiled"), QStringLiteral("Decode pictures"),
+                                   {{QStringLiteral("samples"), link("15", 0)}, {QStringLiteral("vae"), link("1", 2)},
+                                    {QStringLiteral("tile_size"), 512}, {QStringLiteral("overlap"), 64},
+                                    {QStringLiteral("temporal_size"), 64}, {QStringLiteral("temporal_overlap"), 8}});
+    g[QStringLiteral("17")] = node(QStringLiteral("LTXVAudioVAEDecode"), QStringLiteral("Decode sound"),
+                                   {{QStringLiteral("samples"), link("15", 1)}, {QStringLiteral("audio_vae"), link("7", 0)}});
+    g[QStringLiteral("18")] = node(QStringLiteral("CreateVideo"), QStringLiteral("Video"),
+                                   {{QStringLiteral("images"), link("16", 0)}, {QStringLiteral("fps"), 25.0}, {QStringLiteral("audio"), link("17", 0)}});
+    g[QStringLiteral("19")] = node(QStringLiteral("SaveVideo"), QStringLiteral("Save"),
+                                   {{QStringLiteral("video"), link("18", 0)}, {QStringLiteral("filename_prefix"), QStringLiteral("video/ComfyLive_ltx")},
+                                    {QStringLiteral("format"), QStringLiteral("auto")}, {QStringLiteral("format.codec"), QStringLiteral("auto")}});
+    Workflow w;
+    w.graph_ = g;
+    w.name_ = QStringLiteral("Text to video with sound, LTX-2 19B distilled (built-in)");
+    return w;
+}
+
 Workflow Workflow::textToVideoHyperFlow()
 {
     // ComfyUI-HyperFlow-Flash's own text-to-video graph (example_workflows/api/hyperflow_t2v_api.json), with the Q3_K_M
@@ -709,7 +772,7 @@ QStringList Workflow::builtInIds()
     return {QStringLiteral("image"), QStringLiteral("music"), QStringLiteral("sfx"), QStringLiteral("speech"), QStringLiteral("voice"),
             QStringLiteral("video"), QStringLiteral("video-h3"), QStringLiteral("video-image"), QStringLiteral("video-h3-image"), QStringLiteral("qwen"), QStringLiteral("qwen-edit"),
             QStringLiteral("qwen-gguf"), QStringLiteral("qwen-gguf-edit"), QStringLiteral("qwen-full"), QStringLiteral("qwen-full-edit"),
-            QStringLiteral("video-h3-ref")};
+            QStringLiteral("video-h3-ref"), QStringLiteral("video-ltx")};
 }
 
 bool Workflow::builtIn(const QString& id, Workflow* out)
@@ -738,6 +801,8 @@ bool Workflow::builtIn(const QString& id, Workflow* out)
         *out = qwenEditImages();
     else if (id == QStringLiteral("video-h3-ref"))
         *out = referenceToVideoHyperFlow();
+    else if (id == QStringLiteral("video-ltx"))
+        *out = textToVideoLtx();
     else if (id == QStringLiteral("qwen-gguf"))
         *out = qwenGgufTextToImage();
     else if (id == QStringLiteral("qwen-gguf-edit"))
@@ -791,7 +856,14 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
         alias.insert(QStringLiteral("text"), QStringLiteral("5/prompt"));
         alias.insert(QStringLiteral("seconds"), QStringLiteral("5/length"));
         alias.insert(QStringLiteral("seed"), QStringLiteral("8/noise_seed"));
+    } else if (id == QStringLiteral("video-ltx")) {   // "sound" is joined to the prompt below; "seconds" sets both lengths
+        alias.insert(QStringLiteral("prompt"), QStringLiteral("3/text"));
+        alias.insert(QStringLiteral("text"), QStringLiteral("3/text"));
+        alias.insert(QStringLiteral("avoid"), QStringLiteral("4/text"));
+        alias.insert(QStringLiteral("seconds"), QStringLiteral("6/length"));
+        alias.insert(QStringLiteral("seed"), QStringLiteral("10/noise_seed"));
     }
+    const bool ltx = id == QStringLiteral("video-ltx");
     const bool videoRecipe = id == QStringLiteral("video") || id == QStringLiteral("video-h3") || id == QStringLiteral("video-h3-ref");
     // qwen-edit: "images": ["a.png", "b.png"] (or "image": "a.png") are pictures 1, 2 ...
     const bool qwenEdit = (id.startsWith(QStringLiteral("qwen")) && id.endsWith(QStringLiteral("-edit"))) || id == QStringLiteral("video-h3-ref");
@@ -830,6 +902,18 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
     const QJsonObject more = o.value(QStringLiteral("params")).toObject();
     for (auto it = more.begin(); it != more.end(); ++it)
         values[it.key()] = it.value();
+    if (ltx && values.contains(QStringLiteral("sound"))) {
+        // LTX-2 has one prompt for the picture and the sound: what is heard goes after what is seen, said plainly
+        // (a vague or missing sound description gives an almost silent soundtrack)
+        const QString sound = values.take(QStringLiteral("sound")).toString().trimmed();
+        const QString key = values.contains(QStringLiteral("prompt")) ? QStringLiteral("prompt") : QStringLiteral("text");
+        QString seen = values.value(key).toString().trimmed();
+        if (!values.contains(key))
+            seen = w.value(QStringLiteral("3"), QStringLiteral("text")).toString();
+        if (!sound.isEmpty())
+            values[key] = seen + (seen.endsWith(QLatin1Char('.')) || seen.isEmpty() ? QStringLiteral(" ") : QStringLiteral(". ")) +
+                          QStringLiteral("Sound: ") + sound;
+    }
     bool hasSeed = false;
     for (auto it = values.begin(); it != values.end(); ++it) {
         const QString key = alias.value(it.key(), it.key());
@@ -842,7 +926,10 @@ bool Workflow::fromRecipe(const QJsonObject& o, QString* why)
             const bool speechText = (id == QStringLiteral("speech") || id == QStringLiteral("voice")) && input == QStringLiteral("text");
             v = parts.join(input == QStringLiteral("tags") ? QStringLiteral(", ") : speechText ? QStringLiteral(" ") : QStringLiteral("\n"));
         }
-        if (videoRecipe && it.key() == QStringLiteral("seconds")) {
+        if (ltx && it.key() == QStringLiteral("seconds")) {
+            // 8n+1 frames at the graph's rate (25: 4 s -> 97); the sound's length follows (setValue's tie)
+            v = qMax(9, int(std::lround((v.toDouble() * w.videoFps() - 1.0) / 8.0)) * 8 + 1);
+        } else if (videoRecipe && it.key() == QStringLiteral("seconds")) {
             // seconds -> frames at the model's rate, on the grid the model takes: 4n+1 (Wan; 3 s: 73) or 17n+5
             // (MiniMax H3; 3 s: 73, 5 s: 124)
             const double frames = v.toDouble() * w.videoFps();
@@ -1134,6 +1221,7 @@ void Workflow::setValue(const QString& nodeId, const QString& input, const QJson
     static const Tie ties[] = {
         {"TextEncodeAceStepAudio", "duration", "EmptyAceStep", "seconds"},
         {"ConditioningStableAudio", "seconds_total", "EmptyLatentAudio", "seconds"},
+        {"EmptyLTXVLatentVideo", "length", "LTXVEmptyLatentAudio", "frames_number"},   // LTX-2: the picture's and the sound's frames
     };
     const QString cls = graph_.value(nodeId).toObject().value(QStringLiteral("class_type")).toString();
     QString other, otherClass;
@@ -1183,6 +1271,8 @@ double Workflow::videoFps() const
         const QString cls = it.value().toObject().value(QStringLiteral("class_type")).toString();
         if (cls == QStringLiteral("Wan22ImageToVideoLatent") || cls.startsWith(QStringLiteral("MiniMaxH3")))
             return 24.0;
+        if (cls == QStringLiteral("LTXVConditioning"))   // LTX: the rate the graph is set to (25 in the built-in one)
+            return it.value().toObject().value(QStringLiteral("inputs")).toObject().value(QStringLiteral("frame_rate")).toDouble(25.0);
     }
     return 16.0;
 }

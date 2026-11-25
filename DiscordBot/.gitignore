@@ -1,0 +1,9 @@
+# The real config holds the bot token: only config.example.json is committed.
+/config.json
+# Job folders (recipe, downloaded attachments, generated files) and their zips
+/jobs/
+# Each person's last form values
+/data/
+# Bot and ComfyLive logs
+/logs/
+/node_modules/

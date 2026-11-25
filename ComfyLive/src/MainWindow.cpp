@@ -206,6 +206,24 @@ MainWindow::MainWindow(QWidget* parent)
         if (id == currentId_)
             showAudio(path, file, true);
     });
+    connect(&client_, &ComfyClient::videoReady, this, [this](const QString& id, const QByteArray& bytes, const QString& file) {
+        // an MP4 the graph made itself (SaveVideo, LTX-2 with its sound): kept in ComfyLive's own folder, settings beside it
+        if (bytes.isEmpty())
+            return;   // ComfyClient logged why
+        const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + QStringLiteral("/video");
+        QDir().mkpath(dir);
+        const QString path = QDir(dir).filePath(QFileInfo(file).fileName());
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly) || f.write(bytes) != bytes.size()) {
+            log(tr("could not write %1").arg(QDir::toNativeSeparators(path)));
+            return;
+        }
+        f.close();
+        log(tr("video: %1 (%2 KB)").arg(QDir::toNativeSeparators(path)).arg(bytes.size() / 1024));
+        const QJsonObject sent = client_.sentGraph(id);
+        if (!sent.isEmpty() && Workflow::writeSettings(path, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, nullptr))
+            log(tr("settings: %1").arg(QDir::toNativeSeparators(Workflow::settingsPathFor(path))));
+    });
     connect(&client_, &ComfyClient::finished, this, [this](const QString& id) {
         if (!pending_.removeAll(id))
             return;

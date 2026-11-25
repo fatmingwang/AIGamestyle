@@ -331,6 +331,35 @@ atlas and played as a picture sequence. Turn it off to keep the video's own back
 - In a recipe: `"remove-background": false` turns it off.
 - The choice is kept in the settings file with the rest of the graph.
 
+### Video with sound: LTX-2 (`"graph": "video-ltx"`)
+
+A recipe with `"graph": "video-ltx"` makes a short video **with its soundtrack** using LTX-2 19B distilled
+(Lightricks), in 8 steps at 768 x 512 and 25 frames a second. Unlike the other video graphs it ends in ComfyUI's
+`SaveVideo`: ComfyUI writes the MP4 (picture and sound), and ComfyLive downloads that file to `out`, with its
+settings file beside it. There are no frames and ffmpeg is not used.
+
+```json
+{ "graph": "video-ltx", "prompt": "a knight in silver armor swings a sword at a wooden training dummy",
+  "sound": "a sharp metallic swoosh, then a loud wooden thud, the knight grunts", "seconds": 4 }
+```
+
+- **Keys:**
+  - `prompt` is what is seen.
+  - `sound` is what is heard. It is added to the prompt as "Sound: ...".
+  - `avoid`, `width`, `height` and `seed`.
+  - `seconds` is turned into 8n+1 frames: 4 s is 97 frames. It sets the picture's and the sound's length together.
+  - No fixed-camera ending is added to the prompt, and there is no background removal.
+- **Describe the sound plainly.** With no clear sound description, or at 24 frames a second, the soundtrack came out
+  almost silent.
+- **The models** on the ComfyUI server: `checkpoints/ltx-2-19b-distilled.safetensors` (the video and audio VAE are
+  inside it) and `text_encoders/gemma_3_12B_it.safetensors`, from `https://huggingface.co/Lightricks/LTX-2`.
+- **Memory and time,** measured on an RTX 4060 Ti 16 GB with 34 GB of RAM:
+  - 768 x 512 for 4 s takes 66 to 90 s and peaks at 15.5 GB.
+  - Bigger or longer clips may run out of memory.
+- **Licence:** LTX-2 Community License Agreement. Read it before using the output in a product.
+- **Any graph that ends in SaveVideo** now works the same way: an MP4, WebM, MOV or MKV that ComfyUI saves is
+  downloaded as a file (a `video` event with `path`), not read as a picture.
+
 ### A second video model: HyperFlow H3 Flash (Q3_K_M)
 
 **Built-in > Text to video (HyperFlow H3 Flash Q3_K_M)**, or `"graph": "video-h3"` in a recipe
@@ -438,7 +467,7 @@ The file can be one of three kinds:
   same result again. Add `--random-seed` for a new take.
 - **An API graph** from ComfyUI's **Export (API)**.
 - **A recipe:** a short description for a built-in graph. `"graph"` picks it: `"sfx"`, `"speech"`, `"voice"`,
-  `"music"` (or no `"graph"`: a song file) or `"image"`. [examples/](examples/) has 22 to try:
+  `"music"` (or no `"graph"`: a song file), `"image"`, or a video graph (`"video"`, `"video-h3"`, `"video-ltx"` ...). [examples/](examples/) has many to try:
 
   ```json
   {"graph": "sfx", "prompt": "a steel sword striking a metal shield, sharp metallic clang, single hit", "seconds": 1.5}

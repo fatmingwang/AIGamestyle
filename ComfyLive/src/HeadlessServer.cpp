@@ -181,6 +181,44 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
         gotImage_ = true;
         send(e);
     });
+    connect(&client_, &ComfyClient::videoComing, this, [this](const QString& id) {
+        if (id == promptId_ && busy_)
+            setPending_ = true;   // the job ends once the file is in
+    });
+    connect(&client_, &ComfyClient::videoReady, this, [this](const QString& id, const QByteArray& bytes, const QString& file) {
+        if (id != promptId_ || !busy_)
+            return;
+        // an MP4 the graph made itself (SaveVideo, with its sound): written to "out" as it is, with the settings beside it
+        QJsonObject e{{QStringLiteral("type"), QStringLiteral("video")}, {QStringLiteral("file"), file},
+                      {QStringLiteral("bytes"), bytes.size()}, {QStringLiteral("format"), QFileInfo(file).suffix()}};
+        if (bytes.isEmpty()) {
+            e[QStringLiteral("error")] = QStringLiteral("could not download ") + file;
+        } else if (!outPath_.isEmpty()) {
+            QString path = outPath_;
+            const QString suffix = QFileInfo(file).suffix();
+            if (!suffix.isEmpty() && QFileInfo(path).suffix().compare(suffix, Qt::CaseInsensitive) != 0)
+                path = QFileInfo(path).path() + QLatin1Char('/') + QFileInfo(path).completeBaseName() + QLatin1Char('.') + suffix;
+            QFile f(path);
+            if (f.open(QIODevice::WriteOnly) && f.write(bytes) == bytes.size()) {
+                f.close();
+                e[QStringLiteral("path")] = QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath());
+                const QJsonObject sent = client_.sentGraph(id);
+                if (!sent.isEmpty() && Workflow::writeSettings(path, sent, workflow_.name(), {{QStringLiteral("comfyFile"), file}}, nullptr))
+                    e[QStringLiteral("settings")] = QDir::toNativeSeparators(QFileInfo(Workflow::settingsPathFor(path)).absoluteFilePath());
+                gotImage_ = true;
+            } else
+                e[QStringLiteral("error")] = QStringLiteral("could not write ") + path;
+        } else {
+            gotImage_ = true;   // generate without "out": the file stays in ComfyUI's output
+        }
+        send(e);
+        setPending_ = false;
+        if (afterSet_) {
+            auto then = std::move(afterSet_);
+            afterSet_ = nullptr;
+            then();
+        }
+    });
     connect(&client_, &ComfyClient::finished, this, [this](const QString& id) {
         if (id != promptId_ || !busy_)
             return;
@@ -193,7 +231,7 @@ HeadlessServer::HeadlessServer(const Options& options, QObject* parent)
             result({{QStringLiteral("seconds"), seconds}, {QStringLiteral("previews"), previews_}, {QStringLiteral("output"), gotImage_},
                     {QStringLiteral("peakVramGB"), std::round(vramPeakGB_ * 100) / 100}, {QStringLiteral("vramTotalGB"), std::round(vramTotalGB_ * 100) / 100}});
             end(gotImage_ ? 0 : 6, gotImage_ ? QStringLiteral("done")
-                                             : QStringLiteral("the graph made no image, audio or video (does it end in SaveImage, PreviewImage or SaveAudio?)"));
+                                             : QStringLiteral("the graph made no image, audio or video (does it end in SaveImage, PreviewImage, SaveAudio or SaveVideo?)"));
         };
         if (setPending_)   // the frames are still being read, or the MP4 made: end after that
             afterSet_ = finishJob;
@@ -696,7 +734,8 @@ void HeadlessServer::run(const Job& job)
                                   "video-image or video-h3-image (the same two with a reference picture as the first frame), "
                                   "qwen (Qwen Image 2.1 Turbo text to image), qwen-edit (it edits 1 to 4 pictures), "
                                   "qwen-full or qwen-full-edit (the same two with the full model, GGUF, 25 steps), "
-                                  "video-h3-ref (HyperFlow: 1 to 3 reference pictures to video)"));
+                                  "video-h3-ref (HyperFlow: 1 to 3 reference pictures to video), "
+                                  "video-ltx (LTX-2: text to video with sound, one MP4)"));
             return;
         }
         if (client_.isReady())

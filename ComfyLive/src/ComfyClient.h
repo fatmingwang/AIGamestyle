@@ -65,6 +65,10 @@ signals:
     void imageSetComing(const QString& promptId, int count);
     void imageSetReady(const QString& promptId, const QList<QImage>& images, const QStringList& fileNames);
     void audioReady(const QString& promptId, const QByteArray& bytes, const QString& fileName);   // the file as saved (mp3, flac ...)
+    // A video file the graph saved itself (SaveVideo: an MP4 with its sound): videoComing when its download starts, then
+    // videoReady with the file's bytes (empty: the download failed).
+    void videoComing(const QString& promptId);
+    void videoReady(const QString& promptId, const QByteArray& bytes, const QString& fileName);
     void finished(const QString& promptId);
     void failed(const QString& promptId, const QString& why);
     void interrupted(const QString& promptId);
@@ -79,6 +83,7 @@ private:
     void fetchImage(const QString& promptId, const QJsonObject& ref);
     void fetchImageSet(const QString& promptId, const QJsonArray& refs);
     void fetchAudio(const QString& promptId, const QJsonObject& ref);
+    void fetchVideo(const QString& promptId, const QJsonObject& ref);
     QNetworkReply* fetchFile(const QJsonObject& ref, QString* shown);
 
     QNetworkAccessManager net_;

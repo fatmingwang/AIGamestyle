@@ -292,7 +292,15 @@ void ComfyClient::onSocketText(const QString& text)
             emit executing(promptId, node.toString());
     } else if (type == QStringLiteral("executed")) {
         const QJsonObject output = data.value(QStringLiteral("output")).toObject();
-        const QJsonArray images = output.value(QStringLiteral("images")).toArray();
+        // SaveVideo lists its MP4 under "images" too: a video file is downloaded as it is, not read as a picture
+        QJsonArray images;
+        for (const QJsonValue& ref : output.value(QStringLiteral("images")).toArray()) {
+            static const QStringList videoSuffixes{QStringLiteral("mp4"), QStringLiteral("webm"), QStringLiteral("mov"), QStringLiteral("mkv")};
+            if (videoSuffixes.contains(QFileInfo(ref.toObject().value(QStringLiteral("filename")).toString()).suffix().toLower()))
+                fetchVideo(promptId, ref.toObject());
+            else
+                images.append(ref);
+        }
         if (images.size() > 1)
             fetchImageSet(promptId, images);
         else
@@ -351,6 +359,20 @@ QNetworkReply* ComfyClient::fetchFile(const QJsonObject& ref, QString* shown)
     *shown = ref.value(QStringLiteral("type")).toString() + QStringLiteral("/") +
              (subfolder.isEmpty() ? QString() : subfolder + QStringLiteral("/")) + fileName;
     return net_.get(QNetworkRequest(u));
+}
+
+void ComfyClient::fetchVideo(const QString& promptId, const QJsonObject& ref)
+{
+    QString shown;
+    QNetworkReply* reply = fetchFile(ref, &shown);
+    emit videoComing(promptId);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, promptId, shown] {
+        reply->deleteLater();
+        const QByteArray bytes = reply->error() == QNetworkReply::NoError ? reply->readAll() : QByteArray();
+        if (bytes.isEmpty())
+            emit logLine(QStringLiteral("could not download the video ") + shown + QStringLiteral(": ") + reply->errorString());
+        emit videoReady(promptId, bytes, shown);
+    });
 }
 
 void ComfyClient::fetchImage(const QString& promptId, const QJsonObject& ref)

@@ -47,6 +47,10 @@ public:
     // prompt names them "<Picture 1>", "<Picture 2>" ...; the video shows that character (or thing, or place) doing
     // what the prompt says, in a new pose, framing and background.
     static Workflow referenceToVideoHyperFlow();
+    // LTX-2 19B distilled: a prompt -> a short video WITH its sound, as one MP4 that ComfyUI writes (SaveVideo), not
+    // frames. Recipe keys: prompt (what is seen), sound (what is heard: joined to the prompt), avoid, seconds, width,
+    // height, seed.
+    static Workflow textToVideoLtx();
     // Qwen Image 2.1 Turbo (README.md "Qwen Image 2.1"): a picture from a prompt in 8 steps, and a picture edited or
     // put together from 1 to 4 pictures of this PC ("<image1>", "<image2>" ... in the prompt name them). Its licence is
     // for research and evaluation only.
@@ -60,7 +64,7 @@ public:
     static Workflow qwenFullTextToImage();
     static Workflow qwenFullEditImages();
     // The built-in graphs by id: image, music, sfx, speech, voice, video, video-h3, video-image, video-h3-image, qwen,
-    // qwen-edit, qwen-gguf, qwen-gguf-edit, qwen-full, qwen-full-edit, video-h3-ref (a recipe's "graph", reset-graph). A video recipe with "image" is the -image graph of its model.
+    // qwen-edit, qwen-gguf, qwen-gguf-edit, qwen-full, qwen-full-edit, video-h3-ref, video-ltx (a recipe's "graph", reset-graph). A video recipe with "image" is the -image graph of its model.
     static QStringList builtInIds();
     static bool builtIn(const QString& id, Workflow* out);
 
@@ -113,7 +117,7 @@ public:
     bool needsSpeechServer() const;
     // A video graph: its pictures are the frames of one video, in order (a node that makes a video latent is in it).
     bool makesVideo() const;
-    double videoFps() const;   // the model's own frame rate: 24 for Wan 2.2 TI2V-5B and MiniMax H3, 16 for the other Wan models
+    double videoFps() const;   // the model's own frame rate: 24 for Wan 2.2 TI2V-5B and MiniMax H3, LTX's frame_rate (25), 16 for the other Wan models
     // What a video recipe's prompt gets at its end, so the later tools can read the video (one figure, whole body, a
     // camera that does not move, a plain background): README.md "Video".
     static QString videoPromptSuffix();

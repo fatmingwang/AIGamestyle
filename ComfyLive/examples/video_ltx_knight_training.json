@@ -1,0 +1,9 @@
+{
+    "_comment": "A knight hits a training dummy, with its sound, using LTX-2 19B distilled (768 x 512, 4 s, about 70-90 s on 16 GB).  ComfyLive.exe --make=video_ltx_knight_training.json  docs: README.md \"Video with sound: LTX-2\".",
+    "graph": "video-ltx",
+    "prompt": "A knight in silver armor swings a sword at a wooden training dummy in a castle courtyard on a sunny day. Static camera.",
+    "sound": "a sharp metallic swoosh, then a loud wooden thud, the knight grunts, birds chirp in the background",
+    "seconds": 4,
+    "width": 768,
+    "height": 512
+}
